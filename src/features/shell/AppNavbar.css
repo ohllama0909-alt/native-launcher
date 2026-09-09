@@ -1,189 +1,93 @@
+/* ============================================================
+   Native — application title bar / navigation
+   ============================================================ */
+
 .app-navbar {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  z-index: 400;
   height: var(--navbar-height);
-  padding: 0 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  z-index: 50;
-  -webkit-app-region: drag;
+  gap: 18px;
+  padding-left: 18px;
+  background: linear-gradient(180deg, rgba(23, 31, 38, 0.94), rgba(17, 23, 28, 0.82));
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-bottom: 1px solid var(--component-border);
   user-select: none;
-  background: linear-gradient(180deg, rgba(17, 23, 28, 0.75) 0%, rgba(17, 23, 28, 0) 100%);
-  pointer-events: auto;
+  /* Electron frameless dragging — the old build used a Tauri-only attribute,
+     so the window could not be moved at all. */
+  -webkit-app-region: drag;
 }
 
+.app-navbar::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-glow), transparent);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.app-navbar button,
+.app-navbar a,
+.app-navbar input {
+  -webkit-app-region: no-drag;
+}
+
+/* ---------- brand ---------- */
+
 .navbar-left {
-  flex: 1;
   display: flex;
   align-items: center;
-  -webkit-app-region: no-drag;
+  min-width: 0;
 }
 
 .navbar-logo-btn {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
   display: flex;
   align-items: center;
-  transition: opacity 0.15s ease;
+  gap: 0;
+  padding: 6px 10px 6px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease), transform 0.16s var(--ease);
 }
 
 .navbar-logo-btn:hover {
-  opacity: 0.9;
+  background: var(--ghost-overlay);
+  border-color: var(--component-border);
 }
+
+.navbar-logo-btn:active {
+  transform: scale(0.98);
+}
+
+/* ---------- primary nav ---------- */
 
 .navbar-center {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 36px;
-  -webkit-app-region: no-drag;
-}
-
-.nav-link {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px 4px;
-  gap: 3px;
   position: relative;
-  transition: color 0.15s ease;
-}
-
-.nav-link-label {
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--fg-secondary);
-  transition: color 0.15s ease;
-  line-height: 1.2;
-}
-
-.nav-link:hover .nav-link-label,
-.nav-link.active .nav-link-label {
-  color: var(--fg-primary);
-}
-
-.nav-link.active .nav-link-label {
-  font-weight: 500;
-}
-
-.nav-link-underline {
-  height: 2px;
-  border-radius: 2px;
-  background: var(--fg-primary);
-  width: 0px;
-  transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease;
-}
-
-.nav-link:hover .nav-link-underline {
-  width: 18px;
-  background: var(--fg-secondary);
-}
-
-.nav-link.active .nav-link-underline {
-  width: 27px;
-  background: var(--fg-primary);
-}
-
-.navbar-right {
-  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  -webkit-app-region: no-drag;
-}
-
-.nav-icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-secondary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  position: relative;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.nav-icon-btn:hover {
-  background: var(--ghost-overlay-hover);
-  color: var(--fg-primary);
-}
-
-.nav-icon-btn:active {
-  background: var(--ghost-overlay-pressed);
-}
-
-.unread-badge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  gap: 2px;
+  padding: 4px;
   border-radius: var(--radius-full);
-  background: var(--danger);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--component-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-.avatar-nav-btn {
-  padding: 2px;
-}
-
-.nav-avatar-img {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  background: var(--component-bg);
-  object-fit: cover;
-  display: block;
-}
-
-.window-controls-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 6px;
-}
-
-.window-ctrl-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-secondary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
-}
-
-.window-ctrl-btn:hover {
-  background: var(--ghost-overlay-hover);
-  color: var(--fg-primary);
-}
-
-.window-ctrl-btn.close:hover {
-  background: var(--danger);
-  color: #ffffff;
-}
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  border-radius: var(--radius-full);

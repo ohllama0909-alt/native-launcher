@@ -1,6 +1,7 @@
 /* ============================================================
-   ONECLIENT / ONELAUNCHER DESIGN SYSTEM
-   Colors, typography, and spacing matching OneLauncher
+   NATIVE — DESIGN SYSTEM
+   Colour, typography, radius, motion and elevation tokens for
+   the Native Minecraft launcher.
    ============================================================ */
 
 @import './fonts.css';
@@ -10,6 +11,7 @@
   --page: #11171c;
   --page-elevated: #151c22;
   --page-overlay: rgba(17, 23, 28, 0.72);
+  --page-sunken: #0d1216;
 
   /* Component / Card backgrounds */
   --component-bg: #1a2228;
@@ -31,14 +33,18 @@
   --fg-secondary: #78818d;
   --fg-secondary-hover: #8f99a7;
   --fg-muted: #545c68;
+  --fg-on-brand: #ffffff;
 
-  /* Brand / Accent — Polyfrost OneLauncher signature electric blue */
-  --brand: #2b4bff;
-  --brand-hover: #2843dd;
-  --brand-pressed: #3957ff;
-  --brand-disabled: #1f2f81;
-  --brand-subtle: rgba(43, 75, 255, 0.15);
-  --brand-glow: rgba(43, 75, 255, 0.4);
+  /* Brand / Accent — Native signature violet */
+  --brand: #7c5cff;
+  --brand-hover: #6b49f5;
+  --brand-pressed: #8f74ff;
+  --brand-2: #a855f7;
+  --brand-disabled: #3b2f7a;
+  --brand-subtle: rgba(124, 92, 255, 0.15);
+  --brand-subtle-hover: rgba(124, 92, 255, 0.24);
+  --brand-glow: rgba(124, 92, 255, 0.45);
+  --brand-gradient: linear-gradient(135deg, #6d4aff 0%, #8b5cff 55%, #b06bff 100%);
 
   /* Providers */
   --modrinth: #1bd96a;
@@ -53,6 +59,7 @@
   --success: #239a60;
   --success-subtle: rgba(35, 154, 96, 0.15);
   --warning: #e5c07b;
+  --warning-subtle: rgba(229, 192, 123, 0.15);
   --info: #61afef;
 
   /* Fonts */
@@ -65,14 +72,42 @@
   --radius: 10px;
   --radius-md: 12px;
   --radius-lg: 16px;
+  --radius-xl: 22px;
   --radius-full: 9999px;
 
   /* Sizing */
-  --navbar-height: 80px;
+  --navbar-height: 64px;
+  --titlebar-btn-width: 46px;
   --home-padding: 48px;
+  --page-padding: 32px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
   /* Shadows */
   --shadow-card: 0 12px 32px -4px rgba(0, 0, 0, 0.45);
   --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.6);
-  --shadow-brand: 0 0 24px rgba(43, 75, 255, 0.35);
+  --shadow-brand: 0 0 24px rgba(124, 92, 255, 0.35);
+  --shadow-lift: 0 18px 44px -12px rgba(0, 0, 0, 0.7);
+
+  /* ----------------------------------------------------------
+     Legacy aliases.
+     Older screens (splash, Button.css) reference this shorter
+     set of names. They used to be undefined, which rendered
+     those surfaces transparent — map them onto the tokens above.
+     ---------------------------------------------------------- */
+  --bg-raise: var(--component-bg);
+  --border: var(--component-border);
+  --text: var(--fg-primary);
+  --text-dim: var(--fg-secondary);
+  --accent: var(--brand);
+  --accent-deep: var(--brand-hover);
+  --accent-soft: var(--brand-subtle);
+  --accent-border: var(--brand-glow);
+  --panel-grad-1: #171f26;
+  --panel-grad-2: #10161b;
+  --ms-blue-1: #3b7fd4;
+  --ms-blue-2: #205ba6;
 }
