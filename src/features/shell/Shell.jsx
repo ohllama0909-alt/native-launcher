@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import AppNavbar from './AppNavbar.jsx';
 import HomeView from '../home/HomeView.jsx';
+import InstancesView from '../instances/InstancesView.jsx';
 import ClustersView from '../clusters/ClustersView.jsx';
 import BrowseView from '../browser/BrowseView.jsx';
 import StatsView from '../stats/StatsView.jsx';
@@ -24,8 +25,10 @@ export default function Shell({
   onRemoveAccount,
   onOpenUpdater
 }) {
-  const [currentTab, setCurrentTab] = useState('home'); // 'home' | 'versions' | 'browse' | 'stats' | 'cluster-detail'
+  // 'home' | 'instances' | 'versions' | 'browse' | 'stats' | 'cluster-detail'
+  const [currentTab, setCurrentTab] = useState('home');
   const [clusterDetailTab, setClusterDetailTab] = useState('overview');
+  const [browseReturnTab, setBrowseReturnTab] = useState('instances');
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -37,31 +40,68 @@ export default function Shell({
   const instancesManager = useInstances();
   const launcher = useLauncher();
 
+  const notify = useCallback((title, body) => {
+    setNotifications((prev) =>
+      [
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          title,
+          body,
+          time: new Date().toLocaleTimeString()
+        },
+        ...prev
+      ].slice(0, 60)
+    );
+  }, []);
+
   const handleLaunch = (cluster) => {
     if (!cluster) return;
     launcher.launch(cluster, account);
-    setNotifications((prev) => [
-      {
-        id: Date.now(),
-        title: 'Launching Game',
-        body: `Starting ${cluster.mc_version || cluster.version} ${cluster.mc_loader || cluster.loader}...`,
-        time: new Date().toLocaleTimeString()
-      },
-      ...prev
-    ]);
+    notify(
+      'Launching game',
+      `Starting ${cluster.name || cluster.mc_version || cluster.version} \u2014 ${
+        cluster.mc_version || cluster.version
+      } ${cluster.mc_loader || cluster.loader}`
+    );
   };
 
   const handleOpenCluster = (cluster, tab = 'overview') => {
+    if (!cluster?.id) return;
     instancesManager.select(cluster.id);
     setClusterDetailTab(tab);
     setCurrentTab('cluster-detail');
   };
 
   const handleNavigateBrowse = (cluster) => {
-    if (cluster?.id) {
-      instancesManager.select(cluster.id);
-    }
+    if (cluster?.id) instancesManager.select(cluster.id);
+    setBrowseReturnTab(currentTab === 'browse' ? browseReturnTab : currentTab);
     setCurrentTab('browse');
+  };
+
+  const handleCreateInstance = (values, { open = true } = {}) => {
+    const created = instancesManager.create(values);
+    notify('Instance created', `${created.name} \u2014 ${created.version} ${created.loader}`);
+    if (open) handleOpenCluster(created, 'overview');
+    return created;
+  };
+
+  const handleAddInstance = (instance) => {
+    if (!instance?.id) return;
+    instancesManager.add(instance);
+    notify('Modpack installed', `${instance.name} is ready to play`);
+  };
+
+  const handleDuplicate = (id) => {
+    const copy = instancesManager.duplicate(id);
+    if (copy) notify('Instance duplicated', copy.name);
+    return copy;
+  };
+
+  const handleRemoveInstance = (id) => {
+    const target = instancesManager.instances.find((item) => item.id === id);
+    instancesManager.remove(id);
+    if (target) notify('Instance removed', target.name);
+    if (currentTab === 'cluster-detail') setCurrentTab('instances');
   };
 
   const handleMinimize = () => window.native?.minimize();
@@ -70,9 +110,8 @@ export default function Shell({
 
   return (
     <div className="app-shell">
-      {/* Top Navbar matching OneLauncher */}
       <AppNavbar
-        currentTab={currentTab === 'cluster-detail' ? 'versions' : currentTab}
+        currentTab={currentTab === 'cluster-detail' ? 'instances' : currentTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenNotifications={() => setNotificationsOpen(true)}
@@ -85,7 +124,6 @@ export default function Shell({
         onClose={handleClose}
       />
 
-      {/* Main Content Area */}
       <div className="shell-content-layer">
         {currentTab === 'home' && (
           <HomeView
@@ -100,6 +138,24 @@ export default function Shell({
           />
         )}
 
+        {currentTab === 'instances' && (
+          <InstancesView
+            instances={instancesManager.instances}
+            selectedId={instancesManager.selectedId}
+            onSelect={instancesManager.select}
+            onOpenCluster={handleOpenCluster}
+            onLaunch={handleLaunch}
+            onKill={launcher.kill}
+            launcherState={launcher}
+            onOpenCreateModal={() => setCreateInstanceOpen(true)}
+            onUpdate={instancesManager.update}
+            onDuplicate={handleDuplicate}
+            onRemove={handleRemoveInstance}
+            onNavigateBrowse={handleNavigateBrowse}
+            onNotify={notify}
+          />
+        )}
+
         {currentTab === 'versions' && (
           <ClustersView
             instances={instancesManager.instances}
@@ -108,6 +164,8 @@ export default function Shell({
             onOpenCluster={handleOpenCluster}
             onLaunch={handleLaunch}
             onOpenNewInstanceModal={() => setCreateInstanceOpen(true)}
+            onCreateInstance={handleCreateInstance}
+            onNotify={notify}
           />
         )}
 
@@ -116,19 +174,20 @@ export default function Shell({
             instances={instancesManager.instances}
             selectedCluster={instancesManager.selected}
             onSelectCluster={instancesManager.select}
-            onBack={() => setCurrentTab('versions')}
+            onBack={() => setCurrentTab(browseReturnTab)}
+            onAddInstance={handleAddInstance}
+            onOpenCluster={handleOpenCluster}
+            onNotify={notify}
           />
         )}
 
-        {currentTab === 'stats' && (
-          <StatsView instances={instancesManager.instances} />
-        )}
+        {currentTab === 'stats' && <StatsView instances={instancesManager.instances} />}
 
         {currentTab === 'cluster-detail' && (
           <ClusterDetailView
             cluster={instancesManager.selected}
             initialTab={clusterDetailTab}
-            onBack={() => setCurrentTab('home')}
+            onBack={() => setCurrentTab('instances')}
             onLaunch={handleLaunch}
             onKill={launcher.kill}
             launcherState={launcher}
@@ -138,7 +197,6 @@ export default function Shell({
         )}
       </div>
 
-      {/* Settings Modal */}
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -151,7 +209,6 @@ export default function Shell({
         onOpenUpdater={onOpenUpdater}
       />
 
-      {/* Account Switcher Modal */}
       <AccountSwitcherModal
         open={accountSwitcherOpen}
         onClose={() => setAccountSwitcherOpen(false)}
@@ -163,7 +220,6 @@ export default function Shell({
         onRemoveAccount={onRemoveAccount}
       />
 
-      {/* Notifications Drawer */}
       <NotificationDrawer
         open={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
@@ -171,14 +227,11 @@ export default function Shell({
         onClear={() => setNotifications([])}
       />
 
-      {/* Create Instance Modal */}
       <CreateInstanceModal
         open={createInstanceOpen}
+        instances={instancesManager.instances}
         onClose={() => setCreateInstanceOpen(false)}
-        onCreate={(values) => {
-          const created = instancesManager.create(values);
-          handleOpenCluster(created, 'overview');
-        }}
+        onCreate={(values) => handleCreateInstance(values)}
       />
     </div>
   );
