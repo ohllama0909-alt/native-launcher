@@ -18,7 +18,9 @@ const DEFAULTS = {
   },
   apiKeys: {
     curseforge: ''
-  }
+  },
+  // guided tour — bumped GUIDE_VERSION in the renderer re-shows the tour
+  onboarding: { completedVersion: 0 }
 };
 
 let deps = null;

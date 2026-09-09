@@ -100,7 +100,7 @@ export default function ProfilePanel({
       {/* ── add another account ── */}
       <div className="pp-body">
         {showAdd ? (
-          <div className="pp-add-form">
+          <div className="pp-add-form" data-testid="pp-add-form">
             <p className="pp-add-title">Add account</p>
 
             <input
@@ -136,7 +136,7 @@ export default function ProfilePanel({
           </div>
         ) : (
           <>
-            <button className="pp-action" onClick={() => setShowAdd(true)}>
+            <button className="pp-action" data-testid="pp-add-account" onClick={() => setShowAdd(true)}>
               <UserPlus size={14} />
               Add another account
             </button>

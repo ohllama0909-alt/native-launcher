@@ -18,6 +18,8 @@ import ModDetailPage from '../mods/ModDetailPage.jsx';
 import SettingsModal from '../settings/SettingsModal.jsx';
 import useInstances from '../instances/useInstances.js';
 import useLauncher, { useLauncherInstallLock } from '../launcher/useLauncher.js';
+import GuideOverlay from '../onboarding/GuideOverlay.jsx';
+import useGuide from '../onboarding/useGuide.js';
 import Avatar from '../../components/ui/Avatar.jsx';
 import iconHypixel    from '../../assets/servers/hypixel.png';
 import iconMineplex   from '../../assets/servers/mineplex.png';
@@ -94,6 +96,18 @@ export default function Shell({
   const store = useInstances();
   const sidebarLocked = useLauncherInstallLock();
   const { status, percent, detail, busy } = useLauncher();
+  const guide = useGuide({
+    nav,
+    setNav,
+    settingsOpen,
+    setSettingsOpen,
+    profileOpen,
+    setProfileOpen,
+    accounts,
+    onAddOffline,
+    store,
+    sidebarLocked
+  });
 
   const page = nav.page;
   const sidebarActive =
@@ -141,7 +155,7 @@ export default function Shell({
 
           <div className="shell-top-right">
             <div className="account-wrap" ref={profileRef}>
-              <button className="account-chip" onClick={() => setProfileOpen((v) => !v)}>
+              <button className="account-chip" data-testid="account-chip" onClick={() => setProfileOpen((v) => !v)}>
                 <Avatar
                   className="account-avatar account-avatar-img"
                   uuid={account.uuid}
@@ -175,6 +189,7 @@ export default function Shell({
             )}
             <button
               className={`icon-btn${settingsOpen ? ' active' : ''}`}
+              data-testid="nav-settings"
               title={sidebarLocked ? 'Navigation locked while installing' : 'Settings'}
               disabled={sidebarLocked}
               onClick={() => setSettingsOpen((v) => !v)}
@@ -238,8 +253,17 @@ export default function Shell({
         )}
       </main>
 
-      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          onStartTour={() => {
+            setSettingsOpen(false);
+            guide.start('replay');
+          }}
+        />
+      )}
       <BottomBar />
+      <GuideOverlay guide={guide} />
     </div>
   );
 }

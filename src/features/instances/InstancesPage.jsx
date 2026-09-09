@@ -52,7 +52,7 @@ export default function InstancesPage({ store, onOpen = () => {} }) {
             </button>
           ))}
         </div>
-        <button className="accent-btn" onClick={() => setCreating(true)}>
+        <button className="accent-btn" data-testid="instances-new-btn" onClick={() => setCreating(true)}>
           <Plus size={15} /> New Instance
         </button>
       </div>
@@ -78,7 +78,7 @@ export default function InstancesPage({ store, onOpen = () => {} }) {
             <Boxes size={38} />
             <p>{instances.length === 0 ? 'No instances yet.' : 'No instances match.'}</p>
             {instances.length === 0 && (
-              <button className="accent-btn" onClick={() => setCreating(true)}>
+              <button className="accent-btn" data-testid="instances-empty-cta" onClick={() => setCreating(true)}>
                 <Plus size={15} /> Create your first instance
               </button>
             )}

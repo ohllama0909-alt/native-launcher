@@ -320,7 +320,7 @@ function StorageSection() {
   );
 }
 
-export default function SettingsModal({ onClose = () => {} }) {
+export default function SettingsModal({ onClose = () => {}, onStartTour = () => {} }) {
   const { settings, update } = useSettings();
   const [section, setSection] = useState('java');
   const [dataDir, setDataDir] = useState('');
@@ -508,6 +508,16 @@ export default function SettingsModal({ onClose = () => {} }) {
                     checked={settings.behavior.confirmInstanceDelete}
                     onChange={(v) => update('behavior', 'confirmInstanceDelete', v)}
                   />
+                </SettingRow>
+
+                <h3 className="sm-section-title">Help</h3>
+                <SettingRow
+                  title="Launcher tour"
+                  desc="Replay Vill's quick guide to accounts, instances, mods, and settings"
+                >
+                  <button className="sm-btn" onClick={onStartTour} data-testid="replay-tour">
+                    <Sparkles size={13} /> Replay tour
+                  </button>
                 </SettingRow>
               </>
             )}

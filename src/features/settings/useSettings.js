@@ -12,10 +12,12 @@ export const DEFAULTS = {
   },
   apiKeys: {
     curseforge: ''
-  }
+  },
+  // guided tour — keep in sync with electron/settings.js
+  onboarding: { completedVersion: 0 }
 };
 
-function deepMerge(base, override) {
+export function deepMerge(base, override) {
   const out = { ...base };
   for (const key of Object.keys(override ?? {})) {
     if (
