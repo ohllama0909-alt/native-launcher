@@ -1,539 +1,817 @@
-import React, { useEffect, useState } from 'react';
-import Icon from '../../components/ui/Icon.jsx';
-import FabricApiIcon from '../../assets/mod-icons/fabric-api.png';
-import SodiumIcon from '../../assets/mod-icons/sodium.png';
-import IrisIcon from '../../assets/mod-icons/iris.png';
-import ClothConfigIcon from '../../assets/mod-icons/cloth-config.webp';
-import EntityCullingIcon from '../../assets/mod-icons/entityculling.webp';
-import FerriteCoreIcon from '../../assets/mod-icons/ferrite-core.webp';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import './BrowseView.css';
 
-const CATEGORIES = [
-  'Adventure', 'Cursed', 'Decoration', 'Economy', 'Equipment',
-  'Food', 'Game-mechanics', 'Library', 'Magic', 'Management',
-  'Minigame', 'Mobs', 'Optimization', 'Social', 'Storage',
-  'Technology', 'Transportation'
+const MODRINTH_API = 'https://api.modrinth.com/v2';
+const PAGE_SIZE = 20;
+
+function endpoint(path, params) {
+  const base = MODRINTH_API + path;
+  if (!params) return base;
+  const search = new URLSearchParams(params).toString();
+  return search ? base + '?' + search : base;
+}
+
+/**
+ * Every content type Native can install, and where each one lands on disk.
+ * `folder` maps to the allow-list in the main process; modpacks go through the
+ * dedicated .mrpack installer instead of a plain file download.
+ */
+const CONTENT_TYPES = [
+  { id: 'mod', label: 'Mods', projectType: 'mod', folder: 'mods', icon: 'package' },
+  { id: 'modpack', label: 'Modpacks', projectType: 'modpack', folder: null, icon: 'layers' },
+  { id: 'shader', label: 'Shaderpacks', projectType: 'shader', folder: 'shaderpacks', icon: 'sparkles' },
+  {
+    id: 'resourcepack',
+    label: 'Resourcepacks',
+    projectType: 'resourcepack',
+    folder: 'resourcepacks',
+    icon: 'image'
+  },
+  { id: 'datapack', label: 'Datapacks', projectType: 'datapack', folder: 'datapacks', icon: 'file' }
 ];
 
-// Curated default mods matching launcher3.webp exactly
-const CURATED_MODS = [
-  {
-    id: 'fabric-api',
-    project_id: 'fabric-api',
-    title: 'Fabric API',
-    author: 'modmuss50',
-    summary: 'Lightweight and modular API providing common hooks and intercompatibility',
-    downloads: 218600000,
-    icon_url: FabricApiIcon,
-    bundled: true,
-    categories: ['Library']
-  },
-  {
-    id: 'sodium',
-    project_id: 'sodium',
-    title: 'Sodium',
-    author: 'jellysquid3',
-    summary: 'A high-performance rendering engine replacement for Minecraft, which greatly improves frame rates',
-    downloads: 195700000,
-    icon_url: SodiumIcon,
-    bundled: true,
-    categories: ['Optimization']
-  },
-  {
-    id: 'iris',
-    project_id: 'iris',
-    title: 'Iris Shaders',
-    author: 'coderbot',
-    summary: 'A modern shader pack loader for Minecraft intended to be compatible with existing OptiFine shaders',
-    downloads: 152600000,
-    icon_url: IrisIcon,
-    bundled: true,
-    categories: ['Optimization']
-  },
-  {
-    id: 'cloth-config',
-    project_id: 'cloth-config',
-    title: 'Cloth Config API',
-    author: 'shedaniel',
-    summary: 'Configuration Library for Minecraft Mods with a clean GUI interface',
-    downloads: 142000000,
-    icon_url: ClothConfigIcon,
-    bundled: false,
-    categories: ['Library']
-  },
-  {
-    id: 'entityculling',
-    project_id: 'entityculling',
-    title: 'Entity Culling',
-    author: 'tr7zw',
-    summary: 'Using async path-tracing to hide Block-/Entities that are not visible to boost framerates',
-    downloads: 89400000,
-    icon_url: EntityCullingIcon,
-    bundled: false,
-    categories: ['Optimization']
-  },
-  {
-    id: 'ferrite-core',
-    project_id: 'ferrite-core',
-    title: 'FerriteCore',
-    author: 'malte0811',
-    summary: 'Memory usage optimizations for Minecraft reduce RAM usage by up to 50%',
-    downloads: 78200000,
-    icon_url: FerriteCoreIcon,
-    bundled: false,
-    categories: ['Optimization']
-  },
-  {
-    id: 'indium',
-    project_id: 'indium',
-    title: 'Indium',
-    author: 'comp500',
-    summary: 'Sodium addon providing support for the Fabric Rendering API',
-    downloads: 65100000,
-    icon_url: 'https://cdn.modrinth.com/data/Orvt0mRa/icon.png',
-    bundled: false,
-    categories: ['Optimization']
-  },
-  {
-    id: 'lithium',
-    project_id: 'lithium',
-    title: 'Lithium',
-    author: 'jellysquid3',
-    summary: 'General-purpose optimization mod for Minecraft physics, mob AI, and world ticking',
-    downloads: 98000000,
-    icon_url: 'https://cdn.modrinth.com/data/gvQqBUqZ/icon.png',
-    bundled: false,
-    categories: ['Optimization']
-  },
-  {
-    id: 'modmenu',
-    project_id: 'modmenu',
-    title: 'Mod Menu',
-    author: 'TerraformersMC',
-    summary: 'Adds a screen for viewing a list of installed mods with configs',
-    downloads: 160000000,
-    icon_url: 'https://cdn.modrinth.com/data/mOgUt4GM/icon.png',
-    bundled: true,
-    categories: ['Library']
-  }
+const SORTS = [
+  { id: 'relevance', label: 'Relevance' },
+  { id: 'downloads', label: 'Downloads' },
+  { id: 'follows', label: 'Followers' },
+  { id: 'newest', label: 'Newest' },
+  { id: 'updated', label: 'Updated' }
 ];
+
+const LOADER_FACETS = new Set(['fabric', 'forge', 'neoforge', 'quilt']);
 
 function formatDownloads(count) {
-  if (!count) return '0';
-  if (count >= 1000000000) return `${(count / 1000000000).toFixed(1)}B`;
-  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
-  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
-  return String(count);
+  const value = Number(count) || 0;
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return String(value);
+}
+
+function versionOf(instance) {
+  return instance?.mc_version || instance?.version || '';
+}
+
+function loaderOf(instance) {
+  return instance?.mc_loader || instance?.loader || 'Vanilla';
 }
 
 export default function BrowseView({
   instances = [],
   selectedCluster,
   onSelectCluster,
-  onBack
+  onBack,
+  onAddInstance,
+  onOpenCluster,
+  onNotify
 }) {
-  const [provider, setProvider] = useState('modrinth'); // 'modrinth' | 'curseforge'
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [contentType, setContentType] = useState('mod');
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sort, setSort] = useState('relevance');
   const [page, setPage] = useState(1);
-  const [items, setItems] = useState(CURATED_MODS);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [filterToInstance, setFilterToInstance] = useState(true);
+
+  const [categoryTags, setCategoryTags] = useState([]);
+  const [results, setResults] = useState([]);
+  const [totalHits, setTotalHits] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [installedMap, setInstalledMap] = useState({});
-  const [installingId, setInstallingId] = useState(null);
-  const [activeModalMod, setActiveModalMod] = useState(null);
-  const [clusterDropdownOpen, setClusterDropdownOpen] = useState(false);
+  const [error, setError] = useState(null);
 
-  const currentCluster = selectedCluster || instances[0] || null;
+  const [installedKeys, setInstalledKeys] = useState(new Set());
+  const [busyIds, setBusyIds] = useState(new Set());
+  const [packProgress, setPackProgress] = useState(null);
 
-  // Fetch installed mods for current cluster
+  const [detail, setDetail] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+  const [detailVersions, setDetailVersions] = useState([]);
+  const [instancePickerOpen, setInstancePickerOpen] = useState(false);
+
+  const resultsRef = useRef(null);
+
+  const activeType = CONTENT_TYPES.find((entry) => entry.id === contentType) || CONTENT_TYPES[0];
+  const target = selectedCluster || instances[0] || null;
+  const targetVersion = versionOf(target);
+  const targetLoader = loaderOf(target);
+  const loaderFacet = LOADER_FACETS.has(targetLoader.toLowerCase())
+    ? targetLoader.toLowerCase()
+    : null;
+
+  /* ---------------------------------------------------------- debounce */
+
   useEffect(() => {
-    if (window.native?.mods?.installed && currentCluster?.id) {
-      window.native.mods.installed(currentCluster.id).then((map) => {
-        setInstalledMap(map || {});
+    const timer = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery, contentType, selectedCategories, sort, filterToInstance]);
+
+  useEffect(() => {
+    setSelectedCategories([]);
+  }, [contentType]);
+
+  /* ------------------------------------------------------ category tags */
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(endpoint('/tag/category'))
+      .then((response) => (response.ok ? response.json() : []))
+      .then((tags) => {
+        if (!cancelled) setCategoryTags(Array.isArray(tags) ? tags : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCategoryTags([]);
       });
-    }
-  }, [currentCluster?.id]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  // Search Modrinth API when query or category changes
-  useEffect(() => {
-    if (!searchQuery && !selectedCategory && provider === 'modrinth') {
-      setItems(CURATED_MODS);
+  const categories = useMemo(
+    () =>
+      categoryTags
+        .filter((tag) => tag.project_type === activeType.projectType)
+        .map((tag) => tag.name),
+    [categoryTags, activeType]
+  );
+
+  /* ---------------------------------------------------------- installed */
+
+  const refreshInstalled = useCallback(async () => {
+    if (!target?.id || !window.native?.mods?.installed) {
+      setInstalledKeys(new Set());
       return;
     }
+    try {
+      const manifest = await window.native.mods.installed(target.id);
+      setInstalledKeys(new Set(Object.keys(manifest || {})));
+    } catch {
+      setInstalledKeys(new Set());
+    }
+  }, [target?.id]);
 
-    let cancelled = false;
-    setLoading(true);
+  useEffect(() => {
+    refreshInstalled();
+  }, [refreshInstalled]);
 
-    const timer = setTimeout(async () => {
-      try {
-        const facets = [['project_type:mod']];
-        if (selectedCategory) {
-          facets.push([`categories:${selectedCategory.toLowerCase()}`]);
-        }
-        if (currentCluster?.mc_version) {
-          facets.push([`versions:${currentCluster.mc_version}`]);
-        }
-        if (currentCluster?.mc_loader) {
-          facets.push([`categories:${currentCluster.mc_loader.toLowerCase()}`]);
-        }
+  /* --------------------------------------------------- modpack progress */
 
-        const url = new URL('https://api.modrinth.com/v2/search');
-        if (searchQuery) url.searchParams.set('query', searchQuery);
-        url.searchParams.set('limit', '24');
-        url.searchParams.set('offset', String((page - 1) * 24));
-        url.searchParams.set('facets', JSON.stringify(facets));
-
-        const res = await fetch(url.toString());
-        if (!res.ok) throw new Error('API error');
-        const data = await res.json();
-
-        if (!cancelled) {
-          const hits = (data.hits || []).map((hit) => ({
-            id: hit.project_id || hit.slug,
-            project_id: hit.project_id || hit.slug,
-            title: hit.title,
-            author: hit.author,
-            summary: hit.description,
-            downloads: hit.downloads,
-            icon_url: hit.icon_url,
-            categories: hit.categories || []
-          }));
-          setItems(hits.length ? hits : CURATED_MODS);
-          setLoading(false);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          // Fallback to local filter
-          let filtered = CURATED_MODS;
-          if (searchQuery) {
-            filtered = filtered.filter((m) =>
-              m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              m.summary.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-          }
-          if (selectedCategory) {
-            filtered = filtered.filter((m) =>
-              m.categories.some((c) => c.toLowerCase() === selectedCategory.toLowerCase())
-            );
-          }
-          setItems(filtered);
-          setLoading(false);
-        }
+  useEffect(() => {
+    if (!window.native?.modpacks?.onProgress) return undefined;
+    const unsubscribe = window.native.modpacks.onProgress((payload) => {
+      setPackProgress(payload || null);
+      if (payload && Number(payload.percent) >= 100) {
+        setTimeout(() => setPackProgress(null), 1200);
       }
-    }, 250);
+    });
+    return typeof unsubscribe === 'function' ? unsubscribe : undefined;
+  }, []);
+
+  /* ------------------------------------------------------------- search */
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const facets = [[`project_type:${activeType.projectType}`]];
+    if (selectedCategories.length) {
+      facets.push(selectedCategories.map((name) => `categories:${name}`));
+    }
+    if (filterToInstance && targetVersion) {
+      facets.push([`versions:${targetVersion}`]);
+    }
+    // Only mods are tagged by mod loader. Shaders use iris/optifine/canvas and
+    // resourcepacks are not tagged at all, so applying it there returns zero.
+    if (activeType.id === 'mod' && filterToInstance && loaderFacet) {
+      facets.push([`categories:${loaderFacet}`]);
+    }
+
+    const params = {
+      limit: String(PAGE_SIZE),
+      offset: String((page - 1) * PAGE_SIZE),
+      index: sort,
+      facets: JSON.stringify(facets)
+    };
+    if (debouncedQuery.trim()) params.query = debouncedQuery.trim();
+
+    setLoading(true);
+    setError(null);
+
+    fetch(endpoint('/search', params), { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error('Search failed');
+        return response.json();
+      })
+      .then((json) => {
+        if (cancelled) return;
+        setResults(Array.isArray(json?.hits) ? json.hits : []);
+        setTotalHits(Number(json?.total_hits) || 0);
+      })
+      .catch((err) => {
+        if (cancelled || err.name === 'AbortError') return;
+        setResults([]);
+        setTotalHits(0);
+        setError('Could not reach Modrinth. Check your connection and try again.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      controller.abort();
     };
-  }, [searchQuery, selectedCategory, provider, currentCluster?.mc_version, currentCluster?.mc_loader, page]);
+  }, [
+    activeType,
+    debouncedQuery,
+    selectedCategories,
+    sort,
+    page,
+    filterToInstance,
+    targetVersion,
+    loaderFacet
+  ]);
 
-  const handleInstall = async (mod, e) => {
-    e.stopPropagation();
-    if (!currentCluster?.id || !window.native?.mods?.install) return;
+  /* ------------------------------------------------------------ install */
 
-    setInstallingId(mod.id);
+  const markBusy = (id, busy) => {
+    setBusyIds((current) => {
+      const next = new Set(current);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const installModpack = async (project) => {
+    const id = project.project_id;
+    markBusy(id, true);
     try {
-      // Find download URL via Modrinth
-      const versionsRes = await fetch(`https://api.modrinth.com/v2/project/${mod.project_id || mod.id}/version`);
-      const versions = await versionsRes.json();
-      if (Array.isArray(versions) && versions.length > 0) {
-        const file = versions[0].files?.[0];
-        if (file?.url) {
-          const updated = await window.native.mods.install({
-            instanceId: currentCluster.id,
-            projectId: mod.id,
-            url: file.url,
-            filename: file.filename,
-            folder: 'mods',
-            metadata: {
-              title: mod.title,
-              description: mod.summary,
-              iconUrl: mod.icon_url,
-              author: mod.author,
-              source: 'modrinth',
-              version: versions[0].version_number
-            }
-          });
-          setInstalledMap(updated || {});
-        }
+      const created = await window.native.modpacks.install(id);
+      if (created) {
+        onAddInstance?.(created);
+        onNotify?.('Modpack installed', `${project.title} is ready to play.`);
       }
     } catch (err) {
-      console.error('Install failed:', err);
+      onNotify?.('Install failed', err?.message || `Could not install ${project.title}.`);
     } finally {
-      setInstallingId(null);
+      markBusy(id, false);
+      setPackProgress(null);
     }
+  };
+
+  const installContent = async (project) => {
+    if (!target?.id) {
+      onNotify?.('No instance selected', 'Create an instance before installing content.');
+      return;
+    }
+
+    const id = project.project_id;
+    markBusy(id, true);
+
+    try {
+      /* Ask for versions that actually match the instance rather than
+         blindly taking the newest build. */
+      const params = {};
+      if (targetVersion) params.game_versions = JSON.stringify([targetVersion]);
+      if (activeType.id === 'mod' && loaderFacet) {
+        params.loaders = JSON.stringify([loaderFacet]);
+      }
+
+      let response = await fetch(endpoint('/project/' + id + '/version', params));
+      let versions = response.ok ? await response.json() : [];
+
+      if (!Array.isArray(versions) || versions.length === 0) {
+        // Nothing matched exactly, fall back to the full list so the user is
+        // told what is available instead of silently installing a bad build.
+        response = await fetch(endpoint('/project/' + id + '/version'));
+        versions = response.ok ? await response.json() : [];
+        if (!Array.isArray(versions) || versions.length === 0) {
+          throw new Error('No downloadable versions were published for this project.');
+        }
+        const label = [targetVersion, activeType.id === 'mod' ? targetLoader : null]
+          .filter(Boolean)
+          .join(' ');
+        onNotify?.(
+          'No exact match',
+          `${project.title} has no build for ${label || 'this instance'}. Installing the latest release instead.`
+        );
+      }
+
+      const version = versions[0];
+      const file = (version.files || []).find((entry) => entry.primary) || version.files?.[0];
+      if (!file?.url) throw new Error('That version has no downloadable file.');
+
+      await window.native.mods.install({
+        instanceId: target.id,
+        projectId: id,
+        url: file.url,
+        filename: file.filename,
+        folder: activeType.folder || 'mods',
+        metadata: {
+          title: project.title,
+          description: project.description,
+          iconUrl: project.icon_url,
+          author: project.author,
+          source: 'modrinth',
+          version: version.version_number
+        }
+      });
+
+      await refreshInstalled();
+      onNotify?.('Installed', `${project.title} was added to ${target.name}.`);
+    } catch (err) {
+      onNotify?.('Install failed', err?.message || `Could not install ${project.title}.`);
+    } finally {
+      markBusy(id, false);
+    }
+  };
+
+  const handleInstall = (project) => {
+    if (activeType.id === 'modpack') installModpack(project);
+    else installContent(project);
+  };
+
+  const handleRemove = async (project) => {
+    if (!target?.id) return;
+    const id = project.project_id;
+    markBusy(id, true);
+    try {
+      await window.native.mods.remove({ instanceId: target.id, projectId: id });
+      await refreshInstalled();
+    } catch (err) {
+      onNotify?.('Could not remove', err?.message || 'Removing that content failed.');
+    } finally {
+      markBusy(id, false);
+    }
+  };
+
+  /* ------------------------------------------------------------- detail */
+
+  const openDetail = async (project) => {
+    setDetail(project);
+    setDetailData(null);
+    setDetailVersions([]);
+
+    try {
+      const [projectResponse, versionsResponse] = await Promise.all([
+        fetch(endpoint('/project/' + project.project_id)),
+        fetch(endpoint('/project/' + project.project_id + '/version'))
+      ]);
+      if (projectResponse.ok) setDetailData(await projectResponse.json());
+      if (versionsResponse.ok) {
+        const list = await versionsResponse.json();
+        setDetailVersions(Array.isArray(list) ? list.slice(0, 12) : []);
+      }
+    } catch {
+      /* the modal falls back to the search hit data */
+    }
+  };
+
+  useEffect(() => {
+    if (!detail) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setDetail(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [detail]);
+
+  const totalPages = Math.max(1, Math.ceil(totalHits / PAGE_SIZE));
+  const pageNumbers = useMemo(() => {
+    const span = 2;
+    const start = Math.max(1, page - span);
+    const end = Math.min(totalPages, page + span);
+    const list = [];
+    for (let index = start; index <= end; index += 1) list.push(index);
+    return list;
+  }, [page, totalPages]);
+
+  const goToPage = (next) => {
+    setPage(Math.min(totalPages, Math.max(1, next)));
+    resultsRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="browse-view">
-      {/* Top Header matching launcher3.webp */}
-      <div className="browse-header">
+      <header className="browse-header">
         <div className="browse-title-group">
-          <button className="cluster-back-link" onClick={onBack}>
-            <Icon name="arrow-left" size={14} />
-            <span>Back to Versions</span>
+          {onBack && (
+            <button type="button" className="browse-back-link" onClick={onBack}>
+              <NativeIcon name="arrow-left" size={15} />
+              <span>Back</span>
+            </button>
+          )}
+          <h1 className="browse-title">Browse</h1>
+          <p className="browse-subtitle">Content from Modrinth, installed straight into an instance.</p>
+        </div>
+
+        <div className="browse-instance-picker">
+          <span className="browse-picker-label">Installing to</span>
+          <div className="browse-picker-wrap">
+            <button
+              type="button"
+              className="browse-picker-btn"
+              onClick={() => setInstancePickerOpen((value) => !value)}
+              disabled={instances.length === 0}
+            >
+              <NativeIcon name="cube" size={15} />
+              <span>{target ? target.name : 'No instances'}</span>
+              <NativeIcon name="chevron-down" size={13} />
+            </button>
+
+            {instancePickerOpen && instances.length > 0 && (
+              <div className="browse-picker-popup">
+                {instances.map((instance) => (
+                  <button
+                    key={instance.id}
+                    type="button"
+                    className={`browse-picker-item ${target?.id === instance.id ? 'active' : ''}`}
+                    onClick={() => {
+                      onSelectCluster?.(instance.id);
+                      setInstancePickerOpen(false);
+                    }}
+                  >
+                    <span className="browse-picker-name">{instance.name}</span>
+                    <span className="browse-picker-meta">
+                      {`${versionOf(instance)} ${loaderOf(instance)}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <nav className="browse-type-tabs">
+        {CONTENT_TYPES.map((type) => (
+          <button
+            key={type.id}
+            type="button"
+            className={`browse-type-tab ${contentType === type.id ? 'active' : ''}`}
+            onClick={() => setContentType(type.id)}
+          >
+            <NativeIcon name={type.icon} size={15} />
+            <span>{type.label}</span>
           </button>
-          <h1 className="browse-title">Browse Mods</h1>
-          <div className="browse-cluster-picker">
-            <span>for</span>
-            <div style={{ position: 'relative' }}>
-              <button
-                className="cluster-dropdown-btn"
-                onClick={() => setClusterDropdownOpen(!clusterDropdownOpen)}
-              >
-                <span>
-                  {currentCluster
-                    ? `${currentCluster.mc_version || currentCluster.version} ${currentCluster.mc_loader || currentCluster.loader} · ${currentCluster.name}`
-                    : 'Select a version'}
-                </span>
-                <Icon name="chevron-down" size={14} />
-              </button>
+        ))}
+      </nav>
 
-              {clusterDropdownOpen && (
-                <div className="context-menu-popup" style={{ top: '100%', left: 0, marginTop: 4 }}>
-                  {instances.map((inst) => (
-                    <button
-                      key={inst.id}
-                      className="context-menu-item"
-                      onClick={() => {
-                        onSelectCluster(inst.id);
-                        setClusterDropdownOpen(false);
-                      }}
-                    >
-                      {inst.mc_version || inst.version} {inst.mc_loader || inst.loader} · {inst.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="browse-controls-row">
+        <label className="browse-search">
+          <NativeIcon name="search" size={16} />
+          <input
+            type="text"
+            value={query}
+            placeholder={`Search ${activeType.label.toLowerCase()}`}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query && (
+            <button type="button" className="browse-search-clear" onClick={() => setQuery('')}>
+              <NativeIcon name="close" size={14} />
+            </button>
+          )}
+        </label>
+
+        <div className="browse-sort-group">
+          {SORTS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className={`browse-sort-btn ${sort === entry.id ? 'active' : ''}`}
+              onClick={() => setSort(entry.id)}
+            >
+              {entry.label}
+            </button>
+          ))}
         </div>
 
-        {/* Controls Row */}
-        <div className="browse-controls-row">
-          {/* Grid / List Mode */}
-          <div className="browse-view-toggle">
-            <button
-              className={`view-mode-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => setViewMode('grid')}
-              title="Grid View"
-            >
-              <Icon name="dots-grid" size={15} />
-            </button>
-            <button
-              className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
-              onClick={() => setViewMode('list')}
-              title="List View"
-            >
-              <Icon name="layout-top" size={15} />
-            </button>
-          </div>
-
-          {/* Provider Pills: Modrinth & CurseForge */}
-          <div className="source-toggle-group">
-            <button
-              className={`source-btn ${provider === 'modrinth' ? 'active' : ''}`}
-              onClick={() => setProvider('modrinth')}
-            >
-              <Icon name="modrinth" size={16} />
-              <span>Modrinth</span>
-            </button>
-
-            <button
-              className={`source-btn ${provider === 'curseforge' ? 'active' : ''}`}
-              onClick={() => setProvider('curseforge')}
-            >
-              <Icon name="curseforge" size={16} />
-              <span>CurseForge</span>
-            </button>
-          </div>
-
-          {/* Search Box */}
-          <div className="browse-search-input-wrap">
-            <Icon name="search-md" size={14} />
-            <input
-              type="text"
-              placeholder="Search for content"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
+        {activeType.id !== 'modpack' && target && (
+          <button
+            type="button"
+            className={`browse-compat-toggle ${filterToInstance ? 'active' : ''}`}
+            onClick={() => setFilterToInstance((value) => !value)}
+            title="Only show content compatible with the selected instance"
+          >
+            <NativeIcon name={filterToInstance ? 'check-circle' : 'circle'} size={15} />
+            <span>
+              {`Compatible with ${targetVersion}${
+                activeType.id === 'mod' && loaderFacet ? ' ' + targetLoader : ''
+              }`}
+            </span>
+          </button>
+        )}
       </div>
 
-      {/* Main Two-Column Layout */}
       <div className="browse-body-row">
-        {/* Left: Categories Sidebar */}
-        <aside className="categories-sidebar">
-          <span className="categories-heading">CATEGORIES</span>
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                className={`category-nav-btn ${isSelected ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(isSelected ? null : cat)}
-              >
-                <span>{cat}</span>
-              </button>
-            );
-          })}
+        <aside className="browse-categories">
+          <h2 className="browse-categories-heading">Categories</h2>
+
+          {categories.length === 0 ? (
+            <p className="browse-categories-empty">No categories for this type.</p>
+          ) : (
+            <div className="browse-categories-list">
+              {categories.map((name) => {
+                const active = selectedCategories.includes(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    className={`browse-category-btn ${active ? 'active' : ''}`}
+                    onClick={() =>
+                      setSelectedCategories((current) =>
+                        current.includes(name)
+                          ? current.filter((entry) => entry !== name)
+                          : [...current, name]
+                      )
+                    }
+                  >
+                    <span className="browse-category-dot" />
+                    <span className="browse-category-name">{name.replace(/-/g, ' ')}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedCategories.length > 0 && (
+            <button
+              type="button"
+              className="browse-clear-categories"
+              onClick={() => setSelectedCategories([])}
+            >
+              Clear filters
+            </button>
+          )}
         </aside>
 
-        {/* Right: Mod Cards Grid / List */}
-        <main className="browse-results-area">
+        <div className="browse-results" ref={resultsRef}>
+          <div className="browse-results-meta">
+            {loading ? (
+              <span className="browse-loading-text">
+                <NativeIcon name="refresh" size={13} className="is-spinning" />
+                Searching...
+              </span>
+            ) : (
+              <span>{`${totalHits.toLocaleString()} results`}</span>
+            )}
+          </div>
+
+          {packProgress && (
+            <div className="browse-pack-progress">
+              <div className="browse-pack-bar">
+                <span style={{ width: `${Math.min(100, Number(packProgress.percent) || 0)}%` }} />
+              </div>
+              <span className="browse-pack-detail">
+                {packProgress.detail || 'Installing modpack...'}
+              </span>
+            </div>
+          )}
+
+          {error && (
+            <div className="browse-error">
+              <NativeIcon name="alert" size={18} />
+              <p>{error}</p>
+            </div>
+          )}
+
+          {!error && !loading && results.length === 0 && (
+            <div className="browse-error">
+              <NativeIcon name="search" size={18} />
+              <p>
+                Nothing found. Try clearing the category filters or turning off the compatibility
+                filter.
+              </p>
+            </div>
+          )}
+
           <div className="browse-cards-grid">
-            {items.map((item) => {
-              const isInstalled = Boolean(installedMap[item.id] || installedMap[item.project_id]);
-              const isBundled = item.bundled || false;
-              const isInstalling = installingId === item.id;
+            {results.map((project) => {
+              const id = project.project_id;
+              const isInstalled = installedKeys.has(id);
+              const isBusy = busyIds.has(id);
 
               return (
-                <div
-                  key={item.id}
-                  className="mod-card"
-                  onClick={() => setActiveModalMod(item)}
-                >
-                  {/* Banner with blurred background and centered icon */}
-                  <div className="mod-card-banner">
-                    {item.icon_url && (
-                      <img
-                        src={item.icon_url}
-                        alt=""
-                        className="mod-card-blur-bg"
-                        aria-hidden="true"
-                      />
-                    )}
-                    {item.icon_url ? (
-                      <img
-                        src={item.icon_url}
-                        alt={item.title}
-                        className="mod-card-icon-centered"
-                      />
-                    ) : (
-                      <div className="mod-card-icon-centered" style={{ background: '#1a2228', display: 'grid', placeItems: 'center' }}>
-                        <Icon name="code-snippet-02" size={28} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Body */}
-                  <div className="mod-card-body">
-                    <div className="mod-card-text">
-                      <h3 className="mod-card-title">{item.title}</h3>
-                      <div className="mod-card-author-row">
-                        <span>by {item.author || 'Author'}</span>
-                        <Icon name={provider === 'curseforge' ? 'curseforge' : 'modrinth'} size={12} />
-                      </div>
-                      <p className="mod-card-summary">{item.summary}</p>
-                    </div>
-
-                    <div className="mod-card-footer">
-                      <span className="mod-downloads-count">
-                        <Icon name="download-01" size={12} />
-                        {formatDownloads(item.downloads)}
-                      </span>
-
-                      {isBundled ? (
-                        <span className="badge-bundled">
-                          <Icon name="check-circle" size={11} />
-                          Bundled
-                        </span>
-                      ) : isInstalled ? (
-                        <span className="badge-installed">
-                          <Icon name="check-circle" size={11} />
-                          Installed
-                        </span>
+                <article className="content-card" key={id}>
+                  <button
+                    type="button"
+                    className="content-card-main"
+                    onClick={() => openDetail(project)}
+                  >
+                    <span className="content-card-icon">
+                      {project.icon_url ? (
+                        <img src={project.icon_url} alt="" loading="lazy" />
                       ) : (
-                        <button
-                          className="mod-card-action-btn"
-                          onClick={(e) => handleInstall(item, e)}
-                          disabled={isInstalling}
-                        >
-                          <Icon name="download-01" size={11} />
-                          <span>{isInstalling ? 'Installing...' : 'Get'}</span>
-                        </button>
+                        <NativeIcon name={activeType.icon} size={20} />
                       )}
-                    </div>
+                    </span>
+
+                    <span className="content-card-text">
+                      <span className="content-card-title-row">
+                        <span className="content-card-title">{project.title}</span>
+                        {isInstalled && (
+                          <span className="content-card-badge">
+                            <NativeIcon name="check" size={10} />
+                            Installed
+                          </span>
+                        )}
+                      </span>
+                      <span className="content-card-desc">{project.description}</span>
+                      <span className="content-card-stats">
+                        <span>
+                          <NativeIcon name="download" size={11} />
+                          {formatDownloads(project.downloads)}
+                        </span>
+                        <span>
+                          <NativeIcon name="star" size={11} />
+                          {formatDownloads(project.follows)}
+                        </span>
+                        {project.author && <span>{project.author}</span>}
+                      </span>
+                    </span>
+                  </button>
+
+                  <div className="content-card-actions">
+                    {isInstalled && activeType.id !== 'modpack' ? (
+                      <button
+                        type="button"
+                        className="content-remove-btn"
+                        onClick={() => handleRemove(project)}
+                        disabled={isBusy}
+                      >
+                        {isBusy ? '...' : 'Remove'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="content-install-btn"
+                        onClick={() => handleInstall(project)}
+                        disabled={isBusy || (activeType.id !== 'modpack' && !target)}
+                      >
+                        {isBusy ? (
+                          <NativeIcon name="refresh" size={14} className="is-spinning" />
+                        ) : (
+                          <NativeIcon name="download" size={14} />
+                        )}
+                        <span>{activeType.id === 'modpack' ? 'Install pack' : 'Install'}</span>
+                      </button>
+                    )}
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
 
-          {/* Pagination */}
-          <div className="browse-pagination-bar">
-            <button className="page-btn" disabled={page <= 1} onClick={() => setPage(1)}>
-              «
-            </button>
-            <button className="page-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              ‹
-            </button>
-            <button className={`page-btn ${page === 1 ? 'active' : ''}`} onClick={() => setPage(1)}>
-              1
-            </button>
-            <button className={`page-btn ${page === 2 ? 'active' : ''}`} onClick={() => setPage(2)}>
-              2
-            </button>
-            <button className={`page-btn ${page === 3 ? 'active' : ''}`} onClick={() => setPage(3)}>
-              3
-            </button>
-            <span className="page-dots">...</span>
-            <button className="page-btn" onClick={() => setPage(340)}>
-              340
-            </button>
-            <button className="page-btn" onClick={() => setPage((p) => p + 1)}>
-              ›
-            </button>
-            <button className="page-btn" onClick={() => setPage(340)}>
-              »
-            </button>
-          </div>
-        </main>
-      </div>
+          {totalPages > 1 && (
+            <div className="browse-pagination">
+              <button
+                type="button"
+                className="browse-page-btn"
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1}
+              >
+                <NativeIcon name="chevron-left" size={14} />
+              </button>
 
-      {/* Mod Details Modal */}
-      {activeModalMod && (
-        <div className="mod-modal-backdrop" onClick={() => setActiveModalMod(null)}>
-          <div className="mod-modal-container" onClick={(e) => e.stopPropagation()}>
-            <div className="mod-modal-header">
-              <div className="mod-modal-header-left">
-                {activeModalMod.icon_url && (
-                  <img src={activeModalMod.icon_url} alt="" className="mod-modal-icon" />
-                )}
-                <div className="mod-modal-title-group">
-                  <h2>{activeModalMod.title}</h2>
-                  <p>by {activeModalMod.author} · {formatDownloads(activeModalMod.downloads)} downloads</p>
-                </div>
-              </div>
-              <button className="icon-ctrl-btn" onClick={() => setActiveModalMod(null)}>
-                <Icon name="x" size={16} />
+              {pageNumbers[0] > 1 && <span className="browse-page-dots">...</span>}
+
+              {pageNumbers.map((number) => (
+                <button
+                  key={number}
+                  type="button"
+                  className={`browse-page-btn ${number === page ? 'active' : ''}`}
+                  onClick={() => goToPage(number)}
+                >
+                  {number}
+                </button>
+              ))}
+
+              {pageNumbers[pageNumbers.length - 1] < totalPages && (
+                <span className="browse-page-dots">...</span>
+              )}
+
+              <button
+                type="button"
+                className="browse-page-btn"
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages}
+              >
+                <NativeIcon name="chevron-right" size={14} />
               </button>
             </div>
+          )}
+        </div>
+      </div>
 
-            <div className="mod-modal-body">
-              <div className="mod-modal-desc">
-                {activeModalMod.summary}
+      {detail && (
+        <div className="content-modal-backdrop" onClick={() => setDetail(null)}>
+          <div className="content-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="content-modal-header">
+              <span className="content-modal-icon">
+                {detail.icon_url ? (
+                  <img src={detail.icon_url} alt="" />
+                ) : (
+                  <NativeIcon name={activeType.icon} size={22} />
+                )}
+              </span>
+
+              <div className="content-modal-heading">
+                <h2>{detail.title}</h2>
+                <p>{detail.description}</p>
               </div>
 
-              <span className="mod-modal-versions-heading">TARGET VERSION</span>
-              <div className="mod-versions-table">
-                <div className="mod-version-row">
-                  <span className="mod-version-name">
-                    {currentCluster?.mc_version || '26.2'} ({currentCluster?.mc_loader || 'Fabric'})
-                  </span>
-                  <button
-                    className="sub-btn brand-btn"
-                    onClick={(e) => handleInstall(activeModalMod, e)}
-                  >
-                    <Icon name="download-01" size={13} />
-                    <span>Install to {currentCluster?.name || 'Cluster'}</span>
-                  </button>
+              <button
+                type="button"
+                className="content-modal-close"
+                onClick={() => setDetail(null)}
+                title="Close"
+              >
+                <NativeIcon name="close" size={16} />
+              </button>
+            </header>
+
+            <div className="content-modal-body">
+              <div className="content-modal-stats">
+                <div>
+                  <span>Downloads</span>
+                  <strong>{formatDownloads(detail.downloads)}</strong>
+                </div>
+                <div>
+                  <span>Followers</span>
+                  <strong>{formatDownloads(detail.follows)}</strong>
+                </div>
+                <div>
+                  <span>Licence</span>
+                  <strong>{detailData?.license?.id || detail.license || 'Unknown'}</strong>
+                </div>
+                <div>
+                  <span>Author</span>
+                  <strong>{detail.author || 'Unknown'}</strong>
                 </div>
               </div>
+
+              {(detailData?.gallery || []).length > 0 && (
+                <div className="content-modal-gallery">
+                  {detailData.gallery.slice(0, 6).map((image) => (
+                    <img key={image.url} src={image.url} alt={image.title || ''} loading="lazy" />
+                  ))}
+                </div>
+              )}
+
+              <section className="content-modal-section">
+                <h3>Versions</h3>
+                {detailVersions.length === 0 ? (
+                  <p className="content-modal-muted">Loading version list...</p>
+                ) : (
+                  <div className="content-version-table">
+                    {detailVersions.map((version) => (
+                      <div className="content-version-row" key={version.id}>
+                        <span className="content-version-name">{version.version_number}</span>
+                        <span className="content-version-tag">{version.version_type}</span>
+                        <span className="content-version-games">
+                          {(version.game_versions || []).slice(0, 4).join(', ')}
+                        </span>
+                        <span className="content-version-loaders">
+                          {(version.loaders || []).join(', ')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
+
+            <footer className="content-modal-footer">
+              <button
+                type="button"
+                className="content-modal-link"
+                onClick={() =>
+                  window.native?.openExternal?.(
+                    'https://modrinth.com/project/' + (detail.slug || detail.project_id)
+                  )
+                }
+              >
+                <NativeIcon name="external-link" size={14} />
+                <span>View on Modrinth</span>
+              </button>
+
+              <button
+                type="button"
+                className="content-install-btn"
+                onClick={() => {
+                  handleInstall(detail);
+                  setDetail(null);
+                }}
+                disabled={activeType.id !== 'modpack' && !target}
+              >
+                <NativeIcon name="download" size={14} />
+                <span>{activeType.id === 'modpack' ? 'Install pack' : 'Install'}</span>
+              </button>
+            </footer>
           </div>
         </div>
       )}
