@@ -107,7 +107,9 @@ async function main() {
     if (names.some(n => n.endsWith('.AppImage') || n.endsWith('.deb'))) {
       required.push('latest-linux.yml');
     }
-    if (names.some(n => n.endsWith('.dmg') || n.endsWith('.zip'))) {
+    // The Windows portable target is also a .zip. A macOS build always emits
+    // a DMG with the configured targets, so use that to identify Mac assets.
+    if (names.some(n => n.endsWith('.dmg'))) {
       required.push('latest-mac.yml');
     }
     const missing = required.filter(n => !names.includes(n));
