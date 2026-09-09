@@ -63,6 +63,9 @@ function initialNav() {
     return { page: 'instance', id: decodeURIComponent(hash.slice('#instance='.length)) };
   }
   if (hash.startsWith('#instances')) return { page: 'instances' };
+  if (hash.startsWith('#modpack=')) {
+    return { page: 'mod', id: decodeURIComponent(hash.slice('#modpack='.length)), from: 'modpacks' };
+  }
   if (hash.startsWith('#mod=')) {
     return { page: 'mod', id: decodeURIComponent(hash.slice('#mod='.length)) };
   }
@@ -95,7 +98,7 @@ export default function Shell({
   const page = nav.page;
   const sidebarActive =
     page === 'instance' ? 'instances'
-    : page === 'mod' ? 'mods'
+    : page === 'mod' ? (nav.from === 'modpacks' ? 'modpacks' : 'mods')
     : page === 'modpacks' ? 'modpacks'
     : page;
 
@@ -224,6 +227,11 @@ export default function Shell({
             projectId={nav.id}
             onBack={() => setNav({ page: nav.from || 'mods' })}
             onPackInstalled={(id) => setNav({ page: 'instance', id })}
+            onLoaded={(proj) => {
+              if (proj?.project_type === 'modpack' && nav.from !== 'modpacks') {
+                setNav((prev) => ({ ...prev, from: 'modpacks' }));
+              }
+            }}
           />
         ) : (
           <ComingSoon label={PAGE_LABELS[page] ?? page} />

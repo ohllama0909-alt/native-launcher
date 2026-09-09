@@ -21,7 +21,8 @@ export default function ModDetailPage({
   store,
   projectId,
   onBack = () => {},
-  onPackInstalled = () => {}
+  onPackInstalled = () => {},
+  onLoaded = () => {}
 }) {
   const { selected } = store;
   const [project, setProject] = useState(null);
@@ -55,8 +56,7 @@ export default function ModDetailPage({
         const raw = (await projectResponse.json()).data;
         const description = descriptionResponse.ok ? (await descriptionResponse.json()).data : '';
         const typeByClass = { 6: 'mod', 12: 'resourcepack', 6552: 'shader', 6945: 'datapack' };
-        setAuthor(raw.authors?.[0]?.name ?? '');
-        setProject({
+        const nextProject = {
           id: `cf:${raw.id}`,
           project_id: `cf:${raw.id}`,
           cf_id: raw.id,
@@ -70,7 +70,10 @@ export default function ModDetailPage({
           downloads: raw.downloadCount ?? 0,
           followers: raw.thumbsUpCount ?? 0,
           categories: (raw.categories ?? []).map((category) => category.name).filter(Boolean)
-        });
+        };
+        setAuthor(raw.authors?.[0]?.name ?? '');
+        setProject(nextProject);
+        onLoaded?.(nextProject);
         return;
       }
 
@@ -80,7 +83,9 @@ export default function ModDetailPage({
       ]);
       if (!projectResponse.ok) throw new Error();
       const nextProject = await projectResponse.json();
-      setProject({ ...nextProject, project_id: nextProject.id, source: 'modrinth' });
+      const resolved = { ...nextProject, project_id: nextProject.id, source: 'modrinth' };
+      setProject(resolved);
+      onLoaded?.(resolved);
       if (membersResponse.ok) {
         const members = await membersResponse.json();
         const owner = members.find?.((member) => member.role === 'Owner') ?? members[0];
