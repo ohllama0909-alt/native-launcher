@@ -3,7 +3,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .back-link {
@@ -40,10 +40,7 @@
   display: flex;
   align-items: flex-start;
   gap: 18px;
-  padding: 20px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, var(--panel-grad-1), var(--panel-grad-2));
-  border: 1px solid var(--border);
+  padding: 10px 1px 14px;
 }
 
 .mod-detail-icon {
@@ -61,8 +58,8 @@
 }
 
 .mod-detail-info h1 {
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 27px;
+  font-weight: 650;
 }
 
 .mod-detail-desc {
@@ -162,7 +159,7 @@
 .mod-detail-body {
   padding: 22px 26px;
   border-radius: var(--radius-lg);
-  background: var(--bg-panel);
+  background: var(--component);
   border: 1px solid var(--border);
 }
 

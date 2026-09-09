@@ -148,6 +148,11 @@ export default function ModsPage({ store, onOpenMod = () => {}, onPackInstalled 
 
   return (
     <div className="mods">
+      <header className="content-page-head">
+        <span>Discover</span>
+        <h1>Browse content</h1>
+        <p>{selected ? `Compatible content for ${selected.name} · ${selected.loader} ${selected.version}` : 'Select an instance to explore compatible content.'}</p>
+      </header>
       <div className="mods-toolbar">
         <div className="pill-tabs">
           {TABS.map((t) => (
@@ -243,6 +248,7 @@ export default function ModsPage({ store, onOpenMod = () => {}, onPackInstalled 
                   )}
                   <div className="mod-info">
                     <strong title={mod.title}>{mod.title}</strong>
+                    <p>{mod.description || 'Community-made content for Minecraft.'}</p>
                     <small className={error ? 'mod-error' : ''}>
                       {error ??
                         `${mod.author ? `by ${mod.author} · ` : ''}${formatCount(mod.downloads)} downloads`}

@@ -23,7 +23,7 @@
 .login-art-fade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, transparent 70%, rgba(18, 11, 12, 0.65) 100%);
+  background: linear-gradient(to right, transparent 70%, rgba(17, 23, 28, 0.82) 100%);
   pointer-events: none;
 }
 
@@ -70,7 +70,7 @@
   height: 300px;
   bottom: -140px;
   right: -100px;
-  background: rgba(163, 31, 31, 0.28);
+  background: rgba(43, 75, 255, 0.2);
 }
 
 .login-cube {

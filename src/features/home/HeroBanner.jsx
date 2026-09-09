@@ -74,6 +74,12 @@ export default function HeroBanner({
   return (
     <GlowPanel className="hero">
       <div className="hero-body">
+        <div className="hero-focus">
+          <div className="hero-profile-copy">
+            <span className="hero-kicker">Ready to play</span>
+            <h1>{selected ? `${selected.version} ${selected.loader}` : 'Choose a version'}</h1>
+            <p>{selected?.name ?? 'Create an instance to begin your next world.'}</p>
+          </div>
         <div
           className={`launch-wrap${showInstall ? ' launch-wrap--install' : ''}${isError ? ' launch-wrap--error' : ''}${busy ? ' launch-wrap--busy' : ''}`}
           ref={menuRef}
@@ -150,6 +156,7 @@ export default function HeroBanner({
               </button>
             </div>
           )}
+        </div>
         </div>
 
         <div className={`hero-progress${showProgress ? '' : ' hero-progress--hidden'}`}>

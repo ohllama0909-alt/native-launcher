@@ -9,7 +9,7 @@ html,
 body,
 #root {
   height: 100%;
-  font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Outfit', 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
   background: transparent;
   color: var(--text);
   overflow: hidden;
@@ -36,6 +36,34 @@ button {
   font-family: inherit;
 }
 
+.content-page-head {
+  flex-shrink: 0;
+  padding: 3px 1px 5px;
+}
+
+.content-page-head > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--accent);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1.45px;
+  text-transform: uppercase;
+}
+
+.content-page-head h1 {
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.7px;
+}
+
+.content-page-head p {
+  margin-top: 5px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+}
+
 /* shared square icon button — used by mail, window controls, etc. */
 .icon-btn {
   width: 42px;
@@ -44,7 +72,7 @@ button {
   place-items: center;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg-panel);
+  background: var(--component);
   color: var(--text-dim);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -86,7 +114,7 @@ button {
   display: flex;
   gap: 4px;
   padding: 5px;
-  background: var(--bg-panel);
+  background: var(--component);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
@@ -111,8 +139,8 @@ button {
 }
 
 .pill-tab.active {
-  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
-  color: var(--on-accent);
+  background: var(--bg-raise);
+  color: var(--text);
 }
 
 /* shared search box */
@@ -156,17 +184,19 @@ button {
   gap: 7px;
   border: none;
   border-radius: var(--radius);
-  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+  background: var(--accent);
   color: var(--on-accent);
   font-size: 12px;
   font-weight: 700;
   padding: 9px 16px;
   cursor: pointer;
-  transition: filter 0.15s;
+  transition: filter 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .accent-btn:hover {
   filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
 .accent-btn:disabled {

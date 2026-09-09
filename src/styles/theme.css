@@ -2,32 +2,34 @@
    NATIVE — THEME
    Every color in the app lives here. Change these variables
    to re-skin the entire launcher (login + home + everything).
-   Current theme: Redstone
+   Current theme: Midnight
    ============================================================ */
 
 :root {
   /* backgrounds */
-  --bg: #120b0c;
-  --bg-panel: #180e10;
-  --bg-raise: #261417;
-  --bg-sidebar: #0d0708;
+  --bg: #11171c;
+  --bg-panel: #151c22;
+  --bg-raise: #1a2228;
+  --bg-sidebar: #0e1419;
+  --component: var(--bg-panel);
+  --ghost-hover: rgba(255, 255, 255, 0.065);
 
   /* hero / panel gradient (also used by splash + login) */
-  --panel-grad-1: #1e1012;
-  --panel-grad-2: #0c0607;
+  --panel-grad-1: #1a2228;
+  --panel-grad-2: #131a20;
 
   /* borders */
-  --border: #3d2126;
+  --border: rgba(255, 255, 255, 0.075);
 
   /* text */
-  --text: #f6eeee;
-  --text-dim: #a38b8e;
+  --text: #d5dbff;
+  --text-dim: #78818d;
 
   /* accent — redstone red */
-  --accent: #ff4133;
-  --accent-deep: #a31f1f;
-  --accent-soft: rgba(255, 65, 51, 0.18);
-  --accent-border: rgba(255, 65, 51, 0.45);
+  --accent: #2b4bff;
+  --accent-deep: #1f36bd;
+  --accent-soft: rgba(43, 75, 255, 0.18);
+  --accent-border: rgba(80, 105, 255, 0.48);
   --on-accent: #ffffff;
 
   /* success / online */
@@ -38,8 +40,8 @@
   --ms-blue-2: #1e8fd5;
 
   /* shape */
-  --radius: 10px;
-  --radius-lg: 14px;
+  --radius: 11px;
+  --radius-lg: 16px;
 }
 
 /* ─── Diamond ─────────────────────────────────────────────── */

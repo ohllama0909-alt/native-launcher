@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 export const DEFAULTS = {
   appearance: {
     theme: 'redstone',
-    sidebarCollapsed: false,
+    backgroundMotion: true,
     reducedMotion: false,
     compactDensity: false
   },
@@ -94,4 +94,5 @@ function applyAppearance(settings) {
   else root.dataset.theme = appearance.theme;
   root.dataset.reducedMotion = appearance.reducedMotion ? 'true' : 'false';
   root.dataset.density = appearance.compactDensity ? 'compact' : 'comfortable';
+  root.dataset.backgroundMotion = appearance.backgroundMotion === false ? 'off' : 'on';
 }

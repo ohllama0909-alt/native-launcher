@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 const DEFAULTS = {
   appearance: {
     theme: 'redstone',
-    sidebarCollapsed: false,
+    backgroundMotion: true,
     reducedMotion: false,
     compactDensity: false
   },

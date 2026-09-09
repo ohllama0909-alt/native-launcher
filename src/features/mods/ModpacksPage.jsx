@@ -76,6 +76,11 @@ export default function ModpacksPage({ store, onOpenMod = () => {}, onPackInstal
 
   return (
     <div className="modpacks">
+      <header className="content-page-head">
+        <span>Discover</span>
+        <h1>Explore modpacks</h1>
+        <p>Complete Minecraft experiences, ready to install as a new version.</p>
+      </header>
       <div className="modpacks-filters">
         <div className="search-box">
           <Search size={15} />

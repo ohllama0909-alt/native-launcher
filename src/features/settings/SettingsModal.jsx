@@ -195,9 +195,9 @@ function JavaSlot({ major, value, onChange }) {
 
 const THEMES = [
   {
-    id: 'redstone', name: 'Redstone', desc: 'Classic dark red',
-    accent: '#ff4133', deep: '#a31f1f', bg: '#180e10', bgRaise: '#261417', border: '#3d2126',
-    swatches: ['#ff4133', '#a31f1f', '#261417', '#3d2126'],
+    id: 'redstone', name: 'Midnight', desc: 'One-inspired cobalt',
+    accent: '#2b4bff', deep: '#1f36bd', bg: '#11171c', bgRaise: '#1a2228', border: '#2a333d',
+    swatches: ['#2b4bff', '#1f36bd', '#1a2228', '#2a333d'],
   },
   {
     id: 'diamond', name: 'Diamond', desc: 'Cool ice blue',
@@ -492,10 +492,10 @@ export default function SettingsPage({ onOpenUpdater = () => {} }) {
                 />
 
                 <h3 className="sm-section-title">Interface</h3>
-                <SettingRow title="Collapse sidebar" desc="Use icons only for more workspace">
+                <SettingRow title="Ambient background motion" desc="Animate the artwork when pages appear">
                   <Toggle
-                    checked={settings.appearance.sidebarCollapsed}
-                    onChange={(v) => update('appearance', 'sidebarCollapsed', v)}
+                    checked={settings.appearance.backgroundMotion}
+                    onChange={(v) => update('appearance', 'backgroundMotion', v)}
                   />
                 </SettingRow>
                 <SettingRow title="Compact density" desc="Fit more controls and content on screen">
