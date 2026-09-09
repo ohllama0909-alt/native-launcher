@@ -1,0 +1,254 @@
+.home-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Hero Background */
+.home-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.home-bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: opacity 0.4s ease-out, transform 0.6s ease-out;
+  transform: scale(1.02);
+}
+
+.home-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(17, 23, 28, 0.88) 0%, rgba(17, 23, 28, 0.5) 45%, rgba(17, 23, 28, 0.2) 70%, rgba(17, 23, 28, 0.65) 100%),
+    linear-gradient(0deg, rgba(17, 23, 28, 0.95) 0%, rgba(17, 23, 28, 0.3) 35%, rgba(17, 23, 28, 0.6) 100%);
+  pointer-events: none;
+}
+
+/* Main Hero Content (Middle Left) */
+.home-hero-content {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 var(--home-padding);
+  max-width: 650px;
+  animation: slideInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.home-cluster-title {
+  font-size: 56px;
+  font-weight: 700;
+  color: var(--fg-primary);
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+.home-cluster-subtitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+  margin-top: 6px;
+  letter-spacing: 0.2px;
+}
+
+.home-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.launch-btn {
+  background: var(--brand);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 10px 28px;
+  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: var(--shadow-brand);
+  transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.launch-btn:hover:not(:disabled) {
+  background: var(--brand-hover);
+  box-shadow: 0 0 28px rgba(43, 75, 255, 0.55);
+}
+
+.launch-btn:active:not(:disabled) {
+  background: var(--brand-pressed);
+  transform: scale(0.98);
+}
+
+.launch-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.launch-btn.kill {
+  background: var(--danger);
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.4);
+}
+
+.launch-btn.kill:hover {
+  background: var(--danger-hover);
+}
+
+.cluster-settings-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  background: var(--ghost-overlay);
+  border: 1px solid var(--component-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cluster-settings-btn:hover {
+  background: var(--ghost-overlay-hover);
+  color: var(--fg-primary);
+  border-color: var(--component-border-hover);
+}
+
+.cluster-settings-btn:active {
+  background: var(--ghost-overlay-pressed);
+}
+
+/* Bottom Recents Row */
+.home-recents-container {
+  position: relative;
+  z-index: 10;
+  padding: 0 var(--home-padding) var(--home-padding);
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  height: 208px;
+  overflow: visible;
+}
+
+.recents-scroll-track {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+}
+
+.recents-scroll-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual Version Card */
+.version-card {
+  flex: 1;
+  min-width: 260px;
+  max-width: 480px;
+  height: 100%;
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--component-border);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.version-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--component-border-hover);
+}
+
+.version-card.active {
+  border: 2px solid var(--brand);
+  box-shadow: 0 0 24px var(--brand-glow);
+}
+
+.version-card-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.3s ease;
+}
+
+.version-card:hover .version-card-bg {
+  transform: scale(1.04);
+}
+
+.version-card-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(17, 17, 21, 0.88) 0%, rgba(17, 17, 21, 0.4) 45%, rgba(0, 0, 0, 0) 75%);
+  z-index: 2;
+}
+
+.version-card-label {
+  position: absolute;
+  bottom: 16px;
+  left: 24px;
+  right: 24px;
+  z-index: 3;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--fg-primary);
+  line-height: 1.15;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Other Versions 3x3 Dots Tile */
+.other-versions-tile {
+  width: 96px;
+  min-width: 96px;
+  height: 100%;
+  border-radius: var(--radius-md);
+  background: var(--ghost-overlay-hover);
+  border: 1px solid var(--component-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-primary);
+  cursor: pointer;
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-card);
+  transition: background-color 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.other-versions-tile:hover {
+  background: var(--ghost-overlay-pressed);
+  border-color: var(--component-border-hover);
+  transform: translateY(-2px);
+}
+
+.other-versions-tile:active {
+  transform: translateY(0);
+}

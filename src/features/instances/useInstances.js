@@ -1,20 +1,42 @@
 import { useEffect, useState } from 'react';
+import { INITIAL_CLUSTERS, getClusterArt } from '../../data/versionsData.js';
 
-const DEFAULT_DATA = { instances: [], selectedId: null };
+const DEFAULT_DATA = {
+  instances: INITIAL_CLUSTERS,
+  selectedId: INITIAL_CLUSTERS[0].id
+};
 
 async function loadData() {
   if (window.native?.instances) {
-    return (await window.native.instances.load()) ?? DEFAULT_DATA;
+    const saved = await window.native.instances.load();
+    if (saved && saved.instances && saved.instances.length > 0) {
+      // Ensure artwork and fields exist on each instance
+      const instances = saved.instances.map((item) => ({
+        ...item,
+        art: item.art || getClusterArt(item)
+      }));
+      return {
+        instances,
+        selectedId: saved.selectedId || instances[0]?.id || null
+      };
+    }
+    return DEFAULT_DATA;
   }
-  const raw = localStorage.getItem('native.instances');
-  return raw ? JSON.parse(raw) : DEFAULT_DATA;
+  const raw = localStorage.getItem('oneclient.instances');
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.instances?.length) return parsed;
+    } catch {}
+  }
+  return DEFAULT_DATA;
 }
 
 function saveData(data) {
   if (window.native?.instances) {
     return window.native.instances.save(data);
   } else {
-    localStorage.setItem('native.instances', JSON.stringify(data));
+    localStorage.setItem('oneclient.instances', JSON.stringify(data));
     return Promise.resolve();
   }
 }
@@ -47,6 +69,7 @@ export default function useInstances() {
   return {
     instances: data.instances,
     selected,
+    selectedId: data.selectedId,
     loaded,
 
     select(id) {
@@ -54,20 +77,43 @@ export default function useInstances() {
     },
 
     create(values) {
-      const instance = { ...values, id: crypto.randomUUID(), created: Date.now(), lastPlayed: null };
+      const id = values.id || `cluster-${Date.now()}`;
+      const instance = {
+        id,
+        mc_version: values.version || values.mc_version || '1.21.1',
+        version: values.version || values.mc_version || '1.21.1',
+        mc_loader: values.loader || values.mc_loader || 'Fabric',
+        loader: values.loader || values.mc_loader || 'Fabric',
+        name: values.name || `${values.version || '1.21.1'} ${values.loader || 'Fabric'}`,
+        description: values.description || 'Custom Minecraft installation',
+        tags: values.tags || ['Custom'],
+        playtimeSecs: 0,
+        sessionCount: 0,
+        avgSessionSecs: 0,
+        activeDays: 0,
+        serverJoins: 0,
+        created: Date.now(),
+        lastPlayed: null,
+        ...values,
+        art: values.art || getClusterArt(values)
+      };
       setData((current) => ({
         ...current,
         instances: [...current.instances, instance],
         selectedId: instance.id
       }));
+      return instance;
     },
 
-    /** add a fully-formed instance (e.g. from a modpack install) */
     add(instance) {
+      const hydrated = {
+        ...instance,
+        art: instance.art || getClusterArt(instance)
+      };
       setData((current) => ({
         ...current,
-        instances: [...current.instances, instance],
-        selectedId: instance.id
+        instances: [...current.instances, hydrated],
+        selectedId: hydrated.id
       }));
     },
 
@@ -75,6 +121,26 @@ export default function useInstances() {
       setData((current) => ({
         ...current,
         instances: current.instances.map((i) => (i.id === id ? { ...i, ...values } : i))
+      }));
+    },
+
+    recordSession(id, durationSeconds) {
+      setData((current) => ({
+        ...current,
+        instances: current.instances.map((i) => {
+          if (i.id !== id) return i;
+          const prevPlaytime = i.playtimeSecs || 0;
+          const prevSessions = i.sessionCount || 0;
+          const newPlaytime = prevPlaytime + durationSeconds;
+          const newSessions = prevSessions + 1;
+          return {
+            ...i,
+            playtimeSecs: newPlaytime,
+            sessionCount: newSessions,
+            avgSessionSecs: Math.round(newPlaytime / newSessions),
+            lastPlayed: Date.now()
+          };
+        })
       }));
     },
 

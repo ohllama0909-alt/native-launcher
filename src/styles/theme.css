@@ -1,117 +1,78 @@
 /* ============================================================
-   NATIVE — THEME
-   Every color in the app lives here. Change these variables
-   to re-skin the entire launcher (login + home + everything).
-   Current theme: Midnight
+   ONECLIENT / ONELAUNCHER DESIGN SYSTEM
+   Colors, typography, and spacing matching OneLauncher
    ============================================================ */
 
+@import './fonts.css';
+
 :root {
-  /* backgrounds */
-  --bg: #11171c;
-  --bg-panel: #151c22;
-  --bg-raise: #1a2228;
-  --bg-sidebar: #0e1419;
-  --component: var(--bg-panel);
-  --ghost-hover: rgba(255, 255, 255, 0.065);
+  /* Page backgrounds */
+  --page: #11171c;
+  --page-elevated: #151c22;
+  --page-overlay: rgba(17, 23, 28, 0.72);
 
-  /* hero / panel gradient (also used by splash + login) */
-  --panel-grad-1: #1a2228;
-  --panel-grad-2: #131a20;
+  /* Component / Card backgrounds */
+  --component-bg: #1a2228;
+  --component-bg-hover: #1d242b;
+  --component-bg-pressed: #222c35;
+  --component-border: rgba(255, 255, 255, 0.06);
+  --component-border-hover: rgba(255, 255, 255, 0.12);
+  --component-border-pressed: rgba(255, 255, 255, 0.18);
 
-  /* borders */
-  --border: rgba(255, 255, 255, 0.075);
+  /* Ghost overlays */
+  --ghost-overlay: rgba(255, 255, 255, 0.047);
+  --ghost-overlay-hover: rgba(255, 255, 255, 0.10);
+  --ghost-overlay-pressed: rgba(255, 255, 255, 0.15);
 
-  /* text */
-  --text: #d5dbff;
-  --text-dim: #78818d;
+  /* Text & Foreground */
+  --fg-primary: #d5dbff;
+  --fg-primary-hover: #dae0ff;
+  --fg-primary-pressed: #e1e5ff;
+  --fg-secondary: #78818d;
+  --fg-secondary-hover: #8f99a7;
+  --fg-muted: #545c68;
 
-  /* accent — redstone red */
-  --accent: #2b4bff;
-  --accent-deep: #1f36bd;
-  --accent-soft: rgba(43, 75, 255, 0.18);
-  --accent-border: rgba(80, 105, 255, 0.48);
-  --on-accent: #ffffff;
+  /* Brand / Accent — Polyfrost OneLauncher signature electric blue */
+  --brand: #2b4bff;
+  --brand-hover: #2843dd;
+  --brand-pressed: #3957ff;
+  --brand-disabled: #1f2f81;
+  --brand-subtle: rgba(43, 75, 255, 0.15);
+  --brand-glow: rgba(43, 75, 255, 0.4);
 
-  /* success / online */
-  --online: #35d07f;
+  /* Providers */
+  --modrinth: #1bd96a;
+  --modrinth-bg: rgba(27, 217, 106, 0.15);
+  --curseforge: #f16436;
+  --curseforge-bg: rgba(241, 100, 54, 0.15);
 
-  /* microsoft brand button */
-  --ms-blue-1: #35b6e9;
-  --ms-blue-2: #1e8fd5;
+  /* Feedback & status */
+  --danger: #ff4444;
+  --danger-hover: #d63434;
+  --danger-subtle: rgba(255, 68, 68, 0.15);
+  --success: #239a60;
+  --success-subtle: rgba(35, 154, 96, 0.15);
+  --warning: #e5c07b;
+  --info: #61afef;
 
-  /* shape */
-  --radius: 11px;
+  /* Fonts */
+  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-md: 12px;
   --radius-lg: 16px;
-}
+  --radius-full: 9999px;
 
-/* ─── Diamond ─────────────────────────────────────────────── */
-:root[data-theme='diamond'] {
-  --bg: #080e12;
-  --bg-panel: #0b1318;
-  --bg-raise: #131e24;
-  --bg-sidebar: #060b0e;
-  --panel-grad-1: #111b22;
-  --panel-grad-2: #060c10;
-  --border: #1a3040;
-  --text: #eaf6f9;
-  --text-dim: #7aa8b8;
-  --accent: #4dd9f3;
-  --accent-deep: #1a8fa3;
-  --accent-soft: rgba(77, 217, 243, 0.18);
-  --accent-border: rgba(77, 217, 243, 0.45);
-  --on-accent: #ffffff;
-}
+  /* Sizing */
+  --navbar-height: 80px;
+  --home-padding: 48px;
 
-/* ─── Emerald ──────────────────────────────────────────────── */
-:root[data-theme='emerald'] {
-  --bg: #060f08;
-  --bg-panel: #0a150c;
-  --bg-raise: #111f14;
-  --bg-sidebar: #040c06;
-  --panel-grad-1: #0f1c11;
-  --panel-grad-2: #050d07;
-  --border: #183322;
-  --text: #eaf6ee;
-  --text-dim: #7aad8f;
-  --accent: #00d46a;
-  --accent-deep: #00803f;
-  --accent-soft: rgba(0, 212, 106, 0.18);
-  --accent-border: rgba(0, 212, 106, 0.45);
-  --on-accent: #ffffff;
-}
-
-/* ─── Gold ──────────────────────────────────────────────────── */
-:root[data-theme='gold'] {
-  --bg: #100d06;
-  --bg-panel: #161108;
-  --bg-raise: #22190d;
-  --bg-sidebar: #0c0a05;
-  --panel-grad-1: #1c1509;
-  --panel-grad-2: #0a0804;
-  --border: #352908;
-  --text: #f6f2e8;
-  --text-dim: #a8916e;
-  --accent: #ffc233;
-  --accent-deep: #a37200;
-  --accent-soft: rgba(255, 194, 51, 0.18);
-  --accent-border: rgba(255, 194, 51, 0.45);
-  --on-accent: #ffffff;
-}
-
-/* ─── Amethyst ──────────────────────────────────────────────── */
-:root[data-theme='amethyst'] {
-  --bg: #0c080f;
-  --bg-panel: #110c16;
-  --bg-raise: #1a1222;
-  --bg-sidebar: #08060b;
-  --panel-grad-1: #16101e;
-  --panel-grad-2: #08060f;
-  --border: #2d1f40;
-  --text: #f2eef8;
-  --text-dim: #9e86b8;
-  --accent: #bf88ff;
-  --accent-deep: #7a3db0;
-  --accent-soft: rgba(191, 136, 255, 0.18);
-  --accent-border: rgba(191, 136, 255, 0.45);
-  --on-accent: #ffffff;
+  /* Shadows */
+  --shadow-card: 0 12px 32px -4px rgba(0, 0, 0, 0.45);
+  --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-brand: 0 0 24px rgba(43, 75, 255, 0.35);
 }

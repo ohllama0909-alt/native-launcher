@@ -9,23 +9,47 @@ html,
 body,
 #root {
   height: 100%;
-  font-family: 'Outfit', 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
-  background: transparent;
-  color: var(--text);
+  width: 100%;
+  background: var(--page);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
 .window-frame {
   height: 100vh;
-  background: var(--bg);
-  border-radius: var(--radius-lg);
+  width: 100vw;
+  background: var(--page);
+  display: flex;
+  flex-direction: column;
+  position: relative;
   overflow: hidden;
 }
 
 .window-frame.maximized {
   border-radius: 0;
+}
+
+/* Scrollbar matching OneLauncher */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 img {
@@ -34,267 +58,33 @@ img {
 
 button {
   font-family: inherit;
-}
-
-.content-page-head {
-  flex-shrink: 0;
-  padding: 3px 1px 5px;
-}
-
-.content-page-head > span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--accent);
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 1.45px;
-  text-transform: uppercase;
-}
-
-.content-page-head h1 {
-  color: var(--text);
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.7px;
-}
-
-.content-page-head p {
-  margin-top: 5px;
-  color: var(--text-dim);
-  font-size: 10.5px;
-}
-
-/* shared square icon button — used by mail, window controls, etc. */
-.icon-btn {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--component);
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.icon-btn:hover {
-  background: var(--bg-raise);
-  color: var(--text);
-}
-
-/* shared section headings (news, friends, instances, …) */
-.section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.section-head h2 {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-}
-
-.section-link {
   border: none;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 11px;
+  background: none;
   cursor: pointer;
-}
-
-.section-link:hover {
-  color: var(--accent);
-}
-
-/* shared pill tab group (mods, instances, detail pages) */
-.pill-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 5px;
-  background: var(--component);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.pill-tab {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 8px 16px;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.pill-tab:hover {
-  color: var(--text);
-}
-
-.pill-tab.active {
-  background: var(--bg-raise);
-  color: var(--text);
-}
-
-/* shared search box */
-.search-box {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 42px;
-  padding: 0 14px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text-dim);
-  transition: border-color 0.15s;
-}
-
-.search-box:focus-within {
-  border-color: var(--accent-border);
-}
-
-.search-box input {
-  flex: 1;
-  border: none;
   outline: none;
-  background: transparent;
-  color: var(--text);
-  font-size: 13px;
+  color: inherit;
+}
+
+input, textarea, select {
   font-family: inherit;
+  outline: none;
+  border: none;
+  color: inherit;
   user-select: text;
 }
 
-.search-box input::placeholder {
-  color: var(--text-dim);
+/* Utility Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* shared accent action button (New Instance, Browse Content, …) */
-.accent-btn {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 9px 16px;
-  cursor: pointer;
-  transition: filter 0.15s, transform 0.15s, box-shadow 0.15s;
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.accent-btn:hover {
-  filter: brightness(1.12);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
-.accent-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-  filter: none;
-}
-
-.spin {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ---------- motion ---------- */
-
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes modal-pop {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Respect the launcher's motion preference everywhere, including third-party UI. */
-:root[data-reduced-motion='true'] *,
-:root[data-reduced-motion='true'] *::before,
-:root[data-reduced-motion='true'] *::after {
-  scroll-behavior: auto !important;
-  animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
-}
-
-/* ---------- scrollbars ---------- */
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--bg-raise);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border);
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--bg-raise);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border);
-}
-
-/* ---------- avatar skeleton ---------- */
-
-.avatar-skeleton {
-  background: var(--bg-raise);
-  border: 1px solid var(--border);
-  animation: avatar-pulse 1.5s infinite ease-in-out;
-}
-
-@keyframes avatar-pulse {
-  0% { opacity: 0.5; }
-  50% { opacity: 0.9; }
-  100% { opacity: 0.5; }
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 16px rgba(43, 75, 255, 0.4); }
+  50% { box-shadow: 0 0 28px rgba(43, 75, 255, 0.7); }
 }

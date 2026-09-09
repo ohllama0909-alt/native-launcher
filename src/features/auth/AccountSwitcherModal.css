@@ -1,0 +1,114 @@
+.account-switcher-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 18, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.account-switcher-box {
+  width: 440px;
+  max-width: 90vw;
+  background: var(--page-elevated);
+  border: 1px solid var(--component-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.account-switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--component-border);
+  background: var(--component-bg);
+}
+
+.account-switcher-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.account-switcher-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.account-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--component-bg);
+  border: 1px solid var(--component-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+
+.account-card-item:hover {
+  border-color: var(--component-border-hover);
+}
+
+.account-card-item.active {
+  border-color: var(--brand);
+}
+
+.account-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-avatar-head {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--page);
+  object-fit: cover;
+}
+
+.account-name-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.account-type-tag {
+  font-size: 11px;
+  color: var(--fg-secondary);
+}
+
+.account-add-divider {
+  border-top: 1px solid var(--component-border);
+  margin: 4px 0;
+}
+
+.account-add-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.offline-input-row {
+  display: flex;
+  gap: 8px;
+}
