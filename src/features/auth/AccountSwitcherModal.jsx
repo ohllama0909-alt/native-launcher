@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
-import Icon from '../../components/ui/Icon.jsx';
-import SteveAvatar from '../../assets/steve.png';
+import React, { useEffect, useState } from 'react';
+import NativeIcon from '../../components/ui/NativeIcon.jsx';
+import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import './AccountSwitcherModal.css';
+
+function accountKind(account) {
+  if (account?.type === 'offline') return 'Offline';
+  if (account?.type === 'guest') return 'Guest';
+  return 'Microsoft';
+}
 
 export default function AccountSwitcherModal({
   open,
@@ -14,117 +20,222 @@ export default function AccountSwitcherModal({
   onRemoveAccount
 }) {
   const [offlineName, setOfflineName] = useState('');
-  const [loadingMs, setLoadingMs] = useState(false);
+  const [addingOffline, setAddingOffline] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) return;
+    setOfflineName('');
+    setAddingOffline(false);
+    setBusy(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
 
   if (!open) return null;
 
-  const handleAddMs = async () => {
-    setLoadingMs(true);
+  const active = accounts.find((account) => account.id === activeId) || accounts[0] || null;
+  const others = accounts.filter((account) => account.id !== active?.id);
+  const nameValid = /^[A-Za-z0-9_]{3,16}$/.test(offlineName.trim());
+
+  const addMicrosoft = async () => {
+    setBusy(true);
     try {
-      await onAddMicrosoft();
+      await onAddMicrosoft?.();
     } finally {
-      setLoadingMs(false);
+      setBusy(false);
     }
   };
 
-  const handleAddOfflineSubmit = (e) => {
-    e.preventDefault();
-    if (offlineName.trim()) {
-      onAddOffline(offlineName.trim());
+  const addOffline = async () => {
+    if (!nameValid) return;
+    setBusy(true);
+    try {
+      await onAddOffline?.(offlineName.trim());
       setOfflineName('');
+      setAddingOffline(false);
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <div className="account-switcher-backdrop" onClick={onClose}>
-      <div className="account-switcher-box" onClick={(e) => e.stopPropagation()}>
-        <div className="account-switcher-header">
-          <span className="account-switcher-title">Accounts</span>
-          <button className="icon-ctrl-btn" onClick={onClose}>
-            <Icon name="x" size={15} />
+      <div
+        className="account-switcher-box"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="account-switcher-header">
+          <h2 className="account-switcher-title">Accounts</h2>
+          <button
+            type="button"
+            className="account-switcher-close"
+            onClick={onClose}
+            title="Close"
+          >
+            <NativeIcon name="close" size={16} />
           </button>
-        </div>
+        </header>
 
         <div className="account-switcher-body">
-          <div className="account-list">
-            {accounts.map((acc) => {
-              const isActive = acc.id === activeId;
-              const avatarUrl = acc.uuid
-                ? `https://crafatar.com/avatars/${acc.uuid}?size=64&overlay`
-                : SteveAvatar;
+          {active ? (
+            <section className="account-hero">
+              <div className="account-hero-skin">
+                <PlayerAvatar
+                  account={active}
+                  uuid={active.uuid}
+                  name={active.name}
+                  kind="body"
+                  size={78}
+                  alt={`${active.name} skin`}
+                />
+              </div>
 
-              return (
-                <div
-                  key={acc.id}
-                  className={`account-card-item ${isActive ? 'active' : ''}`}
-                  onClick={() => {
-                    onSwitchAccount(acc.id);
-                    onClose();
-                  }}
-                >
-                  <div className="account-card-left">
-                    <img
-                      src={avatarUrl}
-                      alt={acc.name}
-                      className="account-avatar-head"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = SteveAvatar;
-                      }}
-                    />
-                    <div>
-                      <div className="account-name-text">{acc.name}</div>
-                      <div className="account-type-tag">
-                        {acc.type === 'microsoft' ? 'Microsoft Account' : 'Offline Account'}
-                      </div>
-                    </div>
-                  </div>
+              <div className="account-hero-info">
+                <span className="account-hero-label">Signed in as</span>
+                <h3 className="account-hero-name">{active.name}</h3>
+                <div className="account-hero-tags">
+                  <span className={`account-type-tag ${active.type === 'offline' ? 'offline' : ''}`}>
+                    {accountKind(active)}
+                  </span>
+                  {active.uuid ? (
+                    <span className="account-hero-uuid" title={active.uuid}>
+                      {String(active.uuid).slice(0, 8)}
+                    </span>
+                  ) : (
+                    <span className="account-hero-uuid">No UUID</span>
+                  )}
+                </div>
+              </div>
+            </section>
+          ) : (
+            <div className="account-empty">
+              <NativeIcon name="user" size={22} />
+              <p>No accounts yet. Add one to start playing.</p>
+            </div>
+          )}
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {isActive && <span className="badge-installed">Active</span>}
+          {others.length > 0 && (
+            <>
+              <span className="account-section-label">Switch to</span>
+              <div className="account-list">
+                {others.map((account) => (
+                  <div className="account-card-item" key={account.id}>
                     <button
-                      className="icon-delete-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveAccount(acc.id);
+                      type="button"
+                      className="account-card-left"
+                      onClick={() => {
+                        onSwitchAccount?.(account.id);
+                        onClose?.();
                       }}
-                      title="Remove Account"
                     >
-                      <Icon name="trash-01" size={14} />
+                      <PlayerAvatar
+                        account={account}
+                        uuid={account.uuid}
+                        name={account.name}
+                        kind="avatar"
+                        size={34}
+                        className="account-avatar-head"
+                      />
+                      <span className="account-card-text">
+                        <span className="account-name-text">{account.name}</span>
+                        <span className={`account-type-tag ${account.type === 'offline' ? 'offline' : ''}`}>
+                          {accountKind(account)}
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="account-remove-btn"
+                      title={`Remove ${account.name}`}
+                      onClick={() => onRemoveAccount?.(account.id)}
+                    >
+                      <NativeIcon name="trash" size={14} />
                     </button>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            </>
+          )}
 
           <div className="account-add-divider" />
 
           <div className="account-add-row">
             <button
-              className="sub-btn brand-btn"
-              onClick={handleAddMs}
-              disabled={loadingMs}
-              style={{ justifyContent: 'center' }}
+              type="button"
+              className="account-ms-btn"
+              onClick={addMicrosoft}
+              disabled={busy}
             >
-              <Icon name="plus" size={14} />
-              <span>{loadingMs ? 'Opening Microsoft Login...' : 'Add Microsoft Account'}</span>
+              <NativeIcon name="shield" size={15} />
+              <span>Add Microsoft account</span>
             </button>
 
-            <form className="offline-input-row" onSubmit={handleAddOfflineSubmit}>
-              <input
-                type="text"
-                className="text-input"
-                style={{ flex: 1 }}
-                placeholder="Offline Username"
-                value={offlineName}
-                onChange={(e) => setOfflineName(e.target.value)}
-              />
-              <button type="submit" className="sub-btn">
-                Add Offline
+            {addingOffline ? (
+              <div className="offline-input-row">
+                <input
+                  className="offline-input"
+                  type="text"
+                  value={offlineName}
+                  autoFocus
+                  maxLength={16}
+                  placeholder="Username"
+                  onChange={(event) => setOfflineName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') addOffline();
+                    if (event.key === 'Escape') setAddingOffline(false);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="account-add-btn"
+                  onClick={addOffline}
+                  disabled={!nameValid || busy}
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  className="account-remove-btn"
+                  onClick={() => setAddingOffline(false)}
+                  title="Cancel"
+                >
+                  <NativeIcon name="close" size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="account-offline-btn"
+                onClick={() => setAddingOffline(true)}
+              >
+                <NativeIcon name="user" size={15} />
+                <span>Add offline account</span>
               </button>
-            </form>
+            )}
           </div>
+
+          {addingOffline && offlineName && !nameValid && (
+            <p className="account-hint">
+              <NativeIcon name="alert" size={13} />
+              3 to 16 characters, letters, numbers and underscores only.
+            </p>
+          )}
+
+          <p className="account-hint muted">
+            <NativeIcon name="info" size={13} />
+            Skins are shown for any account with a matching Minecraft username.
+          </p>
         </div>
       </div>
     </div>
