@@ -4,25 +4,23 @@ import AlexAvatar from '../../assets/alex.png';
 import './PlayerAvatar.css';
 
 /**
- * Renders a player's head / bust / full body skin render.
+ * Renders a player's head / bust / full-body skin render.
+ *
+ * The main process owns the skin service URL and the on-disk cache
+ * (see `accounts:getAvatar` in electron/auth.js), so the renderer never makes
+ * a network request itself. That keeps one source of truth, survives being
+ * offline after the first fetch, and avoids re-downloading a render on every
+ * mount.
  *
  * Resolution order:
- *   1. `window.native.accounts.getAvatar(identifier, kind)` — the main process
- *      downloads once and caches to disk, returning a data URI. This works
- *      offline after the first fetch and never gets rate limited.
- *   2. A direct mc-heads.net render (works for both UUIDs and usernames, so
- *      offline accounts — which have no UUID — still get their real skin).
- *   3. The bundled Steve / Alex textures.
+ *   1. `window.native.accounts.getAvatar(identifier, kind)` -> data URI
+ *   2. The bundled Steve / Alex textures
+ *
+ * `identifier` is a UUID when we have one, otherwise the username, which is
+ * what lets offline accounts (they have no UUID) still show their real skin.
  */
 
-const RENDERERS = {
-  avatar: (id) => `https://mc-heads.net/avatar/${encodeURIComponent(id)}/128`,
-  head: (id) => `https://mc-heads.net/head/${encodeURIComponent(id)}/180`,
-  bust: (id) => `https://mc-heads.net/bust/${encodeURIComponent(id)}/220`,
-  body: (id) => `https://mc-heads.net/body/${encodeURIComponent(id)}/260`
-};
-
-/** Shared across mounts so switching screens doesn't re-flash the skeleton. */
+/** Shared across mounts so navigating between screens doesn't re-flash. */
 const resolvedCache = new Map();
 
 export function accountIdentifier(account, uuid, name) {
@@ -31,14 +29,16 @@ export function accountIdentifier(account, uuid, name) {
     const cleaned = String(rawUuid).replace(/-/g, '');
     if (/^[0-9a-fA-F]{32}$/.test(cleaned)) return cleaned;
   }
+
   const rawName = name ?? account?.name ?? '';
-  // mc-heads resolves usernames too, which is how offline accounts get a skin.
   if (/^[A-Za-z0-9_]{2,16}$/.test(rawName) && rawName.toLowerCase() !== 'guest') {
     return rawName;
   }
+
   return null;
 }
 
+/** Deterministic Steve-or-Alex so a given player always gets the same one. */
 export function fallbackSkinFor(seed) {
   const text = String(seed || 'steve');
   let hash = 0;
@@ -64,13 +64,15 @@ export default function PlayerAvatar({
   const cacheKey = `${kind}:${identifier ?? 'none'}`;
 
   const [src, setSrc] = useState(() => resolvedCache.get(cacheKey) || null);
-  const [loading, setLoading] = useState(() => !resolvedCache.has(cacheKey) && Boolean(identifier));
+  const [loading, setLoading] = useState(
+    () => Boolean(identifier) && !resolvedCache.has(cacheKey)
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     if (!identifier) {
-      setSrc(fallback);
+      setSrc(null);
       setLoading(false);
       return undefined;
     }
@@ -93,33 +95,41 @@ export default function PlayerAvatar({
       } catch {
         resolved = null;
       }
-      if (!resolved) {
-        const render = RENDERERS[kind] || RENDERERS.avatar;
-        resolved = render(identifier);
-      }
+
       if (cancelled) return;
-      resolvedCache.set(cacheKey, resolved);
-      setSrc(resolved);
+
+      if (resolved) resolvedCache.set(cacheKey, resolved);
+      setSrc(resolved || null);
       setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [identifier, kind, cacheKey, fallback]);
+  }, [identifier, kind, cacheKey]);
 
-  const isBody = kind === 'body' || kind === 'bust';
-  const dimensions = isBody
-    ? { width: size, height: kind === 'body' ? Math.round(size * 2.1) : Math.round(size * 1.25) }
-    : { width: size, height: size };
+  const isRender = kind === 'body' || kind === 'bust';
+  const height = kind === 'body'
+    ? Math.round(size * 2.1)
+    : kind === 'bust'
+      ? Math.round(size * 1.25)
+      : size;
 
   return (
     <span
-      className={`player-avatar ${isBody ? 'is-render' : 'is-head'} ${loading ? 'is-loading' : ''} ${className}`.trim()}
+      className={[
+        'player-avatar',
+        isRender ? 'is-render' : 'is-head',
+        loading ? 'is-loading' : '',
+        className
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-kind={kind}
       style={{
-        ...dimensions,
-        borderRadius: radius ?? (isBody ? 0 : Math.max(4, Math.round(size * 0.22))),
+        width: size,
+        height,
+        borderRadius: radius ?? (isRender ? 0 : Math.max(4, Math.round(size * 0.22))),
         ...style
       }}
     >

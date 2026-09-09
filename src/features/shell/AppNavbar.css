@@ -19,8 +19,8 @@
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   border-bottom: 1px solid var(--component-border);
   user-select: none;
-  /* Electron frameless dragging — the old build used a Tauri-only attribute,
-     so the window could not be moved at all. */
+  /* Electron frameless dragging. The previous build only had a Tauri-only
+     drag attribute, so the window could not be moved at all. */
   -webkit-app-region: drag;
 }
 
@@ -42,6 +42,11 @@
   -webkit-app-region: no-drag;
 }
 
+.app-navbar button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 /* ---------- brand ---------- */
 
 .navbar-left {
@@ -53,13 +58,13 @@
 .navbar-logo-btn {
   display: flex;
   align-items: center;
-  gap: 0;
-  padding: 6px 10px 6px 6px;
+  padding: 6px 12px 6px 6px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.16s var(--ease), border-color 0.16s var(--ease), transform 0.16s var(--ease);
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+    transform 0.16s var(--ease);
 }
 
 .navbar-logo-btn:hover {
@@ -90,4 +95,266 @@
   left: 0;
   top: 4px;
   bottom: 4px;
+  width: 0;
   border-radius: var(--radius-full);
+  background: var(--brand-gradient);
+  box-shadow: 0 6px 18px -6px var(--brand-glow), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, width;
+}
+
+.nav-indicator.is-ready {
+  opacity: 1;
+  transition: transform 0.32s var(--ease-out), width 0.32s var(--ease-out), opacity 0.2s var(--ease);
+}
+
+.nav-link {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-full);
+  color: var(--fg-secondary);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.nav-link:hover {
+  color: var(--fg-primary-hover);
+}
+
+.nav-link:active {
+  transform: scale(0.97);
+}
+
+.nav-link.active {
+  color: var(--fg-on-brand);
+}
+
+.nav-link .native-icon {
+  flex: none;
+  opacity: 0.85;
+  transition: opacity 0.18s var(--ease);
+}
+
+.nav-link.active .native-icon,
+.nav-link:hover .native-icon {
+  opacity: 1;
+}
+
+/* ---------- right side ---------- */
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding-left: 8px;
+}
+
+.nav-icon-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease),
+    border-color 0.15s var(--ease), transform 0.15s var(--ease);
+}
+
+.nav-icon-btn:hover {
+  background: var(--ghost-overlay-hover);
+  border-color: var(--component-border);
+  color: var(--fg-primary);
+}
+
+.nav-icon-btn:active {
+  background: var(--ghost-overlay-pressed);
+  transform: scale(0.94);
+}
+
+.unread-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  border: 2px solid #171f26;
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ---------- account chip ---------- */
+
+.nav-account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  max-width: 200px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--component-border);
+  border-radius: var(--radius-full);
+  background: var(--component-bg);
+  color: var(--fg-primary);
+  cursor: pointer;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+    transform 0.15s var(--ease);
+}
+
+.nav-account-chip:hover {
+  background: var(--component-bg-hover);
+  border-color: var(--component-border-hover);
+}
+
+.nav-account-chip:active {
+  transform: scale(0.98);
+}
+
+.nav-account-avatar {
+  border-radius: var(--radius-full) !important;
+  box-shadow: 0 0 0 1.5px var(--component-border-hover);
+}
+
+.nav-account-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+}
+
+.nav-account-name {
+  max-width: 108px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--fg-primary);
+}
+
+.nav-account-kind {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  color: var(--fg-muted);
+}
+
+.nav-account-caret {
+  flex: none;
+  color: var(--fg-muted);
+}
+
+/* ---------- window controls ---------- */
+
+.window-controls-group {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  margin-left: 4px;
+}
+
+.window-ctrl-btn {
+  width: var(--titlebar-btn-width);
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition: background 0.13s var(--ease), color 0.13s var(--ease);
+}
+
+.window-ctrl-btn:hover {
+  background: var(--ghost-overlay-hover);
+  color: var(--fg-primary);
+}
+
+.window-ctrl-btn:active {
+  background: var(--ghost-overlay-pressed);
+}
+
+.window-ctrl-btn.close {
+  border-top-right-radius: 12px;
+}
+
+.window-ctrl-btn.close:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+.window-ctrl-btn.close:active {
+  background: #c93c40;
+}
+
+.window-frame.maximized .window-ctrl-btn.close {
+  border-top-right-radius: 0;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 1120px) {
+  .nav-link {
+    padding: 0 13px;
+  }
+}
+
+@media (max-width: 1020px) {
+  .nav-link-label {
+    display: none;
+  }
+
+  .nav-link {
+    padding: 0 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  .nav-account-meta {
+    display: none;
+  }
+
+  .nav-account-caret {
+    display: none;
+  }
+
+  .nav-account-chip {
+    padding: 4px;
+  }
+
+  .native-logo-text {
+    display: none;
+  }
+}
