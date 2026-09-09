@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  X,
   Coffee,
   Gamepad2,
   SlidersHorizontal,
@@ -13,6 +12,9 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  RefreshCw,
+  Monitor,
+  Rocket,
 } from 'lucide-react';
 import appIcon from '../../../icon.png';
 import Dropdown from '../../components/ui/Dropdown.jsx';
@@ -25,6 +27,7 @@ const NAV = [
     group: 'Launcher',
     items: [
       { id: 'behavior',   label: 'Behavior',    icon: SlidersHorizontal },
+      { id: 'updates',    label: 'Updates',     icon: RefreshCw },
       { id: 'storage',    label: 'Storage',     icon: HardDrive },
       { id: 'appearance', label: 'Appearance',  icon: Palette },
     ]
@@ -42,6 +45,21 @@ const LAUNCHER_ACTIONS = [
   { value: 'keep', label: 'Keep launcher open' },
   { value: 'minimize', label: 'Minimize launcher' },
   { value: 'hide', label: 'Hide launcher' }
+];
+
+const START_PAGES = [
+  { value: 'play', label: 'Home' },
+  { value: 'instances', label: 'Instances' },
+  { value: 'mods', label: 'Browse Mods' },
+  { value: 'modpacks', label: 'Modpacks' },
+  { value: 'news', label: 'News' }
+];
+
+const RESOLUTION_PRESETS = [
+  { width: 854, height: 480, label: '480p' },
+  { width: 1280, height: 720, label: '720p' },
+  { width: 1600, height: 900, label: '900p' },
+  { width: 1920, height: 1080, label: '1080p' }
 ];
 
 const JAVA_SLOTS = [25, 21, 17, 8];
@@ -64,7 +82,7 @@ function MemorySlider({ value, onChange }) {
       <input
         type="range"
         min="1"
-        max="16"
+        max="32"
         step="1"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -320,36 +338,38 @@ function StorageSection() {
   );
 }
 
-export default function SettingsModal({ onClose = () => {}, onStartTour = () => {} }) {
-  const { settings, update } = useSettings();
-  const [section, setSection] = useState('java');
+export default function SettingsPage({ onOpenUpdater = () => {} }) {
+  const { settings, update, updateSection } = useSettings();
+  const [section, setSection] = useState('behavior');
   const [dataDir, setDataDir] = useState('');
 
   useEffect(() => {
     window.native?.settings?.dataDir().then(setDataDir);
   }, []);
 
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  if (!settings) return null;
+  if (!settings) {
+    return <div className="settings-loading"><Loader2 size={18} className="spin" /> Loading preferences…</div>;
+  }
 
   const setJavaPath = (major, path) =>
     update('java', 'paths', { ...settings.java.paths, [major]: path });
 
-  return (
-    <div className="sm-overlay" onClick={onClose}>
-      <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="sm-head">
-          <h2>Settings</h2>
-          <button className="sm-close" onClick={onClose}>
-            <X size={17} />
-          </button>
-        </header>
+  const setResolution = ({ width, height }) => {
+    updateSection('resolution', { width, height });
+  };
 
+  return (
+    <div className="settings-page">
+      <header className="settings-page-head">
+        <div>
+          <span className="settings-eyebrow"><SlidersHorizontal size={12} /> Personalize Native</span>
+          <h1>Launcher settings</h1>
+          <p>Everything is saved automatically on this computer.</p>
+        </div>
+        <span className="settings-saved"><CheckCircle2 size={13} /> Changes save instantly</span>
+      </header>
+
+      <div className="settings-modal settings-workbench">
         <div className="sm-layout">
           {/* -------- left nav -------- */}
           <nav className="sm-nav">
@@ -414,6 +434,22 @@ export default function SettingsModal({ onClose = () => {}, onStartTour = () => 
             {section === 'game' && (
               <>
                 <h3 className="sm-section-title">Game Window</h3>
+                <div className="sm-preset-grid">
+                  {RESOLUTION_PRESETS.map((preset) => {
+                    const active = settings.resolution.width === preset.width && settings.resolution.height === preset.height;
+                    return (
+                      <button
+                        key={preset.label}
+                        className={`sm-preset${active ? ' active' : ''}`}
+                        onClick={() => setResolution(preset)}
+                      >
+                        <Monitor size={15} />
+                        <strong>{preset.label}</strong>
+                        <small>{preset.width} × {preset.height}</small>
+                      </button>
+                    );
+                  })}
+                </div>
                 <SettingRow title="Resolution" desc="Window size when the game starts">
                   <div className="sm-resolution">
                     <input
@@ -454,6 +490,26 @@ export default function SettingsModal({ onClose = () => {}, onStartTour = () => 
                     update('appearance', 'theme', id);
                   }}
                 />
+
+                <h3 className="sm-section-title">Interface</h3>
+                <SettingRow title="Collapse sidebar" desc="Use icons only for more workspace">
+                  <Toggle
+                    checked={settings.appearance.sidebarCollapsed}
+                    onChange={(v) => update('appearance', 'sidebarCollapsed', v)}
+                  />
+                </SettingRow>
+                <SettingRow title="Compact density" desc="Fit more controls and content on screen">
+                  <Toggle
+                    checked={settings.appearance.compactDensity}
+                    onChange={(v) => update('appearance', 'compactDensity', v)}
+                  />
+                </SettingRow>
+                <SettingRow title="Reduce motion" desc="Minimize transitions and animated effects">
+                  <Toggle
+                    checked={settings.appearance.reducedMotion}
+                    onChange={(v) => update('appearance', 'reducedMotion', v)}
+                  />
+                </SettingRow>
               </>
             )}
 
@@ -480,6 +536,15 @@ export default function SettingsModal({ onClose = () => {}, onStartTour = () => 
             {section === 'behavior' && (
               <>
                 <h3 className="sm-section-title">Launch Behavior</h3>
+                <SettingRow title="Start page" desc="The first workspace shown when Native opens">
+                  <div className="sm-dd">
+                    <Dropdown
+                      value={settings.behavior.startPage}
+                      options={START_PAGES}
+                      onChange={(v) => update('behavior', 'startPage', v)}
+                    />
+                  </div>
+                </SettingRow>
                 <SettingRow title="When the game launches" desc="What the launcher window does">
                   <div className="sm-dd">
                     <Dropdown
@@ -509,14 +574,42 @@ export default function SettingsModal({ onClose = () => {}, onStartTour = () => 
                     onChange={(v) => update('behavior', 'confirmInstanceDelete', v)}
                   />
                 </SettingRow>
+              </>
+            )}
 
-                <h3 className="sm-section-title">Help</h3>
-                <SettingRow
-                  title="Launcher tour"
-                  desc="Replay Vill's quick guide to accounts, instances, mods, and settings"
-                >
-                  <button className="sm-btn" onClick={onStartTour} data-testid="replay-tour">
-                    <Sparkles size={13} /> Replay tour
+            {section === 'updates' && (
+              <>
+                <div className="sm-update-hero">
+                  <span><Rocket size={22} /></span>
+                  <div>
+                    <strong>Stay current, without surprises</strong>
+                    <p>Native uses differential downloads when available, so updates only transfer changed app blocks.</p>
+                  </div>
+                </div>
+                <h3 className="sm-section-title">Update checks</h3>
+                <SettingRow title="Check when Native starts" desc="Look for a newer stable release after startup">
+                  <Toggle
+                    checked={settings.updates.checkOnStartup}
+                    onChange={(v) => update('updates', 'checkOnStartup', v)}
+                  />
+                </SettingRow>
+                <SettingRow title="Background checks" desc="Check periodically and after the computer resumes">
+                  <Toggle
+                    checked={settings.updates.backgroundChecks}
+                    onChange={(v) => update('updates', 'backgroundChecks', v)}
+                  />
+                </SettingRow>
+                <SettingRow title="Download automatically" desc="Prepare updates quietly, then ask before restarting">
+                  <Toggle
+                    checked={settings.updates.autoDownload}
+                    onChange={(v) => update('updates', 'autoDownload', v)}
+                  />
+                </SettingRow>
+
+                <h3 className="sm-section-title">Update center</h3>
+                <SettingRow title="Native stable channel" desc={`Currently running version ${window.native?.version ?? 'development'}`}>
+                  <button className="sm-btn sm-btn-primary" onClick={onOpenUpdater}>
+                    <RefreshCw size={13} /> Open update center
                   </button>
                 </SettingRow>
               </>

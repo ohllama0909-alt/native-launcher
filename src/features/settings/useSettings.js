@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 
 export const DEFAULTS = {
-  appearance: { theme: 'redstone' },
+  appearance: {
+    theme: 'redstone',
+    sidebarCollapsed: false,
+    reducedMotion: false,
+    compactDensity: false
+  },
   memory: { min: 1, max: 4 },
-  java: { paths: { 8: '', 17: '', 21: '' } },
+  java: { paths: { 8: '', 17: '', 21: '', 25: '' } },
   resolution: { width: 854, height: 480, fullscreen: false },
   behavior: {
+    startPage: 'play',
     launcherAction: 'keep',
     reopenOnExit: true,
     confirmInstanceDelete: true
@@ -13,9 +19,14 @@ export const DEFAULTS = {
   apiKeys: {
     curseforge: ''
   },
-  // guided tour — keep in sync with electron/settings.js
-  onboarding: { completedVersion: 0 }
+  updates: {
+    checkOnStartup: true,
+    backgroundChecks: true,
+    autoDownload: false
+  }
 };
+
+const SETTINGS_EVENT = 'native:settings-changed';
 
 export function deepMerge(base, override) {
   const out = { ...base };
@@ -39,18 +50,26 @@ export default function useSettings() {
 
   useEffect(() => {
     if (window.native?.settings) {
-      window.native.settings.load().then(setSettings);
+      window.native.settings.load().then((saved) => {
+        const next = deepMerge(DEFAULTS, saved ?? {});
+        setSettings(next);
+        applyAppearance(next);
+      });
     } else {
       const raw = localStorage.getItem('native.settings');
-      setSettings(deepMerge(DEFAULTS, raw ? JSON.parse(raw) : {}));
+      const next = deepMerge(DEFAULTS, raw ? JSON.parse(raw) : {});
+      setSettings(next);
+      applyAppearance(next);
     }
+    const sync = (event) => setSettings(event.detail);
+    window.addEventListener(SETTINGS_EVENT, sync);
+    return () => window.removeEventListener(SETTINGS_EVENT, sync);
   }, []);
 
-  /** update('memory', 'max', 8) — updates one key in one section and persists */
-  const update = (section, key, value) => {
+  const updateSection = (section, changes) => {
     const next = {
       ...settings,
-      [section]: { ...settings[section], [key]: value }
+      [section]: { ...settings[section], ...changes }
     };
     setSettings(next);
     if (window.native?.settings) {
@@ -58,7 +77,21 @@ export default function useSettings() {
     } else {
       localStorage.setItem('native.settings', JSON.stringify(next));
     }
+    applyAppearance(next);
+    window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: next }));
   };
 
-  return { settings, update };
+  /** update('memory', 'max', 8) — updates one key in one section and persists */
+  const update = (section, key, value) => updateSection(section, { [key]: value });
+
+  return { settings, update, updateSection };
+}
+
+function applyAppearance(settings) {
+  const root = document.documentElement;
+  const appearance = settings?.appearance ?? DEFAULTS.appearance;
+  if (appearance.theme === 'redstone') delete root.dataset.theme;
+  else root.dataset.theme = appearance.theme;
+  root.dataset.reducedMotion = appearance.reducedMotion ? 'true' : 'false';
+  root.dataset.density = appearance.compactDensity ? 'compact' : 'comfortable';
 }

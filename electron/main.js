@@ -96,7 +96,7 @@ authMod.init({ app, getWin: () => win }, ipcMain);
 settingsMod.init({ app }, ipcMain);
 javaMod.init({ app, getWin: () => win }, ipcMain);
 modpacksMod.init({ app, getWin: () => win }, ipcMain);
-updaterMod.init({ app, getWin: () => win }, ipcMain);
+updaterMod.init({ app, getWin: () => win, getSettings: () => settingsMod.get() }, ipcMain);
 instanceMod.init({ app }, ipcMain);
 newsMod.init({ app }, ipcMain);
 serverPingMod.init({ app }, ipcMain);

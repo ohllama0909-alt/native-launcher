@@ -4,14 +4,20 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const DEFAULTS = {
-  appearance: { theme: 'redstone' },
+  appearance: {
+    theme: 'redstone',
+    sidebarCollapsed: false,
+    reducedMotion: false,
+    compactDensity: false
+  },
   memory: { min: 1, max: 4 }, // GB
   java: {
     // one configured path per Java major "slot" — resolved per MC version at launch
-    paths: { 8: '', 17: '', 21: '' }
+    paths: { 8: '', 17: '', 21: '', 25: '' }
   },
   resolution: { width: 854, height: 480, fullscreen: false },
   behavior: {
+    startPage: 'play',
     launcherAction: 'keep', // keep | minimize | hide
     reopenOnExit: true,
     confirmInstanceDelete: true
@@ -19,8 +25,11 @@ const DEFAULTS = {
   apiKeys: {
     curseforge: ''
   },
-  // guided tour — bumped GUIDE_VERSION in the renderer re-shows the tour
-  onboarding: { completedVersion: 0 }
+  updates: {
+    checkOnStartup: true,
+    backgroundChecks: true,
+    autoDownload: false
+  }
 };
 
 let deps = null;

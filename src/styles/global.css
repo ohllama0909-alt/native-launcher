@@ -212,6 +212,16 @@ button {
   }
 }
 
+/* Respect the launcher's motion preference everywhere, including third-party UI. */
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
 /* ---------- scrollbars ---------- */
 
 ::-webkit-scrollbar {

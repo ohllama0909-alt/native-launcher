@@ -16,6 +16,7 @@ autoUpdater.fullChangelog = true;
 
 let appRef = null;
 let mainWindow = null;
+let readSettings = null;
 let latestInfo = null;
 let checkPromise = null;
 let downloadPromise = null;
@@ -23,9 +24,10 @@ let downloadCancellation = null;
 let activeCheckSilent = false;
 let currentStatus = { type: 'idle', currentVersion: null, updatedAt: Date.now() };
 
-function init({ app, getWin }, ipcMain) {
+function init({ app, getWin, getSettings }, ipcMain) {
   appRef = app;
   mainWindow = getWin;
+  readSettings = getSettings;
   currentStatus = statusWithMeta('idle');
 
   ipcMain.handle('updater:status', () => currentStatus);
@@ -43,6 +45,10 @@ function init({ app, getWin }, ipcMain) {
     latestInfo = info;
     log.info(`Update available: ${app.getVersion()} -> ${info.version}`);
     setStatus(statusWithMeta('available', updateMeta(info)));
+    if (updatePreferences().autoDownload) {
+      const timer = setTimeout(() => downloadUpdate(), 0);
+      timer.unref?.();
+    }
   });
 
   autoUpdater.on('update-not-available', (info) => {
@@ -98,14 +104,16 @@ function init({ app, getWin }, ipcMain) {
       return;
     }
 
-    const initialTimer = setTimeout(
-      () => checkForUpdates({ silent: true }),
-      STARTUP_CHECK_DELAY_MS
-    );
-    initialTimer.unref?.();
+    if (updatePreferences().checkOnStartup) {
+      const initialTimer = setTimeout(
+        () => checkForUpdates({ silent: true }),
+        STARTUP_CHECK_DELAY_MS
+      );
+      initialTimer.unref?.();
+    }
 
     const interval = setInterval(() => {
-      if (!downloadPromise && currentStatus.type !== 'downloaded') {
+      if (updatePreferences().backgroundChecks && !downloadPromise && currentStatus.type !== 'downloaded') {
         checkForUpdates({ silent: true });
       }
     }, CHECK_INTERVAL_MS);
@@ -114,6 +122,7 @@ function init({ app, getWin }, ipcMain) {
     try {
       const { powerMonitor } = require('electron');
       powerMonitor.on('resume', () => {
+        if (!updatePreferences().backgroundChecks) return;
         const timer = setTimeout(
           () => checkForUpdates({ silent: true }),
           RESUME_CHECK_DELAY_MS
@@ -124,6 +133,15 @@ function init({ app, getWin }, ipcMain) {
       log.warn('Could not register updater resume check:', error);
     }
   });
+}
+
+function updatePreferences() {
+  const updates = readSettings?.()?.updates ?? {};
+  return {
+    checkOnStartup: updates.checkOnStartup !== false,
+    backgroundChecks: updates.backgroundChecks !== false,
+    autoDownload: updates.autoDownload === true
+  };
 }
 
 async function checkForUpdates({ silent = false } = {}) {

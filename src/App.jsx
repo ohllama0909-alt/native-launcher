@@ -20,11 +20,6 @@ export default function App() {
 
   useEffect(() => {
     window.native?.onMaximizedChange(setIsMaximized);
-    // Apply saved theme immediately on startup
-    window.native?.settings?.load().then((s) => {
-      const theme = s?.appearance?.theme ?? 'redstone';
-      if (theme !== 'redstone') document.documentElement.dataset.theme = theme;
-    });
     // Load saved accounts on startup
     window.native?.accounts?.list().then((res) => {
       if (res?.accounts?.length) {
