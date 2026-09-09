@@ -1,42 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import SteveAvatar from '../../assets/steve.png';
 import AlexAvatar from '../../assets/alex.png';
+import { skinIdentifier, skinRenderUrl } from '../../lib/skins.js';
 import './PlayerAvatar.css';
 
 /**
  * Renders a player's head / bust / full-body skin render.
  *
- * The main process owns the skin service URL and the on-disk cache
- * (see `accounts:getAvatar` in electron/auth.js), so the renderer never makes
- * a network request itself. That keeps one source of truth, survives being
- * offline after the first fetch, and avoids re-downloading a render on every
- * mount.
- *
  * Resolution order:
- *   1. `window.native.accounts.getAvatar(identifier, kind)` -> data URI
- *   2. The bundled Steve / Alex textures
+ *   1. `window.native.accounts.getAvatar(identifier)` for head shots — the main
+ *      process downloads once and caches to disk, so this keeps working while
+ *      offline and never re-downloads on remount.
+ *   2. The skin render service directly (needed for bust/body renders).
+ *   3. The bundled Steve / Alex textures.
  *
- * `identifier` is a UUID when we have one, otherwise the username, which is
- * what lets offline accounts (they have no UUID) still show their real skin.
+ * The identifier is a UUID when we have one, otherwise the username, which is
+ * how offline accounts finally get their real skin instead of always Steve.
  */
 
 /** Shared across mounts so navigating between screens doesn't re-flash. */
 const resolvedCache = new Map();
 
-export function accountIdentifier(account, uuid, name) {
-  const rawUuid = uuid ?? account?.uuid ?? null;
-  if (rawUuid) {
-    const cleaned = String(rawUuid).replace(/-/g, '');
-    if (/^[0-9a-fA-F]{32}$/.test(cleaned)) return cleaned;
-  }
-
-  const rawName = name ?? account?.name ?? '';
-  if (/^[A-Za-z0-9_]{2,16}$/.test(rawName) && rawName.toLowerCase() !== 'guest') {
-    return rawName;
-  }
-
-  return null;
-}
+export { skinIdentifier as accountIdentifier };
 
 /** Deterministic Steve-or-Alex so a given player always gets the same one. */
 export function fallbackSkinFor(seed) {
@@ -59,7 +44,7 @@ export default function PlayerAvatar({
   style,
   alt
 }) {
-  const identifier = accountIdentifier(account, uuid, name);
+  const identifier = skinIdentifier(account, uuid, name);
   const fallback = fallbackSkinFor(name ?? account?.name ?? uuid ?? account?.uuid);
   const cacheKey = `${kind}:${identifier ?? 'none'}`;
 
@@ -88,18 +73,24 @@ export default function PlayerAvatar({
 
     (async () => {
       let resolved = null;
-      try {
-        if (window.native?.accounts?.getAvatar) {
-          resolved = await window.native.accounts.getAvatar(identifier, kind);
+
+      // Head shots go through the cached bridge; larger renders are fetched
+      // directly since the bridge only caches avatars.
+      if (kind === 'avatar' || kind === 'head') {
+        try {
+          if (window.native?.accounts?.getAvatar) {
+            resolved = await window.native.accounts.getAvatar(identifier);
+          }
+        } catch {
+          resolved = null;
         }
-      } catch {
-        resolved = null;
       }
 
+      if (!resolved) resolved = skinRenderUrl(kind, identifier);
       if (cancelled) return;
 
-      if (resolved) resolvedCache.set(cacheKey, resolved);
-      setSrc(resolved || null);
+      resolvedCache.set(cacheKey, resolved);
+      setSrc(resolved);
       setLoading(false);
     })();
 
@@ -109,20 +100,16 @@ export default function PlayerAvatar({
   }, [identifier, kind, cacheKey]);
 
   const isRender = kind === 'body' || kind === 'bust';
-  const height = kind === 'body'
-    ? Math.round(size * 2.1)
-    : kind === 'bust'
-      ? Math.round(size * 1.25)
-      : size;
+  const height =
+    kind === 'body'
+      ? Math.round(size * 2.1)
+      : kind === 'bust'
+        ? Math.round(size * 1.25)
+        : size;
 
   return (
     <span
-      className={[
-        'player-avatar',
-        isRender ? 'is-render' : 'is-head',
-        loading ? 'is-loading' : '',
-        className
-      ]
+      className={['player-avatar', isRender ? 'is-render' : 'is-head', loading ? 'is-loading' : '', className]
         .filter(Boolean)
         .join(' ')}
       data-kind={kind}
