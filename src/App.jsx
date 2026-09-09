@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Shell from './features/shell/Shell.jsx';
-import UpdateBanner from './features/updater/UpdateBanner.jsx';
+import UpdateCenter from './features/updater/UpdateCenter.jsx';
+import useUpdater from './features/updater/useUpdater.js';
 
 const GUEST = { id: 'guest', name: 'Guest', uuid: null, type: 'guest', isMicrosoft: false };
 
@@ -8,6 +9,9 @@ export default function App() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const autoShownVersion = useRef(null);
+  const updater = useUpdater();
 
   const activeAccount = accounts.find(a => a.id === activeId) ?? null;
   const account = activeAccount
@@ -29,6 +33,15 @@ export default function App() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    const { type, version } = updater.status;
+    if (type === 'available' && version && autoShownVersion.current !== version) {
+      autoShownVersion.current = version;
+      setUpdateOpen(true);
+    }
+    if (type === 'downloaded') setUpdateOpen(true);
+  }, [updater.status]);
 
   const refreshAccounts = async () => {
     const res = await window.native?.accounts?.list();
@@ -65,7 +78,15 @@ export default function App() {
 
   return (
     <div className={`window-frame${isMaximized ? ' maximized' : ''}`}>
-      <UpdateBanner />
+      <UpdateCenter
+        open={updateOpen}
+        onClose={() => setUpdateOpen(false)}
+        status={updater.status}
+        onCheck={updater.check}
+        onDownload={updater.download}
+        onCancel={updater.cancel}
+        onInstall={updater.install}
+      />
       <Shell
         isMaximized={isMaximized}
         account={account}
@@ -75,6 +96,8 @@ export default function App() {
         onAddOffline={handleAddOffline}
         onSwitchAccount={handleSwitchAccount}
         onRemoveAccount={handleRemoveAccount}
+        updateStatus={updater.status}
+        onOpenUpdater={() => setUpdateOpen(true)}
       />
     </div>
   );

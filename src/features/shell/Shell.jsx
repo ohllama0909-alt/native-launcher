@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Hammer, ChevronDown, Loader2,
+  Hammer, ChevronDown, Loader2, RefreshCw,
   Gamepad2, Boxes, Puzzle, Package, Globe, Newspaper, Settings
 } from 'lucide-react';
 import WindowControls from '../../components/WindowControls.jsx';
@@ -84,7 +84,9 @@ export default function Shell({
   onAddMicrosoft  = () => {},
   onAddOffline    = () => {},
   onSwitchAccount = () => {},
-  onRemoveAccount = () => {}
+  onRemoveAccount = () => {},
+  updateStatus = { type: 'idle' },
+  onOpenUpdater = () => {}
 }) {
   const [nav, setNav] = useState(initialNav);
   const [pendingLaunch, setPendingLaunch] = useState(false);
@@ -115,6 +117,9 @@ export default function Shell({
     : page === 'mod' ? (nav.from === 'modpacks' ? 'modpacks' : 'mods')
     : page === 'modpacks' ? 'modpacks'
     : page;
+  const updateBusy = ['checking', 'preparing', 'downloading', 'installing'].includes(updateStatus.type);
+  const updateReady = updateStatus.type === 'downloaded';
+  const updateAttention = ['available', 'downloaded', 'error'].includes(updateStatus.type);
 
   return (
     <div className="shell">
@@ -195,6 +200,18 @@ export default function Shell({
               onClick={() => setSettingsOpen((v) => !v)}
             >
               <Settings size={16} />
+            </button>
+            <button
+              className={`icon-btn updater-nav-btn${updateAttention ? ' has-update' : ''}`}
+              data-testid="nav-updater"
+              title={updateReady ? 'Update ready to install' : updateBusy ? 'Update in progress' : 'Update center'}
+              onClick={onOpenUpdater}
+            >
+              <RefreshCw size={16} className={updateBusy && updateStatus.type !== 'downloading' ? 'spin' : ''} />
+              {updateAttention && <span className={`updater-nav-dot${updateReady ? ' ready' : ''}`} />}
+              {updateStatus.type === 'downloading' && (
+                <small className="updater-nav-percent">{Math.round(updateStatus.percent ?? 0)}</small>
+              )}
             </button>
             <DownloadRing />
             <span className="top-divider" />

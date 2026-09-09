@@ -61,8 +61,10 @@ contextBridge.exposeInMainWorld('native', {
     onLog: (callback) => subscribe('launcher:log', callback)
   },
   updater: {
+    status: () => ipcRenderer.invoke('updater:status'),
     check: () => ipcRenderer.invoke('updater:check'),
     download: () => ipcRenderer.invoke('updater:download'),
+    cancel: () => ipcRenderer.invoke('updater:cancel'),
     install: () => ipcRenderer.invoke('updater:install'),
     onStatus: (callback) => subscribe('updater:status', callback)
   },
