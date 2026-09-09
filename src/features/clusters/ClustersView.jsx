@@ -40,6 +40,12 @@ function loaderOf(instance) {
   return instance?.mc_loader || instance?.loader || 'Vanilla';
 }
 
+function instanceMeta(instance) {
+  const parts = [versionOf(instance), loaderOf(instance)].filter(Boolean);
+  if (instance?.playtimeSecs) parts.push(formatDuration(instance.playtimeSecs));
+  return parts.join('  \u2022  ');
+}
+
 export default function ClustersView({
   instances = [],
   selectedCluster,
@@ -87,7 +93,7 @@ export default function ClustersView({
     }
   }, [selection, selectedCluster, manifest]);
 
-  /* Keep the loader dropdown in step with the selection. */
+  /* Keep the loader choice in step with the selection. */
   useEffect(() => {
     if (selection?.type !== 'instance') return;
     const instance = instances.find((item) => item.id === selection.id);
@@ -311,14 +317,13 @@ export default function ClustersView({
                   >
                     <div
                       className="instance-row-art"
-                      style={{ backgroundImage: `url(${instance.art || artFor(versionOf(instance))})` }}
+                      style={{
+                        backgroundImage: `url(${instance.art || artFor(versionOf(instance))})`
+                      }}
                     />
                     <div className="instance-row-main">
                       <span className="instance-row-name">{instance.name}</span>
-                      <span className="instance-row-meta">
-                        {versionOf(instance)} \u00b7 {loaderOf(instance)}
-                        {instance.playtimeSecs ? ` \u00b7 ${formatDuration(instance.playtimeSecs)}` : ''}
-                      </span>
+                      <span className="instance-row-meta">{instanceMeta(instance)}</span>
                     </div>
                     <button
                       type="button"
@@ -347,7 +352,7 @@ export default function ClustersView({
             {loadingManifest && !manifest && (
               <div className="versions-empty">
                 <NativeIcon name="refresh" size={18} className="is-spinning" />
-                <p>Fetching the version manifest\u2026</p>
+                <p>Fetching the version manifest...</p>
               </div>
             )}
 
@@ -362,9 +367,7 @@ export default function ClustersView({
               <div className="version-group" key={line}>
                 <div className="version-group-header">
                   <span>{line === 'Other' ? 'Other' : `Minecraft ${line}`}</span>
-                  {lineFor(entries[0].id)?.name && (
-                    <em>{lineFor(entries[0].id).name}</em>
-                  )}
+                  {lineFor(entries[0].id)?.name && <em>{lineFor(entries[0].id).name}</em>}
                 </div>
 
                 {entries.map((entry) => {
@@ -400,8 +403,7 @@ export default function ClustersView({
 
             {filteredVersions.length > MAX_ROWS && (
               <p className="versions-truncated">
-                Showing the first {MAX_ROWS} of {filteredVersions.length}. Use search to narrow it
-                down.
+                {`Showing the first ${MAX_ROWS} of ${filteredVersions.length}. Use search to narrow it down.`}
               </p>
             )}
           </section>
@@ -514,7 +516,7 @@ export default function ClustersView({
                     {matchingInstance && (
                       <p className="detail-note">
                         <NativeIcon name="check-circle" size={14} />
-                        You already have \u201c{matchingInstance.name}\u201d for this combination.
+                        {`Already set up as \u201c${matchingInstance.name}\u201d`}
                       </p>
                     )}
                   </div>
@@ -528,9 +530,7 @@ export default function ClustersView({
                     disabled={!selectedInstance && !availability.available}
                   >
                     <NativeIcon name="play" size={14} />
-                    <span>
-                      {selectedInstance || matchingInstance ? 'Play' : 'Create & play'}
-                    </span>
+                    <span>{selectedInstance || matchingInstance ? 'Play' : 'Create & play'}</span>
                   </button>
 
                   {selectedInstance ? (
