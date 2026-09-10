@@ -349,6 +349,8 @@ export default function InstancesView({
           <div className={`instances-grid is-${layout}`}>
             {visible.map((instance) => {
               const running = launcher.active && launcher.id === instance.id;
+              const gameRunning = running && (launcher.status === 'running' || launcher.status === 'game-running');
+              const launchBusy = running && !gameRunning;
               const isSelected = selectedId === instance.id;
               const menuOpen = menuFor === instance.id;
 
@@ -379,17 +381,18 @@ export default function InstancesView({
                     <div className="instance-card-hover">
                       <button
                         type="button"
-                        className={`instance-card-play ${running ? 'stop' : ''} ${!isInstalledOnDisk && !running ? 'install' : ''}`}
+                        className={`instance-card-play ${gameRunning ? 'stop' : ''} ${launchBusy ? 'progress' : ''} ${!isInstalledOnDisk && !running ? 'install' : ''}`}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (running && launcher.status === 'running') onKill?.();
+                          if (gameRunning) onKill?.();
                           else {
                             onSelect?.(instance.id);
                             onLaunch?.(instance);
                           }
                         }}
+                        disabled={launchBusy}
                         title={
-                          running
+                          gameRunning
                             ? t('home.kill')
                             : isInstalledOnDisk
                               ? t('instances.playNamed', { name: instance.name })
@@ -398,13 +401,16 @@ export default function InstancesView({
                       >
                         <NativeIcon
                           name={
-                            running && launcher.status === 'running'
+                            gameRunning
                               ? 'stop'
+                              : launchBusy
+                                ? 'loader'
                               : isInstalledOnDisk
                                 ? 'play'
                                 : 'arrow-down'
                           }
                           size={16}
+                          className={launchBusy ? 'spin' : ''}
                         />
                         <span>
                           {running

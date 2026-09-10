@@ -8,7 +8,7 @@
 .shell-content-layer {
   position: absolute;
   z-index: 1;
-  inset: 39px 0 0 111px;
+  inset: 39px 0 0 84px;
   display: flex;
   overflow: hidden;
 }

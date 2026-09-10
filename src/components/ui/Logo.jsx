@@ -6,7 +6,7 @@ export function NativeMark({ size = 32, className = '', style }) {
   return (
     <img
       src={nativeLogo}
-      alt="Native"
+      alt="Noctra Client"
       width={size}
       height={size}
       className={`native-mark ${className}`.trim()}
@@ -27,7 +27,7 @@ export default function Logo({
   variant = 'full',
   className = '',
   style,
-  wordmark = 'Native'
+  wordmark = 'Noctra Client'
 }) {
   return (
     <span

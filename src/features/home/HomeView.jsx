@@ -4,7 +4,7 @@ import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import ContextMenu from '../../components/ui/ContextMenu.jsx';
 import { getClusterArt } from '../../data/versionsData.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
-import { formatLaunchProgress } from '../launcher/useLauncher.js';
+import LaunchActionButton from '../launcher/LaunchActionButton.jsx';
 import useIsInstalled from '../instances/useIsInstalled.js';
 import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
 import './HomeView.css';
@@ -14,8 +14,7 @@ export default function HomeView({
   selectedCluster,
   onSelectCluster,
   onOpenCluster,
-  onOpenVersions,
-  onOpenActionCenter,
+  onOpenInstances,
   account,
   launcherState,
   onLaunch,
@@ -29,20 +28,12 @@ export default function HomeView({
   const cluster = selectedCluster || instances[0] || null;
   const backgroundArt = getClusterArt(cluster);
 
-  const isRunning = launcherState?.status === 'running' || launcherState?.status === 'game-running';
-  const isDownloading = launcherState?.status === 'downloading';
-  const isBusy = launcherState?.busy;
-
   const isInstalled = useIsInstalled(cluster, launcherState?.status);
 
   const activeIndex = useMemo(
     () => instances.findIndex((item) => item.id === cluster?.id),
     [instances, cluster]
   );
-
-  const getLaunchButtonLabel = () => {
-    return formatLaunchProgress(launcherState, t);
-  };
 
   // ---- switching -------------------------------------------------
 
@@ -148,27 +139,13 @@ export default function HomeView({
             <p className="home-cluster-subtitle">{cluster.name || 'Minecraft'}</p>
 
             <div className="home-actions-row">
-              <button
-                className={`launch-btn ${isRunning ? 'kill' : ''} ${!isInstalled && !isBusy ? 'install' : ''}`}
-                onClick={() => {
-                  if (isRunning) onKill();
-                  else onLaunch(cluster);
-                }}
-                disabled={isBusy && !isRunning}
-              >
-                {isRunning ? (
-                  <Icon name="square" size={14} />
-                ) : !isInstalled && !isBusy ? (
-                  <NativeIcon name="arrow-down" size={16} />
-                ) : null}
-                <span>
-                  {isBusy || isRunning
-                    ? getLaunchButtonLabel()
-                    : !isInstalled
-                      ? t('common.install')
-                      : t('home.launch')}
-                </span>
-              </button>
+              <LaunchActionButton
+                instance={cluster}
+                launcherState={launcherState}
+                isInstalled={isInstalled}
+                onLaunch={onLaunch}
+                onKill={onKill}
+              />
 
               <button
                 className="cluster-settings-btn"
@@ -251,7 +228,7 @@ export default function HomeView({
             </button>
           )}
 
-          <button className="other-versions-tile" onClick={onOpenActionCenter || onOpenVersions} title={t('action.title')}>
+          <button className="other-versions-tile" onClick={onOpenInstances} title={t('nav.instances')}>
             <Icon name="dots-grid" size={40} />
           </button>
         </div>

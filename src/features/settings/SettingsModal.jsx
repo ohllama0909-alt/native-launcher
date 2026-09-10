@@ -217,7 +217,7 @@ export default function SettingsModal({
                   <h4 className="settings-section-heading">{t('settings.updates')}</h4>
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">Native</span>
+                      <span className="settings-row-title">Noctra Client</span>
                       <span className="settings-row-desc">v{window.native?.version || '1.0.0'}</span>
                     </div>
                     <button className="sub-btn brand-btn" onClick={onOpenUpdater}>

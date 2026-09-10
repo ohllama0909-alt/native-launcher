@@ -188,7 +188,7 @@ async function prepareFabricInstance(instance, account, onState = () => {}) {
     fs.rmSync(localCape, { force: true });
   }
   writeFileAtomic(path.join(cslDir, 'ExtraList', 'NativeWardrobe.json'), JSON.stringify({
-    name: 'Native Wardrobe',
+    name: 'Noctra Client Wardrobe',
     type: 'CustomSkinAPI',
     root: `${API_ROOT}/csl/`
   }, null, 2));

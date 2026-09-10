@@ -49,7 +49,7 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
           <div className="uc-brand">
             <span className="uc-brand-icon"><Rocket size={19} /></span>
             <span>
-              <small>Native</small>
+              <small>Noctra Client</small>
               <strong id="uc-title">{t('update.title')}</strong>
             </span>
           </div>

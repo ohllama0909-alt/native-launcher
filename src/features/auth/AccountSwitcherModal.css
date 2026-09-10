@@ -1,393 +1,304 @@
-/* ============================================================
-   Native — account drawer
-   Shared with SettingsModal's account tab, so the legacy class
-   names are preserved.
-   ============================================================ */
-
-.account-switcher-backdrop {
+.account-login-screen {
   position: fixed;
   inset: 0;
-  z-index: 900;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--backdrop);
-  backdrop-filter: blur(6px);
-  animation: account-fade 0.16s var(--ease) both;
-}
-
-@keyframes account-fade {
-  from {
-    opacity: 0;
-  }
-}
-
-.account-switcher-box {
-  width: min(440px, 100%);
-  max-height: min(660px, 88vh);
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--component-border);
-  background: var(--elevated-bg);
-  box-shadow: var(--shadow-modal);
+  z-index: 1000;
   overflow: hidden;
-  animation: account-rise 0.2s var(--ease-out) both;
+  background: #050405;
+  color: #f5f2f5;
+  font-family: var(--font-sans);
 }
 
-@keyframes account-rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.985);
-  }
-}
-
-.account-switcher-header {
-  flex: none;
+.account-login-titlebar {
+  position: absolute;
+  z-index: 3;
+  inset: 0 0 auto 0;
+  height: 39px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 14px 20px;
-  border-bottom: 1px solid var(--component-border);
+  -webkit-app-region: drag;
 }
 
-.account-switcher-title {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 15.5px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  color: var(--fg-primary);
+.account-login-build {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 28px;
+  color: #9d979f;
+  font-size: 10.5px;
+  font-weight: 700;
 }
 
-.account-switcher-close {
+.account-login-build .native-mark {
+  filter: grayscale(1) brightness(.55);
+  border-radius: 0 !important;
+}
+
+.account-login-build i {
+  width: 1px;
+  height: 10px;
+  margin: 0 4px;
+  background: #302c31;
+}
+
+.account-login-build small {
+  color: #888289;
+  font-size: inherit;
+}
+
+.account-login-controls {
+  height: 100%;
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.account-login-controls button {
+  width: 42px;
+  height: 100%;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  color: var(--fg-muted);
-  cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  color: #aaa5ab;
 }
 
-.account-switcher-close:hover {
-  background: var(--ghost-overlay-hover);
-  color: var(--fg-primary);
+.account-login-controls button:hover { background: rgba(255,255,255,.08); color: #fff; }
+.account-login-controls .close:hover { background: #c42b34; }
+
+.account-login-layout {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(430px, 1fr) minmax(0, 1fr);
 }
 
-.account-switcher-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 18px 20px 20px;
-}
-
-/* ---------- hero ---------- */
-
-.account-hero {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--component-border);
-  background: var(--component-bg);
-}
-
-.account-hero-avatar {
-  border: 1px solid var(--component-border);
-}
-
-.account-hero-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.account-hero-label {
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--fg-muted);
-}
-
-.account-hero-name {
-  font-family: var(--font-sans);
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  color: var(--fg-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-hero-tags {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 2px;
-}
-
-.account-hero-uuid {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--fg-muted);
-}
-
-/* ---------- list ---------- */
-
-.account-section-label {
-  margin-top: 4px;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--fg-muted);
-}
-
-.account-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.account-card-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 11px;
-  border-radius: var(--radius);
-  border: 1px solid transparent;
-  background: var(--page-sunken);
-  cursor: pointer;
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
-}
-
-.account-card-item:hover {
-  background: var(--component-bg-hover);
-  border-color: var(--component-border);
-}
-
-.account-card-item.active {
-  border-color: var(--brand-border);
-  background: var(--brand-subtle);
-  cursor: default;
-}
-
-.account-card-left {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-}
-
-.account-avatar-head {
-  border: 1px solid var(--component-border);
-}
-
-.account-card-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.account-name-text {
-  font-family: var(--font-sans);
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--fg-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-type-tag {
-  align-self: flex-start;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  background: var(--brand-subtle);
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--brand-soft);
-}
-
-.account-type-tag.offline {
-  background: var(--ghost-overlay);
-  color: var(--fg-secondary);
-}
-
-.account-card-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--brand);
-}
-
-.account-remove-btn {
+.account-login-panel {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  color: var(--fg-muted);
-  cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  min-width: 0;
+  padding: 62px 50px 34px;
+  background: #070607;
+  border-right: 1px solid #292429;
 }
 
-.account-remove-btn:hover {
-  background: var(--danger-subtle);
-  color: var(--danger);
-}
-
-/* ---------- add ---------- */
-
-.account-add-divider {
-  height: 1px;
-  margin: 6px 0 2px;
-  background: var(--component-border);
-}
-
-.account-add-row {
+.account-login-content {
+  width: min(304px, 100%);
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
 }
 
-.account-ms-btn {
-  flex: 1;
-  display: inline-flex;
+.account-login-logo {
+  align-self: center;
+  margin-bottom: 13px;
+}
+
+.account-login-logo .native-mark {
+  width: 62px !important;
+  height: 62px !important;
+  border-radius: 0 !important;
+  filter: grayscale(1) brightness(3);
+}
+
+.account-login-content h1 {
+  margin: 0 0 28px;
+  text-align: center;
+  font-size: 31px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -.035em;
+}
+
+.account-login-content h1 strong { font-weight: 800; }
+
+.account-login-microsoft,
+.account-login-github,
+.account-login-home {
+  width: 100%;
+  height: 54px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  height: 42px;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--brand-gradient);
-  font-family: var(--font-sans);
-  font-size: 13.5px;
-  font-weight: 650;
-  color: var(--fg-on-brand);
-  cursor: pointer;
-  box-shadow: 0 10px 24px -14px var(--brand-glow);
-  transition: filter 0.15s var(--ease), transform 0.15s var(--ease);
-}
-
-.account-ms-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.account-ms-btn:active:not(:disabled) {
-  transform: scale(0.99);
-}
-
-.account-ms-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.offline-input-row {
-  display: flex;
-  gap: 8px;
-}
-
-.offline-input {
-  flex: 1;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--component-border);
-  background: var(--page-sunken);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--fg-primary);
-  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
-}
-
-.offline-input::placeholder {
-  color: var(--fg-muted);
-}
-
-.offline-input:focus {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-subtle);
-}
-
-.account-offline-btn,
-.account-add-btn {
-  display: inline-flex;
-  align-items: center;
   gap: 7px;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--component-border);
-  background: var(--ghost-overlay);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--fg-secondary);
-  cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease),
-    border-color 0.15s var(--ease);
+  border-radius: 11px;
+  font-size: 15px;
+  transition: transform .15s ease, filter .15s ease, border-color .15s ease;
 }
 
-.account-offline-btn:hover:not(:disabled),
-.account-add-btn:hover:not(:disabled) {
-  background: var(--ghost-overlay-hover);
-  border-color: var(--component-border-hover);
-  color: var(--fg-primary);
+.account-login-microsoft {
+  background: #f1f0f1;
+  color: #121112;
 }
 
-.account-offline-btn:disabled,
-.account-add-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
+.account-login-microsoft strong,
+.account-login-github strong { font-size: 16px; }
+
+.account-login-microsoft:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.account-login-microsoft:disabled { opacity: .6; cursor: wait; }
+
+.account-login-ms-mark {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin-left: 8px;
 }
 
-/* ---------- misc ---------- */
+.account-login-ms-mark i:nth-child(1) { background: #f35325; }
+.account-login-ms-mark i:nth-child(2) { background: #81bc06; }
+.account-login-ms-mark i:nth-child(3) { background: #05a6f0; }
+.account-login-ms-mark i:nth-child(4) { background: #ffba08; }
 
-.account-empty {
+.account-login-offline-toggle {
+  height: 37px;
+  margin-top: 10px;
+  border: 1px solid #2b272c;
+  border-radius: 9px;
+  background: #0d0b0d;
+  color: #a39ea5;
+  font-size: 12px;
+}
+
+.account-login-offline-toggle:hover { border-color: #514951; color: #fff; }
+
+.account-login-offline {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 26px 16px;
-  border-radius: var(--radius-lg);
-  background: var(--page-sunken);
-  color: var(--fg-muted);
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.account-login-offline input {
+  min-width: 0;
+  flex: 1;
+  height: 39px;
+  padding: 0 11px;
+  border: 1px solid #312c32;
+  border-radius: 8px;
+  background: #100e10;
+  color: #fff;
+}
+
+.account-login-offline > button {
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #8f438f;
+  color: #fff;
+  font-weight: 700;
+}
+
+.account-login-error {
+  margin: 8px 0 0;
+  color: #ef7081;
+  font-size: 11px;
   text-align: center;
 }
 
-.account-empty p {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.6;
+.account-login-github {
+  margin-top: 10px;
+  border: 1px solid #282429;
+  background: #0b090b;
+  color: #ebe8ec;
 }
 
-.account-hint {
-  margin: 2px 0 0;
-  font-size: 11.5px;
-  line-height: 1.5;
+.account-login-github span { margin-right: auto; padding-left: 18px; }
+.account-login-github strong { margin-right: 18px; }
+.account-login-github:hover { border-color: #4b424c; background: #100d10; }
+
+.account-login-home {
+  margin-top: 10px;
+  border: 1px solid rgba(160,81,162,.48);
+  background: rgba(160,81,162,.14);
+  color: #e5b3e7;
+  font-weight: 700;
 }
 
-.account-hint.muted {
-  color: var(--fg-muted);
+.account-login-home:hover { background: rgba(160,81,162,.24); }
+
+.account-login-existing {
+  margin: -8px 0 12px;
 }
 
-.account-hint.danger {
-  color: var(--danger);
+.account-login-existing > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #716b73;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.account-login-list {
+  max-height: 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+}
+
+.account-login-item {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 7px;
+  border: 1px solid #262227;
+  border-radius: 8px;
+  background: #0d0b0d;
+  cursor: pointer;
+}
+
+.account-login-item:hover { background: #131013; }
+.account-login-item.active { border-color: #71366f; background: #211020; }
+.account-login-item > span { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.account-login-item > span strong { overflow: hidden; text-overflow: ellipsis; font-size: 11px; white-space: nowrap; }
+.account-login-item > span small { color: #777178; font-size: 9px; }
+.account-login-item > button { width: 25px; height: 25px; display: grid; place-items: center; color: #6e6870; }
+.account-login-item > button:hover { color: #ef6676; }
+
+.account-login-content footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  margin-top: 26px;
+  color: #39353a;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.account-login-content footer i {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.account-login-art {
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #160815;
+}
+
+.account-login-art img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (max-height: 700px) {
+  .account-login-panel { padding-top: 44px; padding-bottom: 18px; }
+  .account-login-content h1 { margin-bottom: 18px; }
+  .account-login-content footer { margin-top: 14px; }
+}
+
+@media (max-width: 860px) {
+  .account-login-layout { grid-template-columns: 1fr; }
+  .account-login-art { position: absolute; inset: 0; opacity: .18; }
+  .account-login-panel { background: rgba(7,6,7,.9); border-right: 0; }
 }

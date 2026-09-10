@@ -354,10 +354,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 42px;
-  border-radius: var(--radius);
+  height: 46px;
+  border-radius: 11px;
   border: 1px solid rgba(255, 255, 255, 0.13);
-  background: var(--brand-gradient);
+  background: linear-gradient(135deg, #3ebdb1, #278d85);
   font-family: var(--font-sans);
   font-size: 13.5px;
   font-weight: 650;
@@ -406,8 +406,8 @@
 }
 
 .sidebar-play-btn.install-mode {
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  box-shadow: 0 10px 24px -14px rgba(2, 132, 199, 0.5);
+  background: linear-gradient(135deg, #a956aa, #773579);
+  box-shadow: 0 10px 24px -14px rgba(185, 91, 187, 0.62);
 }
 
 .sidebar-note.success {

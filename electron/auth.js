@@ -94,7 +94,7 @@ function microsoftAuthCode(authManager) {
       fullscreenable: false,
       backgroundColor: '#f4f4f4',
       icon: appIcon,
-      title: 'Sign in to Microsoft — Native',
+      title: 'Sign in to Microsoft — Noctra Client',
       autoHideMenuBar: true,
       webPreferences: {
         contextIsolation: true,

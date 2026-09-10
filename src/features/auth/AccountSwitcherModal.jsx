@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import { ArrowLeft, Github, Minus, X } from 'lucide-react';
+import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import { preloadAccountAvatars } from '../../lib/skins.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import packageInfo from '../../../package.json';
+import loginSide from '../../assets/noctra-login-side.png';
 import './AccountSwitcherModal.css';
 
 const OFFLINE_NAME = /^[A-Za-z0-9_]{3,16}$/;
 
 export default function AccountSwitcherModal({
   open,
+  firstRun = false,
   onClose,
   accounts = [],
   activeId,
@@ -19,35 +24,32 @@ export default function AccountSwitcherModal({
 }) {
   const { t } = useI18n();
   const [offlineName, setOfflineName] = useState('');
+  const [showOffline, setShowOffline] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Warm the avatar cache so switching accounts paints instantly.
   useEffect(() => {
     if (open) preloadAccountAvatars(accounts, 128);
   }, [open, accounts]);
 
   useEffect(() => {
-    if (!open) return undefined;
-
+    if (!open || firstRun) return undefined;
     const onKeyDown = (event) => {
       if (event.key === 'Escape') onClose?.();
     };
-
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [open, firstRun, onClose]);
 
   useEffect(() => {
     if (!open) {
       setOfflineName('');
+      setShowOffline(false);
       setError('');
     }
   }, [open]);
 
   if (!open) return null;
-
-  const active = accounts.find((account) => account.id === activeId) || accounts[0] || null;
 
   const handleAddMicrosoft = async () => {
     setBusy(true);
@@ -64,7 +66,6 @@ export default function AccountSwitcherModal({
 
   const handleAddOffline = async () => {
     const name = offlineName.trim();
-
     if (!OFFLINE_NAME.test(name)) {
       setError(t('error.offlineName'));
       return;
@@ -84,77 +85,52 @@ export default function AccountSwitcherModal({
   };
 
   return (
-    <div
-      className="account-switcher-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose?.();
-      }}
-    >
-      <div className="account-switcher-box" role="dialog" aria-label={t('account.accounts')}>
-        <header className="account-switcher-header">
-          <h2 className="account-switcher-title">{t('account.accounts')}</h2>
-          <button type="button" className="account-switcher-close" onClick={onClose} title={t('common.close')}>
-            <NativeIcon name="close" size={16} />
-          </button>
-        </header>
+    <div className="account-login-screen" role="dialog" aria-modal="true" aria-label={t('account.accounts')}>
+      <header className="account-login-titlebar">
+        <div className="account-login-build">
+          <Logo height={11} variant="mark" />
+          <span>Noctra Client</span>
+          <i />
+          <small>Build {window.native?.version || packageInfo.version}</small>
+        </div>
+        <div className="account-login-controls">
+          <button type="button" onClick={() => window.native?.minimize()} aria-label={t('window.minimize')}><Minus size={14} /></button>
+          <button type="button" onClick={() => window.native?.maximize()} aria-label={t('window.maximize')}><NativeIcon name="maximize" size={12} /></button>
+          <button type="button" className="close" onClick={() => window.native?.close()} aria-label={t('common.close')}><X size={15} /></button>
+        </div>
+      </header>
 
-        <div className="account-switcher-body">
-          {active ? (
-            <div className="account-hero">
-              <PlayerAvatar account={active} kind="avatar" size={64} className="account-hero-avatar" />
-              <div className="account-hero-info">
-                <span className="account-hero-label">{t('account.signedInAs')}</span>
-                <span className="account-hero-name">{active.name}</span>
-                <div className="account-hero-tags">
-                  <span className={'account-type-tag ' + (active.type === 'offline' ? 'offline' : '')}>
-                    {t(active.type === 'offline' ? 'account.offline' : 'account.microsoft')}
-                  </span>
-                  {active.uuid && <span className="account-hero-uuid">{String(active.uuid).slice(0, 8)}</span>}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="account-empty">
-              <NativeIcon name="user" size={22} />
-              <p>{t('account.empty')}</p>
-            </div>
-          )}
+      <div className="account-login-layout">
+        <section className="account-login-panel">
+          <div className="account-login-content">
+            <Logo height={62} variant="mark" className="account-login-logo" />
+            <h1>Noctra <strong>Client</strong></h1>
 
-          {accounts.length > 0 && (
-            <>
-              <span className="account-section-label">{t('account.switch')}</span>
-
-              <div className="account-list">
-                {accounts.map((account) => {
-                  const isActive = account.id === activeId;
-                  return (
-                    <div
-                      key={account.id}
-                      className={'account-card-item ' + (isActive ? 'active' : '')}
-                      onClick={() => {
-                        if (!isActive) onSwitchAccount?.(account.id);
-                      }}
-                    >
-                      <div className="account-card-left">
-                        <PlayerAvatar
-                          account={account}
-                          kind="avatar"
-                          size={34}
-                          className="account-avatar-head"
-                        />
-                        <div className="account-card-text">
-                          <span className="account-name-text">{account.name}</span>
-                          <span className={'account-type-tag ' + (account.type === 'offline' ? 'offline' : '')}>
-                            {t(account.type === 'offline' ? 'account.offline' : 'account.microsoft')}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="account-card-right">
-                        {isActive && <NativeIcon name="check-circle" size={16} />}
+            {accounts.length > 0 && (
+              <div className="account-login-existing">
+                <span>{t('account.switch')}</span>
+                <div className="account-login-list">
+                  {accounts.map((account) => {
+                    const active = account.id === activeId;
+                    return (
+                      <div
+                        key={account.id}
+                        className={`account-login-item ${active ? 'active' : ''}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSwitchAccount?.(account.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') onSwitchAccount?.(account.id);
+                        }}
+                      >
+                        <PlayerAvatar account={account} kind="avatar" size={34} />
+                        <span>
+                          <strong>{account.name}</strong>
+                          <small>{t(account.type === 'offline' ? 'account.offline' : 'account.microsoft')}</small>
+                        </span>
+                        {active && <NativeIcon name="check-circle" size={17} />}
                         <button
                           type="button"
-                          className="account-remove-btn"
                           title={t('account.remove')}
                           onClick={(event) => {
                             event.stopPropagation();
@@ -164,57 +140,71 @@ export default function AccountSwitcherModal({
                           <NativeIcon name="trash" size={14} />
                         </button>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </>
-          )}
+            )}
 
-          <div className="account-add-divider" />
-
-          <span className="account-section-label">{t('account.add')}</span>
-
-          <div className="account-add-row">
-            <button type="button" className="account-ms-btn" onClick={handleAddMicrosoft} disabled={busy}>
-              <NativeIcon name="shield" size={15} />
-              <span>{t('account.signInMicrosoft')}</span>
+            <button type="button" className="account-login-microsoft" onClick={handleAddMicrosoft} disabled={busy}>
+              <span>{busy ? t('account.securing') : 'Log in with'}</span>
+              <span className="account-login-ms-mark" aria-hidden="true"><i /><i /><i /><i /></span>
+              <strong>Microsoft</strong>
             </button>
-          </div>
 
-          <div className="offline-input-row">
-            <input
-              className="offline-input"
-              placeholder={t('account.offlineUsername')}
-              value={offlineName}
-              maxLength={16}
-              onChange={(event) => {
-                setOfflineName(event.target.value);
-                if (error) setError('');
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') handleAddOffline();
-              }}
-            />
+            <button type="button" className="account-login-offline-toggle" onClick={() => setShowOffline((value) => !value)}>
+              {showOffline ? t('common.close') : t('account.offline')}
+            </button>
+
+            {showOffline && (
+              <div className="account-login-offline">
+                <input
+                  value={offlineName}
+                  maxLength={16}
+                  autoFocus
+                  placeholder={t('account.offlineUsername')}
+                  onChange={(event) => {
+                    setOfflineName(event.target.value);
+                    setError('');
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') handleAddOffline();
+                  }}
+                />
+                <button type="button" onClick={handleAddOffline} disabled={busy || !offlineName.trim()}>
+                  {t('account.addButton')}
+                </button>
+              </div>
+            )}
+
+            {error && <p className="account-login-error">{error}</p>}
+
+            {accounts.length > 0 && !firstRun && (
+              <button type="button" className="account-login-home" onClick={onClose}>
+                <ArrowLeft size={17} />
+                <span>Back to Home</span>
+              </button>
+            )}
+
             <button
               type="button"
-              className="account-offline-btn"
-              onClick={handleAddOffline}
-              disabled={busy || !offlineName.trim()}
+              className="account-login-github"
+              onClick={() => window.native?.openExternal?.('https://github.com/ohllama0909-alt/native-launcher')}
             >
-              <NativeIcon name="plus" size={15} />
-              <span>{t('account.addButton')}</span>
+              <span>View code</span>
+              <Github size={20} />
+              <strong>GitHub</strong>
             </button>
-          </div>
 
-          {error ? (
-            <p className="account-hint danger">{error}</p>
-          ) : (
-            <p className="account-hint muted">
-              {t('account.offlineHint')}
-            </p>
-          )}
-        </div>
+            <footer>
+              <span>Privacy Policy</span><i /> <span>Terms of Service</span><i /> <span>Support</span>
+            </footer>
+          </div>
+        </section>
+
+        <aside className="account-login-art" aria-hidden="true">
+          <img src={loginSide} alt="" />
+        </aside>
       </div>
     </div>
   );

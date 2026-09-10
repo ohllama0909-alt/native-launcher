@@ -3,6 +3,7 @@ import Shell from './features/shell/Shell.jsx';
 import UpdateCenter from './features/updater/UpdateCenter.jsx';
 import useUpdater from './features/updater/useUpdater.js';
 import OnboardingFlow from './features/onboarding/OnboardingFlow.jsx';
+import AccountSwitcherModal from './features/auth/AccountSwitcherModal.jsx';
 import { setApplicationLocale } from './i18n/I18nProvider.jsx';
 
 const GUEST = { id: 'guest', name: 'Guest', uuid: null, type: 'guest', isMicrosoft: false };
@@ -156,22 +157,34 @@ export default function App() {
   };
 
   if (!startup.ready) {
-    return <div className="window-frame" aria-label="Loading Native" />;
+    return <div className="window-frame" aria-label="Loading Noctra Client" />;
   }
 
   return (
     <div className={`window-frame${isMaximized ? ' maximized' : ''}`}>
       {startup.onboarding ? (
-        <OnboardingFlow
-          isMaximized={isMaximized}
-          accounts={accounts}
-          activeId={activeId}
-          initialLanguage={startup.settings?.onboarding?.language}
-          onAddMicrosoft={handleAddMicrosoft}
-          onAddOffline={handleAddOffline}
-          onSwitchAccount={handleSwitchAccount}
-          onComplete={handleOnboardingComplete}
-        />
+        accounts.length === 0 ? (
+          <AccountSwitcherModal
+            open
+            firstRun
+            accounts={accounts}
+            activeId={activeId}
+            onAddMicrosoft={handleAddMicrosoft}
+            onAddOffline={handleAddOffline}
+            onSwitchAccount={handleSwitchAccount}
+          />
+        ) : (
+          <OnboardingFlow
+            isMaximized={isMaximized}
+            accounts={accounts}
+            activeId={activeId}
+            initialLanguage={startup.settings?.onboarding?.language}
+            onAddMicrosoft={handleAddMicrosoft}
+            onAddOffline={handleAddOffline}
+            onSwitchAccount={handleSwitchAccount}
+            onComplete={handleOnboardingComplete}
+          />
+        )
       ) : (
         <>
           <UpdateCenter

@@ -447,10 +447,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
+  min-width: 112px;
+  height: 40px;
+  justify-content: center;
   padding: 0 18px;
-  border-radius: var(--radius-full);
-  background: var(--brand-gradient);
+  border-radius: 11px;
+  background: linear-gradient(135deg, #3ebdb1, #278d85);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--fg-on-brand);
   font-family: var(--font-sans);
@@ -466,9 +468,18 @@
   filter: brightness(1.08);
 }
 
+.instance-card-play.install {
+  background: linear-gradient(135deg, #a956aa, #773579);
+}
+
+.instance-card-play.progress {
+  background: linear-gradient(135deg, #3579c9, #23538e);
+  cursor: wait;
+}
+
 .instance-card-play.stop {
-  background: var(--danger);
-  box-shadow: none;
+  background: linear-gradient(135deg, #df4a55, #a52631);
+  box-shadow: 0 10px 24px -12px rgba(239, 68, 78, 0.7);
 }
 
 .instance-card-body {

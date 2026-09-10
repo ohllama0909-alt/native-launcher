@@ -1,8 +1,9 @@
 import React from 'react';
-import { Bell, Boxes, CircleUserRound, Compass, Folder, Home, Layers3, MessageCircle, Minus, Settings, ShoppingCart, X } from 'lucide-react';
+import { Boxes, CircleUserRound, Compass, Folder, Home, Layers3, MessageCircle, Minus, Settings, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import packageInfo from '../../../package.json';
 import './AppNavbar.css';
 
 export const NAV_TABS = [
@@ -20,12 +21,13 @@ function RailButton({ icon: Icon, active, onClick, title, badge, status }) {
   </button>;
 }
 
-export default function AppNavbar({ currentTab, onSelectTab, unreadCount = 0, onOpenNotifications, onOpenSettings, onOpenAccountSwitcher, account, isMaximized, onMinimize, onMaximize, onClose }) {
+export default function AppNavbar({ currentTab, onSelectTab, onOpenSettings, onOpenAccountSwitcher, account, isMaximized, onMinimize, onMaximize, onClose }) {
   const { t } = useI18n();
+  const buildVersion = window.native?.version || packageInfo.version;
   return <>
     <header className="noctra-titlebar">
       <div className="noctra-build">
-        <span className="noctra-wordmark"><Logo height={10} variant="mark"/> Noctra Client</span><i/><span>Build <b>0.9.2</b></span><i/><strong><span/> 9101 Online</strong>
+        <span className="noctra-wordmark"><Logo height={13} variant="mark"/> Noctra Client</span><i/><span>Build <b>{buildVersion}</b></span>
       </div>
       <div className="window-controls-group">
         <button className="window-ctrl-btn" onClick={onMinimize} aria-label={t('window.minimize')}><Minus size={14}/></button>
@@ -38,8 +40,6 @@ export default function AppNavbar({ currentTab, onSelectTab, unreadCount = 0, on
       <span className="rail-divider"/>
       <nav>
         <RailButton icon={Home} active={currentTab === 'home'} onClick={() => onSelectTab('home')} title={t('nav.home')}/>
-        <RailButton icon={CircleUserRound} active={currentTab === 'accounts'} onClick={onOpenAccountSwitcher} title={account?.name || t('account.accounts')} status="gold"/>
-        <RailButton icon={Bell} onClick={onOpenNotifications} title={t('window.notifications')} badge={unreadCount ? (unreadCount > 9 ? '9+' : unreadCount) : null}/>
         <span className="rail-divider"/>
         <RailButton icon={MessageCircle} title="Noctra Relay" onClick={() => onSelectTab('home')}/>
         <RailButton icon={Layers3} active={currentTab === 'instances'} onClick={() => onSelectTab('instances')} title={t('nav.instances')}/>
@@ -48,7 +48,7 @@ export default function AppNavbar({ currentTab, onSelectTab, unreadCount = 0, on
         <RailButton icon={Folder} active={currentTab === 'stats'} onClick={() => onSelectTab('stats')} title={t('nav.stats')} status="red"/>
       </nav>
       <div className="rail-spacer"/>
-      <RailButton icon={ShoppingCart} title="Noctra Store" status="red" onClick={() => onSelectTab('home')}/>
+      <RailButton icon={CircleUserRound} active={currentTab === 'accounts'} onClick={onOpenAccountSwitcher} title={account?.name || t('account.accounts')} status="gold"/>
       <RailButton icon={Settings} title={t('common.settings')} onClick={onOpenSettings}/>
     </aside>
   </>;

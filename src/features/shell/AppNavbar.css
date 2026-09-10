@@ -2,7 +2,7 @@
   position: absolute;
   z-index: 70;
   top: 0;
-  left: 111px;
+  left: 84px;
   right: 0;
   height: 39px;
   display: flex;
@@ -17,8 +17,8 @@
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 8px;
+  gap: 11px;
+  font-size: 10.5px;
   color: #6f6a72;
 }
 .noctra-build > i {
@@ -27,8 +27,8 @@
   background: #312d31;
 }
 .noctra-build b {
-  font-weight: 500;
-  color: #827d85;
+  font-weight: 700;
+  color: #aaa5ac;
 }
 .noctra-build strong {
   display: flex;
@@ -48,8 +48,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #5c575f;
-  font-weight: 650;
+  color: #a29da4;
+  font-weight: 700;
 }
 .noctra-wordmark .native-mark {
   filter: grayscale(1) brightness(0.55);
@@ -81,7 +81,7 @@
   position: absolute;
   z-index: 80;
   inset: 0 auto 0 0;
-  width: 111px;
+  width: 84px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -92,8 +92,8 @@
 }
 .noctra-rail button {
   position: relative;
-  width: clamp(38px, 2.25vw, 46px);
-  height: clamp(38px, 2.25vw, 46px);
+  width: clamp(44px, 2.6vw, 50px);
+  height: clamp(44px, 2.6vw, 50px);
   display: grid;
   place-items: center;
   flex: none;
@@ -124,7 +124,7 @@
   border-radius: 0 !important;
   filter: grayscale(1) brightness(3);
   object-fit: contain;
-  transform: translateX(-6px) scale(0.95);
+  transform: scale(0.95);
 }
 .noctra-rail nav {
   display: flex;
@@ -133,8 +133,8 @@
   gap: clamp(1px, 0.2vh, 4px);
 }
 .noctra-rail button > svg {
-  width: clamp(22px, 1.35vw, 27px);
-  height: clamp(22px, 1.35vw, 27px);
+  width: clamp(25px, 1.55vw, 30px);
+  height: clamp(25px, 1.55vw, 30px);
 }
 .rail-divider {
   display: block;

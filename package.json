@@ -1,13 +1,13 @@
 {
-  "name": "native",
-  "productName": "Native",
-  "desktopName": "Native",
+  "name": "noctra-client",
+  "productName": "Noctra Client",
+  "desktopName": "Noctra Client",
   "version": "3.9.23",
-  "description": "Native — a Minecraft launcher",
+  "description": "Noctra Client — a Minecraft launcher",
   "homepage": "https://github.com/ohllama0909-alt/native-launcher",
   "author": {
-    "name": "Native",
-    "email": "native@example.com"
+    "name": "Noctra Client",
+    "email": "support@noctra.client"
   },
   "main": "electron/main.js",
   "scripts": {
@@ -31,8 +31,8 @@
     "update-server": "node update-server.js"
   },
   "build": {
-    "appId": "app.nativelauncher.desktop",
-    "productName": "Native",
+    "appId": "app.noctraclient.desktop",
+    "productName": "Noctra Client",
     "publish": {
       "provider": "github",
       "owner": "ohllama0909-alt",
@@ -45,7 +45,7 @@
     "files": [
       "dist/**",
       "electron/**",
-      "icon.png",
+      "src/assets/noctra-icon.png",
       "src/styles/theme.css",
       "package.json"
     ],
@@ -65,12 +65,12 @@
         }
       ],
       "artifactName": "${productName}-Portable-${version}-${arch}.${ext}",
-      "icon": "buildResources/icon.ico"
+      "icon": "src/assets/noctra-icon.png"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Native",
+      "shortcutName": "Noctra Client",
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     },
     "mac": {
@@ -90,7 +90,7 @@
           ]
         }
       ],
-      "icon": "buildResources/icon.png",
+      "icon": "src/assets/noctra-icon.png",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "category": "public.app-category.games",
       "identity": null
@@ -110,7 +110,7 @@
           ]
         }
       ],
-      "icon": "buildResources/icon.png",
+      "icon": "src/assets/noctra-icon.png",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "category": "Game",
       "syncDesktopName": true,

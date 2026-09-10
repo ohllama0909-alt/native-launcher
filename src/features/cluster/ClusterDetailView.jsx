@@ -7,8 +7,7 @@ import ModsTab from './ModsTab.jsx';
 import PacksTab from './PacksTab.jsx';
 import SettingsTab from './SettingsTab.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
-import NativeIcon from '../../components/ui/NativeIcon.jsx';
-import { formatLaunchProgress } from '../launcher/useLauncher.js';
+import LaunchActionButton from '../launcher/LaunchActionButton.jsx';
 import useIsInstalled from '../instances/useIsInstalled.js';
 import { getClusterArt } from '../../data/versionsData.js';
 import './ClusterDetailView.css';
@@ -70,14 +69,7 @@ export default function ClusterDetailView({
     );
   }
 
-  const isRunning = launcherState?.status === 'running' || launcherState?.status === 'game-running';
-  const isDownloading = launcherState?.status === 'downloading';
-  const isBusy = launcherState?.busy;
   const isInstalled = useIsInstalled(cluster, launcherState?.status);
-
-  const getLaunchButtonLabel = () => {
-    return formatLaunchProgress(launcherState, t);
-  };
 
   const handleOpenFolder = () => {
     if (window.native?.instance?.openFolder) {
@@ -123,27 +115,13 @@ export default function ClusterDetailView({
               <Icon name="folder" size={18} />
             </button>
 
-            <button
-              className={`launch-btn ${isRunning ? 'kill' : ''} ${!isInstalled && !isBusy ? 'install' : ''}`}
-              onClick={() => {
-                if (isRunning) onKill();
-                else onLaunch(cluster);
-              }}
-              disabled={isBusy && !isRunning}
-            >
-              {isRunning ? (
-                <Icon name="square" size={14} />
-              ) : !isInstalled && !isBusy ? (
-                <NativeIcon name="arrow-down" size={16} />
-              ) : null}
-              <span>
-                {isBusy || isRunning
-                  ? getLaunchButtonLabel()
-                  : !isInstalled
-                    ? t('common.install')
-                    : t('home.launch')}
-              </span>
-            </button>
+            <LaunchActionButton
+              instance={cluster}
+              launcherState={launcherState}
+              isInstalled={isInstalled}
+              onLaunch={onLaunch}
+              onKill={onKill}
+            />
           </div>
         </div>
 

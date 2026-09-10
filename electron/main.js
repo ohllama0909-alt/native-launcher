@@ -14,7 +14,14 @@ const serverPingMod = require('./serverPing');
 const wardrobeMod = require('./wardrobe');
 
 let win;
-const appIcon = path.join(__dirname, '..', 'icon.png');
+const appIcon = path.join(__dirname, '..', 'src', 'assets', 'noctra-icon.png');
+
+app.setName('Noctra Client');
+
+// Keep existing installations on their current data directory so the rename
+// never makes accounts, instances, or downloaded game files appear missing.
+const legacyUserData = path.join(app.getPath('appData'), 'Native');
+if (fs.existsSync(legacyUserData)) app.setPath('userData', legacyUserData);
 
 function createWindow() {
   win = new BrowserWindow({
@@ -26,7 +33,7 @@ function createWindow() {
     transparent: true,
     backgroundColor: '#00000000',
     icon: appIcon,
-    title: 'Native',
+    title: 'Noctra Client',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -104,7 +111,6 @@ serverPingMod.init({ app }, ipcMain);
 wardrobeMod.init({ app, auth: authMod }, ipcMain);
 
 app.whenReady().then(() => {
-  app.setName('Native');
   createWindow();
   win.once('ready-to-show', () => win.show());
 

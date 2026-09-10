@@ -9,8 +9,6 @@ import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import SettingsModal from '../settings/SettingsModal.jsx';
 import AccountsView from '../accounts/AccountsView.jsx';
 import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
-import ActionCenter from '../actions/ActionCenter.jsx';
-import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
 import useLauncher from '../launcher/useLauncher.js';
 import useInstances from '../instances/useInstances.js';
@@ -47,8 +45,6 @@ export default function Shell({
   const [detailOrigin, setDetailOrigin] = useState('home');
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [actionCenterOpen, setActionCenterOpen] = useState(false);
   const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
@@ -142,9 +138,7 @@ export default function Shell({
         currentTab={navTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenNotifications={() => setNotificationsOpen(true)}
         onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
-        unreadCount={notifications.length}
         account={account}
         isMaximized={isMaximized}
         onMinimize={handleMinimize}
@@ -159,8 +153,7 @@ export default function Shell({
             selectedCluster={instancesManager.selected}
             onSelectCluster={instancesManager.select}
             onOpenCluster={handleOpenCluster}
-            onOpenVersions={() => setCurrentTab('versions')}
-            onOpenActionCenter={() => setActionCenterOpen(true)}
+            onOpenInstances={() => setCurrentTab('instances')}
             account={account}
             launcherState={launcher}
             onLaunch={handleLaunch}
@@ -254,28 +247,6 @@ export default function Shell({
         onAddMicrosoft={onAddMicrosoft}
         onAddOffline={onAddOffline}
         onRemoveAccount={onRemoveAccount}
-      />
-
-      <ActionCenter
-        open={actionCenterOpen}
-        onClose={() => setActionCenterOpen(false)}
-        onNavigate={(tab) => {
-          setCurrentTab(tab);
-          setActionCenterOpen(false);
-        }}
-        onBrowse={({ contentType, query }) => {
-          setBrowseIntent({ contentType, query, nonce: Date.now() });
-          setBrowseReturnTab('home');
-          setCurrentTab('browse');
-          setActionCenterOpen(false);
-        }}
-      />
-
-      <NotificationDrawer
-        open={notificationsOpen}
-        onClose={() => setNotificationsOpen(false)}
-        notifications={notifications}
-        onClear={() => setNotifications([])}
       />
 
       <CreateInstanceModal
