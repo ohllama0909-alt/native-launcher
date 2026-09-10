@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
 const { shell } = require('electron');
+const installRegistry = require('./installRegistry');
 
 /**
  * Instance filesystem helpers (main process).
@@ -32,179 +33,299 @@ function resolveInside(base, ...parts) {
 
 const instanceDir = (id) => resolveInside(instancesDir(), id);
 
+/* ── installation verification ───────────────────────────────── */
+
 /**
- * Fully verifies whether a Minecraft version is installed on disk,
- * including client jar (>1MB), version json, mod loader profile (if Fabric/Forge),
- * asset index json, asset objects, and libraries.
+ * Loader directories on disk are named inconsistently: Minecraft Launcher Core
+ * writes `fabric-loader-0.16.9-1.21.1`, the Forge Wrapper can write either
+ * `forge-1.21.1-52.0.1` or `1.21.1-forge-52.0.1`, and a Fabric install may keep
+ * its vanilla metadata in `versions/<profile>/<gameVersion>.json`. Verification
+ * therefore inspects the profile JSONs instead of trusting a name pattern.
+ */
+const LOADER_PREFIXES = {
+  Fabric: 'fabric-loader-',
+  Quilt: 'quilt-loader-',
+  NeoForge: 'neoforge-',
+  Forge: 'forge-'
+};
+
+/** `1.21.1` matches `1.21.1`, `fabric-loader-0.16.9-1.21.1`, `1.21.1-forge-52.0.1`. */
+function nameCarriesVersion(name, version) {
+  if (!name || !version) return false;
+  const value = String(name).toLowerCase();
+  const needle = String(version).toLowerCase();
+  if (value === needle) return true;
+  return (
+    value.startsWith(`${needle}-`) ||
+    value.endsWith(`-${needle}`) ||
+    value.includes(`-${needle}-`) ||
+    value.includes(`_${needle}_`)
+  );
+}
+
+/** Which loader does this profile/directory belong to, if any. */
+function loaderKindFor(name, profile) {
+  const haystack = [name, profile?.id, profile?.mainClass]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (haystack.includes('quilt-loader') || haystack.includes('quilt_loader')) return 'Quilt';
+  if (haystack.includes('neoforge')) return 'NeoForge';
+  if (haystack.includes('fabric-loader') || haystack.includes('fabricloader')) return 'Fabric';
+  if (haystack.includes('forge')) return 'Forge';
+  return null;
+}
+
+function readJsonFile(filePath) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasValidFile(filePath, minBytes = 1) {
+  if (!filePath) return false;
+  try {
+    const stat = fs.statSync(filePath);
+    return stat.isFile() && stat.size >= minBytes;
+  } catch {
+    return false;
+  }
+}
+
+/** Asset index files present on disk, newest first. */
+function listAssetIndexes(indexesDir) {
+  try {
+    return fs
+      .readdirSync(indexesDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.json'))
+      .map((entry) => {
+        const full = path.join(indexesDir, entry.name);
+        let modified = 0;
+        try {
+          modified = fs.statSync(full).mtimeMs;
+        } catch {
+          /* unreadable entry — keep it, just unranked */
+        }
+        return { name: entry.name.replace(/\.json$/i, ''), path: full, modified };
+      })
+      .sort((a, b) => b.modified - a.modified);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Locate the loader profile directory for a `{version, loader}` pair by reading
+ * the profile JSONs, falling back to directory-name matching.
+ */
+function findLoaderInstall(versionsDir, version, loader) {
+  const prefix = LOADER_PREFIXES[loader] || null;
+  let entries = [];
+  try {
+    entries = fs.readdirSync(versionsDir, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+  } catch {
+    return null;
+  }
+
+  let best = null;
+  for (const entry of entries) {
+    const dir = path.join(versionsDir, entry.name);
+    const profilePath = path.join(dir, `${entry.name}.json`);
+    const profile = readJsonFile(profilePath);
+    const kind = loaderKindFor(entry.name, profile);
+    const nameMatchesLoader = prefix ? entry.name.startsWith(prefix) : kind === loader;
+    const inherits = profile?.inheritsFrom || null;
+    const versionMatches = inherits === version || nameCarriesVersion(entry.name, version);
+
+    if (!versionMatches) continue;
+    if (prefix && !nameMatchesLoader && kind !== loader) continue;
+    if (!prefix && kind !== loader) continue;
+    // A directory that matches the loader but belongs to another game version
+    // (e.g. `fabric-loader-0.15.0-1.20.1`) must not satisfy this version.
+    if (inherits && inherits !== version) continue;
+
+    let score = 0;
+    if (inherits === version) score += 6;
+    if (nameMatchesLoader) score += 4;
+    if (kind === loader) score += 3;
+    if (profile) score += 2;
+    if (hasValidFile(profilePath, 10)) score += 1;
+
+    const candidate = {
+      dir,
+      name: entry.name,
+      profile,
+      profilePath,
+      // MCLC keeps the vanilla metadata inside the loader directory as
+      // versions/<profile>/<gameVersion>.json.
+      baseJsonPath: path.join(dir, `${version}.json`),
+      kind,
+      score
+    };
+    if (!best || candidate.score > best.score) best = candidate;
+  }
+
+  return best;
+}
+
+/**
+ * Fully verifies whether a Minecraft version is installed on disk: client jar
+ * (>1MB), version JSON, mod loader profile (Fabric/Forge/Quilt/NeoForge), asset
+ * index, asset objects, and libraries.
+ *
+ * The asset index is looked up under every name the launch pipeline may have
+ * used (game version, loader profile, vanilla `assets` id, plus whatever a
+ * previous successful launch recorded), so a Fabric/Forge install no longer
+ * reads as "assets not installed" just because Minecraft Launcher Core named
+ * the index after the profile instead of the game version.
  */
 function verifyInstallation(version, loader = 'Vanilla') {
   if (!version) return { installed: false, reason: 'no_version' };
+
   const root = rootDir();
   const versionsDir = path.join(root, 'versions');
-
   if (!fs.existsSync(versionsDir)) {
     return { installed: false, reason: 'no_versions_dir' };
   }
 
-  const hasValidFile = (filePath, minBytes = 1) => {
-    try {
-      const st = fs.statSync(filePath);
-      return st.isFile() && st.size >= minBytes;
-    } catch {
-      return false;
-    }
-  };
+  const record = installRegistry.get(version, loader);
+  const expectsLoader = Boolean(loader) && loader !== 'Vanilla';
 
-  // 1. Check Vanilla / Main Version files
-  let targetJsonPath = null;
-  let targetJarPath = null;
-
-  const vanillaDir = path.join(versionsDir, version);
-  const vanillaJson = path.join(vanillaDir, `${version}.json`);
-  const vanillaJar = path.join(vanillaDir, `${version}.jar`);
-
-  let foundLoader = false;
-  let loaderJsonPath = null;
-  let loaderBaseJsonPath = null;
-  let loaderProfileName = null;
-
-  if (loader && loader !== 'Vanilla') {
-    const prefix = loader === 'Fabric' ? 'fabric-loader-' : loader === 'Forge' ? 'forge-' : null;
-    if (prefix) {
-      try {
-        const entries = fs.readdirSync(versionsDir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isDirectory() && entry.name.startsWith(prefix) && entry.name.endsWith(`-${version}`)) {
-            const possibleJson = path.join(versionsDir, entry.name, `${entry.name}.json`);
-            const possibleJar = path.join(versionsDir, entry.name, `${entry.name}.jar`);
-            if (hasValidFile(possibleJson)) {
-              foundLoader = true;
-              loaderJsonPath = possibleJson;
-              loaderBaseJsonPath = path.join(versionsDir, entry.name, `${version}.json`);
-              loaderProfileName = entry.name;
-              if (hasValidFile(possibleJar, 1000000)) {
-                targetJarPath = possibleJar;
-              }
-              break;
-            }
-          }
-        }
-      } catch {}
-    }
-    if (!foundLoader) {
-      return { installed: false, reason: 'missing_loader', loader };
+  let loaderInstall = null;
+  if (expectsLoader) {
+    loaderInstall = findLoaderInstall(versionsDir, version, loader);
+    if (!loaderInstall || !loaderInstall.profile) {
+      // No profile on disk — trust a launch record only if its files are intact.
+      if (!record) return { installed: false, reason: 'missing_loader', loader };
     }
   }
 
-  // Check jar: must exist either under loader or vanilla (client jar must be > 1MB)
-  if (!targetJarPath) {
-    if (hasValidFile(vanillaJar, 1000000)) {
-      targetJarPath = vanillaJar;
-    }
-  }
-
-  if (!targetJarPath) {
+  /* 1. client jar (> 1MB) ------------------------------------- */
+  const jarCandidates = [
+    loaderInstall ? path.join(loaderInstall.dir, `${loaderInstall.name}.jar`) : null,
+    loaderInstall ? path.join(loaderInstall.dir, `${version}.jar`) : null,
+    installRegistry.fileFor(record, 'jar'),
+    path.join(versionsDir, version, `${version}.jar`)
+  ];
+  const jarPath = jarCandidates.find((candidate) => hasValidFile(candidate, 1000000));
+  if (!jarPath) {
     return { installed: false, reason: 'missing_client_jar' };
   }
 
-  // minecraft-launcher-core places the vanilla metadata alongside a custom
-  // Fabric profile instead of always creating versions/<mcVersion>/.
-  targetJsonPath = hasValidFile(vanillaJson)
-    ? vanillaJson
-    : hasValidFile(loaderBaseJsonPath)
-      ? loaderBaseJsonPath
-      : loaderJsonPath;
-  if (!targetJsonPath) {
+  /* 2. version JSON ------------------------------------------- */
+  const jsonParts = [];
+  const vanillaJsonPath = [path.join(versionsDir, version, `${version}.json`), loaderInstall?.baseJsonPath]
+    .filter(Boolean)
+    .find((candidate) => hasValidFile(candidate, 10));
+  const vanillaJson = vanillaJsonPath ? readJsonFile(vanillaJsonPath) : null;
+  if (vanillaJson) jsonParts.push(vanillaJson);
+
+  const loaderJsonPath = loaderInstall?.profilePath;
+  const loaderJson = loaderJsonPath && loaderJsonPath !== vanillaJsonPath ? readJsonFile(loaderJsonPath) : null;
+  if (loaderJson) jsonParts.push(loaderJson);
+
+  const recordedJson = readJsonFile(installRegistry.fileFor(record, 'versionJson'));
+  if (recordedJson) jsonParts.push(recordedJson);
+
+  if (!jsonParts.length) {
     return { installed: false, reason: 'missing_version_json' };
   }
 
-  // 2. Read version json
-  let versionData = null;
-  try {
-    versionData = JSON.parse(fs.readFileSync(targetJsonPath, 'utf8'));
-  } catch {
-    return { installed: false, reason: 'invalid_version_json' };
+  let versionData = Object.assign({}, ...jsonParts);
+  const visited = new Set([versionData.id].filter(Boolean));
+  while (versionData?.inheritsFrom && !visited.has(versionData.inheritsFrom)) {
+    visited.add(versionData.inheritsFrom);
+    const parent = readJsonFile(path.join(versionsDir, versionData.inheritsFrom, `${versionData.inheritsFrom}.json`));
+    if (!parent) break;
+    versionData = { ...parent, ...versionData };
   }
 
-  // Inherit from parent vanilla JSON if needed
-  if (versionData?.inheritsFrom) {
-    const parentJson = path.join(versionsDir, versionData.inheritsFrom, `${versionData.inheritsFrom}.json`);
-    if (hasValidFile(parentJson)) {
-      try {
-        const parentData = JSON.parse(fs.readFileSync(parentJson, 'utf8'));
-        versionData = { ...parentData, ...versionData };
-      } catch {}
+  /* 3. asset index -------------------------------------------- */
+  const indexesDir = path.join(root, 'assets', 'indexes');
+  const assetIds = [
+    typeof versionData?.assetIndex?.id === 'string' ? versionData.assetIndex.id : null,
+    typeof versionData?.assets === 'string' ? versionData.assets : null,
+    version,
+    loaderInstall?.name,
+    loaderInstall?.profile?.id,
+    record?.profile
+  ].filter(Boolean);
+
+  const assetIndexId = assetIds[0] || version;
+  const namedCandidates = [
+    installRegistry.fileFor(record, 'assetIndex'),
+    ...assetIds.map((id) => path.join(indexesDir, `${id}.json`))
+  ].filter(Boolean);
+
+  let assetIndexFile = namedCandidates.find((candidate) => hasValidFile(candidate, 10));
+  let assetIndexName = assetIndexFile ? path.basename(assetIndexFile, '.json') : null;
+
+  if (!assetIndexFile) {
+    // Last resort: the index exists but is named after something else entirely.
+    const fallback = listAssetIndexes(indexesDir).find((entry) => nameCarriesVersion(entry.name, version));
+    if (fallback) {
+      assetIndexFile = fallback.path;
+      assetIndexName = fallback.name;
     }
   }
-
-  // 3. Asset index check
-  const assetIndexId = versionData?.assetIndex?.id || versionData?.assets || version;
-  const indexesDir = path.join(root, 'assets', 'indexes');
-  const assetIndexFile = [
-    path.join(indexesDir, `${assetIndexId}.json`),
-    loaderProfileName ? path.join(indexesDir, `${loaderProfileName}.json`) : null,
-    path.join(indexesDir, `${version}.json`)
-  ].find((candidate) => candidate && hasValidFile(candidate, 10));
 
   if (!assetIndexFile) {
     return { installed: false, reason: 'missing_asset_index', assetIndexId };
   }
 
-  let assetIndex = null;
-  try {
-    assetIndex = JSON.parse(fs.readFileSync(assetIndexFile, 'utf8'));
-  } catch {
-    return { installed: false, reason: 'invalid_asset_index', assetIndexId };
+  const assetIndex = readJsonFile(assetIndexFile);
+  if (!assetIndex) {
+    return { installed: false, reason: 'invalid_asset_index', assetIndexId, assetIndex: assetIndexName };
   }
 
   const objects = assetIndex?.objects;
   if (!objects || typeof objects !== 'object') {
-    return { installed: false, reason: 'empty_asset_index' };
+    return { installed: false, reason: 'empty_asset_index', assetIndexId, assetIndex: assetIndexName };
   }
 
   const objectKeys = Object.keys(objects);
   const totalAssets = objectKeys.length;
   if (totalAssets === 0) {
-    return { installed: false, reason: 'no_assets_listed' };
+    return { installed: false, reason: 'no_assets_listed', assetIndexId, assetIndex: assetIndexName };
   }
 
   const objectsDir = path.join(root, 'assets', 'objects');
   if (!fs.existsSync(objectsDir)) {
-    return { installed: false, reason: 'missing_assets_dir', totalAssets };
+    return { installed: false, reason: 'missing_assets_dir', totalAssets, assetIndexId };
   }
 
-  // 4. Verify asset objects on disk
+  /* 4. asset objects ------------------------------------------ */
   let missingAssets = 0;
-  for (let i = 0; i < totalAssets; i++) {
-    const hash = objects[objectKeys[i]]?.hash;
-    if (!hash || typeof hash !== 'string' || hash.length < 2) continue;
-    const prefix = hash.slice(0, 2);
-    const assetPath = path.join(objectsDir, prefix, hash);
-    if (!hasValidFile(assetPath, 1)) {
-      missingAssets++;
-      if (missingAssets >= 3) {
-        return {
-          installed: false,
-          reason: 'missing_assets',
-          missingAssets,
-          totalAssets,
-          assetIndexId
-        };
-      }
+  const missingSamples = [];
+  for (const key of objectKeys) {
+    const hash = objects[key]?.hash;
+    if (typeof hash !== 'string' || hash.length < 2) continue;
+    if (!hasValidFile(path.join(objectsDir, hash.slice(0, 2), hash), 1)) {
+      missingAssets += 1;
+      if (missingSamples.length < 5) missingSamples.push(key);
     }
   }
 
-  if (missingAssets > 0) {
+  // A couple of stragglers (one 404'd object, one aborted download) used to
+  // flip an otherwise complete install back to "not installed" for good. Only a
+  // real share of missing objects means the assets were never fetched.
+  const tolerance = Math.max(5, Math.ceil(totalAssets * 0.02));
+  if (missingAssets > tolerance) {
     return {
       installed: false,
       reason: 'missing_assets',
       missingAssets,
       totalAssets,
-      assetIndexId
+      assetIndexId,
+      assetIndex: assetIndexName,
+      samples: missingSamples
     };
   }
 
-  // 5. Libraries check
+  /* 5. libraries ---------------------------------------------- */
   const librariesDir = path.join(root, 'libraries');
   if (!fs.existsSync(librariesDir)) {
     return { installed: false, reason: 'missing_libraries_dir' };
@@ -212,8 +333,15 @@ function verifyInstallation(version, loader = 'Vanilla') {
 
   return {
     installed: true,
+    reason: null,
     totalAssets,
-    assetIndexId
+    missingAssets,
+    assetIndexId,
+    assetIndex: assetIndexName,
+    jar: jarPath,
+    versionJson: vanillaJsonPath || loaderJsonPath || null,
+    loaderProfile: loaderInstall?.name || record?.profile || null,
+    verifiedBy: record ? 'launch-record' : 'disk-scan'
   };
 }
 
@@ -225,10 +353,14 @@ function isInstalled(version, loader) {
   }
 }
 
+/**
+ * Every version + loader pair that is really on disk. Launch records are read
+ * first because they are the only source that knows the exact names the launch
+ * pipeline wrote; the directory scan then picks up installs made elsewhere.
+ */
 function installedVersions() {
   const root = rootDir();
   const versionsDir = path.join(root, 'versions');
-  if (!fs.existsSync(versionsDir)) return [];
 
   const verified = [];
   const seen = new Set();
@@ -239,27 +371,45 @@ function installedVersions() {
     seen.add(key);
     verified.push({ version, loader });
   };
-  try {
-    const entries = fs.readdirSync(versionsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
 
-      if (entry.name.startsWith('fabric-loader-') || entry.name.startsWith('forge-')) {
-        // MCLC can install only the custom profile directory. Read its parent
-        // version instead of requiring a separate versions/<mcVersion> folder.
-        try {
-          const profilePath = path.join(versionsDir, entry.name, `${entry.name}.json`);
-          const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
-          addVerified(profile.inheritsFrom, entry.name.startsWith('fabric-loader-') ? 'Fabric' : 'Forge');
-        } catch {}
-        continue;
-      }
-      const v = entry.name;
-      addVerified(v, 'Vanilla');
-      addVerified(v, 'Fabric');
-      addVerified(v, 'Forge');
+  for (const entry of installRegistry.all()) {
+    addVerified(entry.version, entry.loader || 'Vanilla');
+  }
+
+  let entries = [];
+  try {
+    entries = fs.readdirSync(versionsDir, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+  } catch {
+    return verified;
+  }
+
+  for (const entry of entries) {
+    const profile = readJsonFile(path.join(versionsDir, entry.name, `${entry.name}.json`));
+    const kind =
+      loaderKindFor(entry.name, profile) ||
+      Object.entries(LOADER_PREFIXES).find(([, prefix]) => entry.name.startsWith(prefix))?.[0] ||
+      null;
+
+    if (kind && profile?.inheritsFrom) {
+      // MCLC can install only the loader profile directory, without a separate
+      // versions/<gameVersion> folder.
+      addVerified(profile.inheritsFrom, kind);
+      continue;
     }
-  } catch {}
+
+    if (kind) {
+      // A loader directory without its profile JSON cannot be tied to a game
+      // version — leave it out rather than guessing.
+      continue;
+    }
+
+    addVerified(entry.name, 'Vanilla');
+    addVerified(entry.name, 'Fabric');
+    addVerified(entry.name, 'Forge');
+    addVerified(entry.name, 'NeoForge');
+    addVerified(entry.name, 'Quilt');
+  }
+
   return verified;
 }
 

@@ -8,7 +8,7 @@
 .shell-content-layer {
   position: absolute;
   z-index: 1;
-  inset: 39px 0 0 84px;
+  inset: var(--navbar-height, 39px) 0 0 var(--nav-rail-width, 72px);
   display: flex;
   overflow: hidden;
 }

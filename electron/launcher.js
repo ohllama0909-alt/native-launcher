@@ -7,6 +7,7 @@ const auth = require('./auth');
 const settingsMod = require('./settings');
 const javaMod = require('./java');
 const { downloadFile, fetchJson, writeFileAtomic } = require('./download');
+const installRegistry = require('./installRegistry');
 const wardrobeMod = require('./wardrobe');
 
 /**
@@ -227,6 +228,69 @@ async function resolveForge(mcVersion, requestedVersion = null) {
   return jarPath;
 }
 
+/* ── install reconciliation ----------------------------------- */
+
+/**
+ * Minecraft Launcher Core names the asset index after the launch profile
+ * (`fabric-loader-0.16.9-1.21.1`) while Mojang names it after the game version
+ * (`1.21.1`). The content is identical, so keep a copy under the canonical
+ * game-version name — that is the name install verification, other launchers,
+ * and external tools look for.
+ */
+function ensureCanonicalAssetIndex(version, profileName) {
+  try {
+    if (!profileName) return null;
+    const indexesDir = path.join(rootDir(), 'assets', 'indexes');
+    const canonical = path.join(indexesDir, `${version}.json`);
+    if (fs.existsSync(canonical)) return canonical;
+    const source = path.join(indexesDir, `${profileName}.json`);
+    if (!fs.existsSync(source)) return null;
+    fs.copyFileSync(source, canonical);
+    launcher.emit(
+      'debug',
+      `[Noctra Client]: Asset index ${path.basename(source)} is also available as ${path.basename(canonical)}`
+    );
+    return canonical;
+  } catch (err) {
+    launcher.emit('debug', `[Noctra Client]: Could not mirror the asset index: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Store the exact files this install produced. Verification otherwise has to
+ * guess which name the pipeline used, which is how a Fabric/Forge install could
+ * keep reading as "assets not installed".
+ */
+function rememberInstall(instance, opts) {
+  try {
+    const root = rootDir();
+    const profile = opts?.version?.custom || null;
+    const versionDir = path.join(root, 'versions', profile || instance.version);
+    const canonicalIndex = ensureCanonicalAssetIndex(instance.version, profile);
+    const existing = (file) => (file && fs.existsSync(file) ? file : null);
+
+    installRegistry.record({
+      version: instance.version,
+      loader: instance.loader || 'Vanilla',
+      loaderVersion: instance.loaderVersion || null,
+      files: {
+        profile,
+        jar: existing(path.join(versionDir, `${profile || instance.version}.jar`)),
+        versionJson:
+          existing(path.join(versionDir, `${instance.version}.json`)) ||
+          existing(path.join(versionDir, `${profile || instance.version}.json`)),
+        assetIndex:
+          existing(canonicalIndex) ||
+          existing(path.join(root, 'assets', 'indexes', `${profile || instance.version}.json`)),
+        assetObjects: existing(path.join(root, 'assets', 'objects'))
+      }
+    });
+  } catch (err) {
+    launcher.emit('debug', `[Noctra Client]: Could not record the install: ${err.message}`);
+  }
+}
+
 async function launch({ instance, account }) {
   if (activeChild || launchInProgress) {
     setState('error', activeChild ? 'The game is already running.' : 'A launch is already in progress.');
@@ -312,6 +376,8 @@ async function launch({ instance, account }) {
   }
 
   fs.mkdirSync(instanceDir(instance.id), { recursive: true });
+  // Heal installs made by an older build before launching again.
+  ensureCanonicalAssetIndex(instance.version, opts.version?.custom || null);
   setState('downloading', 'Downloading & verifying game files…');
 
   try {
@@ -320,6 +386,9 @@ async function launch({ instance, account }) {
       setState('error', 'Could not start the game process. Check the logs.');
       return;
     }
+    // The pipeline finished downloading and verifying: the files on disk are
+    // complete, so remember their real names for install detection.
+    rememberInstall(instance, opts);
     activeChild = child;
     setState('launching', 'Starting Minecraft…');
     send('launcher:progress', {
@@ -391,6 +460,7 @@ async function launch({ instance, account }) {
 
 function init(dependencies, ipcMain) {
   deps = dependencies;
+  installRegistry.init({ app: dependencies.app });
 
   launcher.on('download-status', ({ name, type, current, total }) => {
     const prev = inFlightFiles.get(name) || 0;
@@ -508,5 +578,12 @@ function init(dependencies, ipcMain) {
 module.exports = {
   init,
   // Exported for focused launch-pipeline regression tests.
-  _internals: { mavenArtifact, fileMatches, ensureFabricLibraries, resolveFabric }
+  _internals: {
+    mavenArtifact,
+    fileMatches,
+    ensureFabricLibraries,
+    resolveFabric,
+    ensureCanonicalAssetIndex,
+    rememberInstall
+  }
 };

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUpRight, Blocks, Clock, Compass, Layers3, Newspaper, Play, Plus, Trophy } from 'lucide-react';
 import Icon from '../../components/ui/Icon.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import ContextMenu from '../../components/ui/ContextMenu.jsx';
@@ -9,19 +10,34 @@ import useIsInstalled from '../instances/useIsInstalled.js';
 import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
 import './HomeView.css';
 
+const loadersOf = (instance) => instance?.mc_loader || instance?.loader || 'Vanilla';
+const versionOf = (instance) => instance?.mc_version || instance?.version || '';
+
+function greetingKey() {
+  const hour = new Date().getHours();
+  if (hour < 5) return 'home.greetingNight';
+  if (hour < 12) return 'home.greetingMorning';
+  if (hour < 18) return 'home.greetingAfternoon';
+  return 'home.greetingEvening';
+}
+
 export default function HomeView({
   instances = [],
   selectedCluster,
   onSelectCluster,
   onOpenCluster,
   onOpenInstances,
+  onOpenVersions,
+  onOpenBrowse,
+  onCreateInstance,
   account,
   launcherState,
   onLaunch,
   onKill
 }) {
-  const { t } = useI18n();
+  const { t, formatDuration } = useI18n();
   const [contextMenu, setContextMenu] = useState(null);
+  const [news, setNews] = useState([]);
   const railRef = useRef(null);
   const cardRefs = useRef({});
 
@@ -35,7 +51,63 @@ export default function HomeView({
     [instances, cluster]
   );
 
-  // ---- switching -------------------------------------------------
+  /* ---- home overview data ---------------------------------------- */
+
+  const totals = useMemo(() => {
+    let playtimeSecs = 0;
+    let sessions = 0;
+    let lastPlayed = 0;
+    const byLoader = new Map();
+
+    for (const instance of instances) {
+      playtimeSecs += Number(instance.playtimeSecs) || 0;
+      sessions += Number(instance.sessionCount) || 0;
+      const played = Number(instance.lastPlayed) || 0;
+      if (played > lastPlayed) lastPlayed = played;
+      const loader = loadersOf(instance);
+      byLoader.set(loader, (byLoader.get(loader) || 0) + 1);
+    }
+
+    return {
+      playtimeSecs,
+      sessions,
+      lastPlayed,
+      loaders: [...byLoader.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+    };
+  }, [instances]);
+
+  const mostPlayed = useMemo(
+    () =>
+      [...instances]
+        .sort((a, b) => (Number(b.playtimeSecs) || 0) - (Number(a.playtimeSecs) || 0))
+        .slice(0, 3),
+    [instances]
+  );
+
+  // Official Minecraft news from the main process. Silently absent in a
+  // browser preview, where the most-played list takes its place.
+  useEffect(() => {
+    let cancelled = false;
+    const api = window.native?.news;
+    if (!api?.list) return undefined;
+
+    api
+      .list()
+      .then((payload) => {
+        if (!cancelled && Array.isArray(payload?.items)) setNews(payload.items.slice(0, 3));
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openLink = (url) => {
+    if (url) window.native?.openExternal?.(url);
+  };
+
+  /* ---- switching -------------------------------------------------- */
 
   const selectByOffset = (delta) => {
     if (!instances.length) return;
@@ -95,7 +167,7 @@ export default function HomeView({
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
-      title: `${targetCluster.mc_version || targetCluster.version} ${targetCluster.mc_loader || targetCluster.loader}`,
+      title: `${versionOf(targetCluster)} ${loadersOf(targetCluster)}`,
       items: [
         { label: t('detail.overview'), icon: 'info-circle', action: () => onOpenCluster(targetCluster, 'overview') },
         { label: t('detail.logs'), icon: 'terminal', action: () => onOpenCluster(targetCluster, 'logs') },
@@ -117,8 +189,8 @@ export default function HomeView({
         <div className="home-bg-fade" />
       </div>
 
-      <div className="home-avatar-companion" title={account?.name || 'Player'}>
-        <span className="home-avatar-name">{account?.name || 'Player'}</span>
+      <div className="home-avatar-companion" title={account?.name || t('home.guest')}>
+        <span className="home-avatar-name">{account?.name || t('home.guest')}</span>
         <SkinViewer3D
           account={account}
           width={230}
@@ -129,12 +201,113 @@ export default function HomeView({
         />
       </div>
 
+      {/* Greeting + shortcuts */}
+      <div className="home-topbar">
+        <div className="home-greeting">
+          <span className="home-greeting-text">{t(greetingKey())}</span>
+          <span className="home-greeting-name">{account?.name || t('home.guest')}</span>
+        </div>
+
+        <div className="home-quick-actions">
+          <button type="button" className="home-quick-btn" onClick={onCreateInstance}>
+            <Plus size={15} strokeWidth={2.1} />
+            <span>{t('home.newInstance')}</span>
+          </button>
+          <button type="button" className="home-quick-btn" onClick={onOpenBrowse}>
+            <Compass size={15} strokeWidth={2.1} />
+            <span>{t('home.browseMods')}</span>
+          </button>
+          <button type="button" className="home-quick-btn" onClick={onOpenVersions}>
+            <Blocks size={15} strokeWidth={2.1} />
+            <span>{t('home.allVersions')}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Overview: playtime totals + Minecraft news (or most played) */}
+      <div className="home-info-grid">
+        <div className="home-stat-row">
+          <div className="home-stat">
+            <span className="home-stat-icon"><Clock size={14} strokeWidth={2.1} /></span>
+            <span className="home-stat-value">{formatDuration(totals.playtimeSecs)}</span>
+            <span className="home-stat-label">{t('home.statPlaytime')}</span>
+          </div>
+          <div className="home-stat">
+            <span className="home-stat-icon"><Trophy size={14} strokeWidth={2.1} /></span>
+            <span className="home-stat-value">{totals.sessions}</span>
+            <span className="home-stat-label">{t('home.statSessions')}</span>
+          </div>
+          <div className="home-stat">
+            <span className="home-stat-icon"><Layers3 size={14} strokeWidth={2.1} /></span>
+            <span className="home-stat-value">{instances.length}</span>
+            <span className="home-stat-label">
+              {totals.loaders.length
+                ? totals.loaders.map(([loader, count]) => `${loader} ${count}`).join(' · ')
+                : t('home.statInstances')}
+            </span>
+          </div>
+        </div>
+
+        <section className="home-card">
+          <header className="home-card-head">
+            <Newspaper size={14} strokeWidth={2.1} />
+            <h2>{news.length ? t('home.newsTitle') : t('home.mostPlayedTitle')}</h2>
+            <span className="home-card-head-hint">
+              {news.length ? t('home.newsSubtitle') : t('home.mostPlayedHint')}
+            </span>
+          </header>
+
+          {news.length ? (
+            <ul className="home-list">
+              {news.map((item) => (
+                <li key={item.id}>
+                  <button type="button" className="home-list-row" onClick={() => openLink(item.url)}>
+                    {item.image ? <img className="home-list-art" src={item.image} alt="" loading="lazy" /> : null}
+                    <span className="home-list-text">
+                      <b>{item.title}</b>
+                      <small>{item.category}{item.date ? ` · ${item.date}` : ''}</small>
+                    </span>
+                    <ArrowUpRight size={15} strokeWidth={2.1} className="home-list-end" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : mostPlayed.length ? (
+            <ul className="home-list">
+              {mostPlayed.map((instance) => (
+                <li key={instance.id}>
+                  <button
+                    type="button"
+                    className="home-list-row"
+                    onClick={() => {
+                      onSelectCluster(instance.id);
+                      onOpenCluster(instance, 'overview');
+                    }}
+                  >
+                    <img className="home-list-art" src={getClusterArt(instance)} alt="" loading="lazy" />
+                    <span className="home-list-text">
+                      <b>{instance.name}</b>
+                      <small>
+                        {versionOf(instance)} {loadersOf(instance)} · {formatDuration(Number(instance.playtimeSecs) || 0)}
+                      </small>
+                    </span>
+                    <Play size={14} strokeWidth={2.2} className="home-list-end" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="home-card-empty">{t('home.noOverviewYet')}</p>
+          )}
+        </section>
+      </div>
+
       {/* Active instance + launch */}
       <div className="home-hero-content">
         {cluster ? (
           <>
             <h1 className="home-cluster-title">
-              {cluster.mc_version || cluster.version} {cluster.mc_loader || cluster.loader}
+              {versionOf(cluster)} {loadersOf(cluster)}
             </h1>
             <p className="home-cluster-subtitle">{cluster.name || 'Minecraft'}</p>
 
@@ -157,7 +330,20 @@ export default function HomeView({
             </div>
           </>
         ) : (
-          <h2 className="home-cluster-title" style={{ fontSize: 32 }}>{t('home.empty')}</h2>
+          <div className="home-empty-state">
+            <h2 className="home-cluster-title">{t('home.empty')}</h2>
+            <p className="home-cluster-subtitle">{t('home.emptyBody')}</p>
+            <div className="home-actions-row">
+              <button type="button" className="home-quick-btn is-primary" onClick={onCreateInstance}>
+                <Plus size={16} strokeWidth={2.2} />
+                <span>{t('home.newInstance')}</span>
+              </button>
+              <button type="button" className="home-quick-btn" onClick={onOpenVersions}>
+                <NativeIcon name="download" size={15} />
+                <span>{t('home.allVersions')}</span>
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -192,7 +378,7 @@ export default function HomeView({
             {instances.map((item) => {
               const isSelected = cluster?.id === item.id;
               const itemArt = getClusterArt(item);
-              const title = `${item.mc_version || item.version} ${item.mc_loader || item.loader}`;
+              const title = `${versionOf(item)} ${loadersOf(item)}`;
 
               return (
                 <div

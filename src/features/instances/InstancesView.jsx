@@ -3,6 +3,7 @@ import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { getClusterArt } from '../../data/versionsData.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { formatLaunchProgress } from '../launcher/useLauncher.js';
+import LaunchActionButton from '../launcher/LaunchActionButton.jsx';
 import './InstancesView.css';
 
 const SORTS = [
@@ -349,8 +350,6 @@ export default function InstancesView({
           <div className={`instances-grid is-${layout}`}>
             {visible.map((instance) => {
               const running = launcher.active && launcher.id === instance.id;
-              const gameRunning = running && (launcher.status === 'running' || launcher.status === 'game-running');
-              const launchBusy = running && !gameRunning;
               const isSelected = selectedId === instance.id;
               const menuOpen = menuFor === instance.id;
 
@@ -378,48 +377,22 @@ export default function InstancesView({
                       </span>
                     )}
 
-                    <div className="instance-card-hover">
-                      <button
-                        type="button"
-                        className={`instance-card-play ${gameRunning ? 'stop' : ''} ${launchBusy ? 'progress' : ''} ${!isInstalledOnDisk && !running ? 'install' : ''}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (gameRunning) onKill?.();
-                          else {
-                            onSelect?.(instance.id);
-                            onLaunch?.(instance);
-                          }
+                    <div
+                      className="instance-card-hover"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <LaunchActionButton
+                        instance={instance}
+                        launcherState={running ? launcherState : null}
+                        isInstalled={Boolean(isInstalledOnDisk)}
+                        onLaunch={(target) => {
+                          onSelect?.(target.id);
+                          onLaunch?.(target);
                         }}
-                        disabled={launchBusy}
-                        title={
-                          gameRunning
-                            ? t('home.kill')
-                            : isInstalledOnDisk
-                              ? t('instances.playNamed', { name: instance.name })
-                              : t('common.install')
-                        }
-                      >
-                        <NativeIcon
-                          name={
-                            gameRunning
-                              ? 'stop'
-                              : launchBusy
-                                ? 'loader'
-                              : isInstalledOnDisk
-                                ? 'play'
-                                : 'arrow-down'
-                          }
-                          size={16}
-                          className={launchBusy ? 'spin' : ''}
-                        />
-                        <span>
-                          {running
-                            ? formatLaunchProgress(launcherState, t)
-                            : isInstalledOnDisk
-                              ? t('instances.play')
-                              : t('common.install')}
-                        </span>
-                      </button>
+                        onKill={onKill}
+                        size="md"
+                        className={layout === 'list' ? 'is-icon-only' : ''}
+                      />
                     </div>
                   </div>
 

@@ -5,6 +5,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const AdmZip = require('adm-zip');
+
+// electron/launcher.js requires the Electron main-process module.
+require('./electron-stub');
 const { _internals } = require('../electron/launcher');
 
 test('Fabric Maven coordinates use the correct repository and artifact path', () => {
@@ -53,6 +56,36 @@ test('Fabric library validation rejects corrupt cached JARs', async () => {
     fs.writeFileSync(jarPath, 'partial download');
     assert.equal(await _internals.fileMatches(jarPath, { sha1, size: contents.length }), false);
     assert.equal(await _internals.fileMatches(jarPath, { sha1: null, size: null }), false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('a loader-named asset index is mirrored under the game version', () => {
+  const launcherMod = require('../electron/launcher');
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'native-index-unit-'));
+  const indexes = path.join(temp, 'minecraft', 'assets', 'indexes');
+  fs.mkdirSync(indexes, { recursive: true });
+  const profileIndex = path.join(indexes, 'fabric-loader-0.16.9-1.21.1.json');
+  fs.writeFileSync(profileIndex, JSON.stringify({ objects: { 'minecraft/sounds.json': { hash: 'a'.repeat(40) } } }));
+
+  try {
+    launcherMod.init({ app: { getPath: () => temp }, getWin: () => null }, { on() {}, handle() {} });
+
+    const canonical = launcherMod._internals.ensureCanonicalAssetIndex('1.21.1', 'fabric-loader-0.16.9-1.21.1');
+    assert.equal(canonical, path.join(indexes, '1.21.1.json'));
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(canonical, 'utf8')),
+      JSON.parse(fs.readFileSync(profileIndex, 'utf8'))
+    );
+
+    // An existing canonical index is never overwritten.
+    fs.writeFileSync(canonical, JSON.stringify({ objects: { keep: { hash: 'b'.repeat(40) } } }));
+    launcherMod._internals.ensureCanonicalAssetIndex('1.21.1', 'fabric-loader-0.16.9-1.21.1');
+    assert.deepEqual(JSON.parse(fs.readFileSync(canonical, 'utf8')), { objects: { keep: { hash: 'b'.repeat(40) } } });
+
+    // Vanilla installs never need mirroring.
+    assert.equal(launcherMod._internals.ensureCanonicalAssetIndex('1.21.1', null), null);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

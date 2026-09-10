@@ -402,3 +402,316 @@
     display: none;
   }
 }
+
+/* ============================================================
+   Home overview — greeting, shortcuts, playtime and news.
+   Sits above the hero and is the first thing that gives the
+   page content when no instance is selected yet.
+   ============================================================ */
+
+.home-topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px var(--home-padding) 0;
+  animation: home-top-in 0.4s var(--ease-out) both;
+}
+
+.home-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-greeting-text {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.home-greeting-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+}
+
+.home-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.home-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(12, 9, 12, 0.5);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.86);
+  font: 650 12px var(--font-sans);
+  cursor: pointer;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.15s var(--ease-out);
+}
+
+.home-quick-btn:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.home-quick-btn.is-primary {
+  height: 44px;
+  padding: 0 18px;
+  border-color: transparent;
+  background: var(--brand-gradient);
+  box-shadow: 0 14px 30px -16px var(--brand-glow);
+  font-size: 13.5px;
+  color: #fff;
+}
+
+.home-info-grid {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, 52%);
+  margin-top: 22px;
+  padding: 0 var(--home-padding);
+  animation: home-top-in 0.45s var(--ease-out) both;
+}
+
+.home-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 13px;
+  background: rgba(10, 8, 11, 0.52);
+  backdrop-filter: blur(12px);
+}
+
+.home-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 2px;
+  border-radius: 8px;
+  background: var(--brand-subtle);
+  color: var(--brand-2);
+}
+
+.home-stat-value {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.home-stat-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.home-card {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: rgba(10, 8, 11, 0.56);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.home-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--brand-2);
+}
+
+.home-card-head h2 {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.home-card-head-hint {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--fg-muted);
+}
+
+.home-list {
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+}
+
+.home-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+
+.home-list-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.home-list-art {
+  flex: none;
+  width: 46px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--page-sunken);
+}
+
+.home-list-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.home-list-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #f2eef3;
+}
+
+.home-list-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.home-list-end {
+  margin-left: auto;
+  flex: none;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.home-list-row:hover .home-list-end {
+  color: var(--brand-2);
+}
+
+.home-card-empty {
+  margin: 0;
+  padding: 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.home-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+@keyframes home-top-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The hero keeps the keyboard shortcuts honest: no dead hints. */
+@media (max-width: 1080px) {
+  .home-info-grid {
+    width: min(520px, 62%);
+  }
+}
+
+/* Short windows would push the hero off-screen — overview content is optional. */
+@media (max-height: 720px) {
+  .home-info-grid {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .home-info-grid {
+    width: 100%;
+  }
+
+  /* The companion would sit on top of the overview cards. */
+  .home-avatar-companion {
+    display: none;
+  }
+
+  .home-stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-topbar,
+  .home-info-grid {
+    animation: none;
+  }
+}

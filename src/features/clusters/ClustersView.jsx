@@ -14,9 +14,26 @@ import {
 } from '../../lib/mojang.js';
 import './ClustersView.css';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
-import { formatLaunchProgress } from '../launcher/useLauncher.js';
+import LaunchActionButton from '../launcher/LaunchActionButton.jsx';
 
 const SNAPSHOT_LINE = 'snapshots';
+
+/* Failure reasons from instance verification, mapped to user-facing copy.
+   "assets not installed" was previously printed for every failure — including
+   complete installs whose asset index was just named after the loader. */
+const INSTALL_REASON_KEYS = {
+  missing_loader: 'versions.reasonLoader',
+  missing_client_jar: 'versions.reasonJar',
+  missing_version_json: 'versions.reasonMetadata',
+  invalid_version_json: 'versions.reasonMetadata',
+  missing_asset_index: 'versions.reasonAssets',
+  invalid_asset_index: 'versions.reasonAssets',
+  empty_asset_index: 'versions.reasonAssets',
+  no_assets_listed: 'versions.reasonAssets',
+  missing_assets_dir: 'versions.reasonAssets',
+  missing_assets: 'versions.reasonAssets',
+  missing_libraries_dir: 'versions.reasonLibraries'
+};
 
 function lineMeta(lineId) {
   if (!lineId) return null;
@@ -90,6 +107,7 @@ export default function ClustersView({
   onSelectCluster,
   onOpenCluster,
   onLaunch,
+  onKill,
   onOpenNewInstanceModal,
   onCreateInstance,
   onNotify,
@@ -206,27 +224,28 @@ export default function ClustersView({
     }
   }, [activeLine, selectedVersion]);
 
-  const [isInstalledOnDisk, setIsInstalledOnDisk] = useState(false);
+  const [installInfo, setInstallInfo] = useState(null);
   const [installedDiskVersions, setInstalledDiskVersions] = useState([]);
+  const isInstalledOnDisk = Boolean(installInfo?.installed);
 
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
       if (!selectedVersion) {
-        setIsInstalledOnDisk(false);
+        setInstallInfo(null);
         return;
       }
       try {
-        const [installed, list] = await Promise.all([
-          window.native?.instance?.isInstalled?.(selectedVersion, loader),
+        const [verification, list] = await Promise.all([
+          window.native?.instance?.verifyInstallation?.(selectedVersion, loader),
           window.native?.instance?.installedVersions?.()
         ]);
         if (!cancelled) {
-          setIsInstalledOnDisk(Boolean(installed));
+          setInstallInfo(verification || null);
           if (Array.isArray(list)) setInstalledDiskVersions(list);
         }
       } catch {
-        if (!cancelled) setIsInstalledOnDisk(false);
+        if (!cancelled) setInstallInfo(null);
       }
     };
     check();
@@ -476,44 +495,31 @@ export default function ClustersView({
                     <span>
                       {matchingInstance
                         ? t('versions.alreadyInstalled', { name: matchingInstance.name })
-                        : `${selectedVersion} is installed`}
+                        : t('versions.installedVersion', { version: selectedVersion })}
                     </span>
                   </p>
                 ) : matchingInstance ? (
                   <p className="sidebar-note">
                     <NativeIcon name="info" size={13} />
-                    <span>Configured as {matchingInstance.name} (Assets not installed)</span>
+                    <span>
+                      {t('versions.configuredAs', { name: matchingInstance.name })}
+                      {' — '}
+                      {t(INSTALL_REASON_KEYS[installInfo?.reason] || 'versions.filesPending')}
+                    </span>
                   </p>
                 ) : null}
 
                 <div className="sidebar-actions-row">
-                  <button
-                    type="button"
-                    className={`sidebar-play-btn ${!isInstalledOnDisk ? 'install-mode' : ''}`}
-                    onClick={handlePrimary}
-                    disabled={busy || isBusyThisVersion || !selectedVersion || !loaderReady}
-                  >
-                    <NativeIcon
-                      name={
-                        isBusyThisVersion
-                          ? 'loader'
-                          : isInstalledOnDisk
-                            ? 'play'
-                            : 'arrow-down'
-                      }
-                      size={15}
-                      className={isBusyThisVersion ? 'spin' : ''}
-                    />
-                    <span>
-                      {isBusyThisVersion
-                        ? formatLaunchProgress(launcherState, t)
-                        : isInstalledOnDisk
-                          ? t('cluster.launch')
-                          : matchingInstance
-                            ? 'Install & Play'
-                            : t('common.install')}
-                    </span>
-                  </button>
+                  <LaunchActionButton
+                    className="sidebar-play-btn"
+                    size="sm"
+                    instance={{ id: matchingInstance?.id, version: selectedVersion, loader }}
+                    launcherState={isBusyThisVersion ? launcherState : null}
+                    isInstalled={isInstalledOnDisk}
+                    installLabel={matchingInstance ? t('versions.installAndPlay') : null}
+                    onLaunch={handlePrimary}
+                    onKill={onKill}
+                  />
 
                   <button
                     type="button"

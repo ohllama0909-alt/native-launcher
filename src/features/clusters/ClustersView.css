@@ -348,31 +348,14 @@
   padding-top: 8px;
 }
 
+/* The shared launch action fills the row; its own sheet owns the look. */
 .sidebar-play-btn {
   flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 46px;
-  border-radius: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  background: linear-gradient(135deg, #3ebdb1, #278d85);
-  font-family: var(--font-sans);
-  font-size: 13.5px;
-  font-weight: 650;
-  color: var(--fg-on-brand);
-  cursor: pointer;
-  box-shadow: 0 10px 24px -14px var(--brand-glow);
-  transition: filter 0.15s var(--ease), transform 0.15s var(--ease);
+  min-width: 0;
 }
 
-.sidebar-play-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.sidebar-play-btn:active:not(:disabled) {
-  transform: scale(0.985);
+.sidebar-play-btn .launch-action-label {
+  max-width: none;
 }
 
 /* Compact square secondary action, no more stretched ghost button. */
@@ -397,17 +380,11 @@
   color: var(--fg-primary);
 }
 
-.sidebar-play-btn:disabled,
 .sidebar-view-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
   box-shadow: none;
   filter: grayscale(0.35);
-}
-
-.sidebar-play-btn.install-mode {
-  background: linear-gradient(135deg, #a956aa, #773579);
-  box-shadow: 0 10px 24px -14px rgba(185, 91, 187, 0.62);
 }
 
 .sidebar-note.success {

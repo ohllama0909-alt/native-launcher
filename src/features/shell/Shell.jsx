@@ -4,8 +4,8 @@ import HomeView from '../home/HomeView.jsx';
 import InstancesView from '../instances/InstancesView.jsx';
 import ClustersView from '../clusters/ClustersView.jsx';
 import BrowseView from '../browser/BrowseView.jsx';
-import StatsView from '../stats/StatsView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
+import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import SettingsModal from '../settings/SettingsModal.jsx';
 import AccountsView from '../accounts/AccountsView.jsx';
 import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
@@ -19,7 +19,6 @@ const BACK_LABELS = {
   home: 'back.home',
   instances: 'back.instances',
   versions: 'back.versions',
-  stats: 'back.stats',
   browse: 'back.browse'
 };
 
@@ -45,6 +44,7 @@ export default function Shell({
   const [detailOrigin, setDetailOrigin] = useState('home');
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
@@ -140,6 +140,8 @@ export default function Shell({
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
         account={account}
+        notifications={notifications.length}
+        onOpenNotifications={() => setNotificationsOpen(true)}
         isMaximized={isMaximized}
         onMinimize={handleMinimize}
         onMaximize={handleMaximize}
@@ -154,6 +156,9 @@ export default function Shell({
             onSelectCluster={instancesManager.select}
             onOpenCluster={handleOpenCluster}
             onOpenInstances={() => setCurrentTab('instances')}
+            onOpenVersions={() => setCurrentTab('versions')}
+            onOpenBrowse={() => setCurrentTab('browse')}
+            onCreateInstance={() => setCreateInstanceOpen(true)}
             account={account}
             launcherState={launcher}
             onLaunch={handleLaunch}
@@ -186,6 +191,7 @@ export default function Shell({
             onSelectCluster={instancesManager.select}
             onOpenCluster={handleOpenCluster}
             onLaunch={handleLaunch}
+            onKill={launcher.kill}
             onOpenNewInstanceModal={() => setCreateInstanceOpen(true)}
             onCreateInstance={handleCreateInstance}
             onNotify={notify}
@@ -205,8 +211,6 @@ export default function Shell({
             onNotify={notify}
           />
         )}
-
-        {currentTab === 'stats' && <StatsView instances={instancesManager.instances} />}
 
         {currentTab === 'accounts' && (
           <AccountsView
@@ -230,6 +234,13 @@ export default function Shell({
           />
         )}
       </div>
+
+      <NotificationDrawer
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        notifications={notifications}
+        onClear={() => setNotifications([])}
+      />
 
       <SettingsModal
         open={settingsOpen}
