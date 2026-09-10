@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { ART_ASSETS, RELEASE_LINES } from '../../data/versionsData.js';
+import { bannerFor, getVersionBanners } from '../../lib/patchNotes.js';
 import {
   LOADERS,
   formatReleaseDate,
@@ -12,22 +14,10 @@ import {
 } from '../../lib/mojang.js';
 import './ClustersView.css';
 
-const ART_POOL = Object.keys(ART_ASSETS)
-  .filter((key) => key !== 'default')
-  .map((key) => ART_ASSETS[key]);
-
 const SNAPSHOT_LINE = 'snapshots';
 
 function lineMeta(lineId) {
-  const known = RELEASE_LINES.find((line) => '1.' + line.major === lineId);
-  return known || null;
-}
-
-function artForLine(lineId, index) {
-  const known = lineMeta(lineId);
-  if (known?.art) return known.art;
-  if (!ART_POOL.length) return ART_ASSETS.default;
-  return ART_POOL[index % ART_POOL.length] || ART_ASSETS.default;
+  return RELEASE_LINES.find((line) => '1.' + line.major === lineId) || null;
 }
 
 function describeLine(lineId, count) {
@@ -51,6 +41,33 @@ function tagsForLine(lineId) {
   return lineId === SNAPSHOT_LINE ? ['Snapshot', 'Experimental'] : ['Release'];
 }
 
+/** Image that fades in once decoded and quietly falls back to bundled art. */
+function Art({ src, className = '' }) {
+  const [state, setState] = useState({ url: src, ready: false });
+
+  useEffect(() => {
+    setState({ url: src, ready: false });
+  }, [src]);
+
+  return (
+    <img
+      className={className + (state.ready ? ' is-ready' : '')}
+      src={state.url}
+      alt=""
+      draggable={false}
+      loading="lazy"
+      onLoad={() => setState((prev) => ({ ...prev, ready: true }))}
+      onError={() =>
+        setState((prev) =>
+          prev.url === ART_ASSETS.default
+            ? { ...prev, ready: true }
+            : { url: ART_ASSETS.default, ready: false }
+        )
+      }
+    />
+  );
+}
+
 export default function ClustersView({
   instances = [],
   onSelectCluster,
@@ -63,6 +80,7 @@ export default function ClustersView({
   const [manifest, setManifest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fabricSet, setFabricSet] = useState(null);
+  const [banners, setBanners] = useState(null);
   const [selectedLine, setSelectedLine] = useState(null);
   const [selectedVersion, setSelectedVersion] = useState('');
   const [loader, setLoader] = useState('Fabric');
@@ -87,13 +105,18 @@ export default function ClustersView({
       })
       .catch(() => {});
 
+    // Official Mojang artwork, one image per real version.
+    getVersionBanners()
+      .then((map) => {
+        if (!cancelled) setBanners(map);
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Group the manifest into release lines (1.21, 1.20, ...) plus one
-  // snapshot bucket, newest first.
   const lines = useMemo(() => {
     const versions = manifest?.versions || [];
     const buckets = new Map();
@@ -118,28 +141,33 @@ export default function ClustersView({
       return String(b.newest).localeCompare(String(a.newest));
     });
 
-    return list.map((bucket, index) => ({
-      ...bucket,
-      name: bucket.id === SNAPSHOT_LINE ? 'Snapshots' : 'Minecraft ' + bucket.id,
-      art: artForLine(bucket.id, index),
-      tags: tagsForLine(bucket.id),
-      description: describeLine(bucket.id, bucket.versions.length)
-    }));
-  }, [manifest, includeSnapshots]);
+    return list.map((bucket) => {
+      const ids = bucket.versions.map((version) => version.id);
+      const banner = bannerFor(banners, ids[0], ids);
+      const known = lineMeta(bucket.id);
 
-  // Keep a valid selection as data arrives or filters change.
+      return {
+        ...bucket,
+        name: bucket.id === SNAPSHOT_LINE ? 'Snapshots' : 'Minecraft ' + bucket.id,
+        art: banner?.image || known?.art || ART_ASSETS.default,
+        tags: tagsForLine(bucket.id),
+        description: banner?.shortText || describeLine(bucket.id, bucket.versions.length)
+      };
+    });
+  }, [manifest, includeSnapshots, banners]);
+
   useEffect(() => {
     if (!lines.length) return;
-    const exists = lines.some((line) => line.id === selectedLine);
-    if (!exists) setSelectedLine(lines[0].id);
+    if (!lines.some((line) => line.id === selectedLine)) setSelectedLine(lines[0].id);
   }, [lines, selectedLine]);
 
   const activeLine = lines.find((line) => line.id === selectedLine) || null;
 
   useEffect(() => {
     if (!activeLine) return;
-    const inLine = activeLine.versions.some((version) => version.id === selectedVersion);
-    if (!inLine) setSelectedVersion(activeLine.versions[0]?.id || '');
+    if (!activeLine.versions.some((version) => version.id === selectedVersion)) {
+      setSelectedVersion(activeLine.versions[0]?.id || '');
+    }
   }, [activeLine, selectedVersion]);
 
   const installedByLine = useMemo(() => {
@@ -155,8 +183,7 @@ export default function ClustersView({
     () =>
       instances.find(
         (instance) =>
-          instance.version === selectedVersion &&
-          (instance.loader || 'Vanilla') === loader
+          instance.version === selectedVersion && (instance.loader || 'Vanilla') === loader
       ) || null,
     [instances, selectedVersion, loader]
   );
@@ -165,13 +192,44 @@ export default function ClustersView({
   const availability = loaderAvailability(loader, selectedVersion, fabricSet);
   const loaderReady = availability?.available !== false;
 
+  // Banner for the exact selected version, then the line, then bundled art.
+  const versionBanner = bannerFor(
+    banners,
+    selectedVersion,
+    activeLine?.versions.map((version) => version.id) || []
+  );
+  const sidebarArt = versionBanner?.image || activeLine?.art || ART_ASSETS.default;
+
+  const versionOptions = useMemo(
+    () =>
+      (activeLine?.versions || []).map((version) => ({
+        value: version.id,
+        label: version.id,
+        hint: version.type === 'release' ? '' : version.type
+      })),
+    [activeLine]
+  );
+
+  const loaderOptions = useMemo(
+    () =>
+      LOADERS.map((option) => {
+        const check = loaderAvailability(option, selectedVersion, fabricSet);
+        return {
+          value: option,
+          label: option,
+          hint: check?.available === false ? 'unavailable' : ''
+        };
+      }),
+    [selectedVersion, fabricSet]
+  );
+
   const buildPayload = () => ({
     name: selectedVersion + ' ' + loader,
     version: selectedVersion,
     loader,
     description: activeLine?.description || '',
     tags: activeLine?.tags || [],
-    art: activeLine?.art
+    art: sidebarArt
   });
 
   const handlePrimary = async () => {
@@ -180,17 +238,13 @@ export default function ClustersView({
       onLaunch?.(matchingInstance);
       return;
     }
-
     if (!selectedVersion || !onCreateInstance) return;
 
     setBusy(true);
     try {
       const created = await onCreateInstance(buildPayload(), { open: false });
       if (created?.id) onSelectCluster?.(created.id);
-      onNotify?.({
-        title: 'Instance created',
-        body: selectedVersion + ' ' + loader + ' is ready to play.'
-      });
+      onNotify?.('Instance created', selectedVersion + ' ' + loader + ' is ready to play.');
     } finally {
       setBusy(false);
     }
@@ -250,7 +304,6 @@ export default function ClustersView({
         </div>
       ) : (
         <div className="clusters-body-grid">
-          {/* ---------- left: release line artwork cards ---------- */}
           <div className="clusters-cards-scroll">
             {lines.map((line) => {
               const installed = installedByLine.get(line.id) || 0;
@@ -261,7 +314,7 @@ export default function ClustersView({
                   className={'cluster-group-card ' + (line.id === selectedLine ? 'selected' : '')}
                   onClick={() => setSelectedLine(line.id)}
                 >
-                  <img className="cluster-group-art" src={line.art} alt="" draggable={false} />
+                  <Art src={line.art} className="cluster-group-art" />
                   <span className="cluster-group-grad" />
 
                   {installed > 0 && (
@@ -282,15 +335,14 @@ export default function ClustersView({
             })}
           </div>
 
-          {/* ---------- right: detail sidebar ---------- */}
           {activeLine && (
             <aside className="cluster-detail-sidebar">
               <div className="sidebar-art-banner">
-                <img className="sidebar-art-img" src={activeLine.art} alt="" draggable={false} />
+                <Art src={sidebarArt} className="sidebar-art-img" />
               </div>
 
               <div className="sidebar-content-col">
-                <h2 className="sidebar-heading">{activeLine.name}</h2>
+                <h2 className="sidebar-heading">{versionBanner?.title || activeLine.name}</h2>
 
                 <div className="sidebar-tags-row">
                   {activeLine.tags.map((tag) => (
@@ -305,43 +357,31 @@ export default function ClustersView({
                   )}
                 </div>
 
-                <p className="sidebar-desc">{activeLine.description}</p>
+                <p className="sidebar-desc">
+                  {versionBanner?.shortText || activeLine.description}
+                </p>
 
                 <div className="sidebar-selector-row">
                   <label className="sidebar-selector-label">Version</label>
-                  <select
-                    className="sidebar-dropdown"
+                  <Dropdown
                     value={selectedVersion}
-                    onChange={(event) => setSelectedVersion(event.target.value)}
-                  >
-                    {activeLine.versions.map((version) => (
-                      <option key={version.id} value={version.id}>
-                        {version.id}
-                      </option>
-                    ))}
-                  </select>
+                    options={versionOptions}
+                    onChange={setSelectedVersion}
+                    placeholder="Select a version"
+                  />
                 </div>
 
                 <div className="sidebar-selector-row">
                   <label className="sidebar-selector-label">Mod loader</label>
-                  <select
-                    className="sidebar-dropdown"
-                    value={loader}
-                    onChange={(event) => setLoader(event.target.value)}
-                  >
-                    {LOADERS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                  <Dropdown value={loader} options={loaderOptions} onChange={setLoader} />
                 </div>
 
                 {!loaderReady && (
                   <p className="sidebar-note warn">
                     <NativeIcon name="alert" size={13} />
                     <span>
-                      {availability?.reason || loader + ' has no build for ' + selectedVersion + ' yet.'}
+                      {availability?.reason ||
+                        loader + ' has no build for ' + selectedVersion + ' yet.'}
                     </span>
                   </p>
                 )}
@@ -369,9 +409,9 @@ export default function ClustersView({
                     className="sidebar-view-btn"
                     onClick={handleOpen}
                     disabled={busy || !selectedVersion || !loaderReady}
+                    title={matchingInstance ? 'Open instance' : 'Create and open'}
                   >
-                    <NativeIcon name="arrow-right" size={15} />
-                    <span>{matchingInstance ? 'Open' : 'Create and open'}</span>
+                    <NativeIcon name="arrow-right" size={16} />
                   </button>
                 </div>
               </div>
