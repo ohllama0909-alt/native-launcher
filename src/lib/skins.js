@@ -1,41 +1,118 @@
-/**
- * Player skin renders.
- *
- * The service resolves either a UUID or a plain username, which is the reason
- * offline accounts (they never get a UUID) can still show their real skin
- * instead of falling back to Steve.
- */
+/* ============================================================
+   Native — player renders
 
-const SKIN_SERVICE = 'https://mc-heads.net';
+   Only rendered head/avatar images are used. The raw skin PNG is
+   never shown, so the UI can't flash a flat texture before the
+   rendered image arrives.
+   ============================================================ */
 
-/** Render kind -> pixel size requested from the service. */
+export const SKIN_SERVICE = 'https://mc-heads.net';
+
+export const FALLBACK_SKIN = 'MHF_Steve';
+
 export const SKIN_RENDER_SIZES = {
   avatar: 128,
-  head: 180,
-  bust: 220,
-  body: 260
+  head: 128
 };
 
-export function skinRenderUrl(kind, identifier) {
-  const safeKind = Object.prototype.hasOwnProperty.call(SKIN_RENDER_SIZES, kind)
-    ? kind
-    : 'avatar';
-  const size = SKIN_RENDER_SIZES[safeKind];
-  return [SKIN_SERVICE, safeKind, encodeURIComponent(identifier), size].join('/');
+const KIND_PATHS = {
+  avatar: '/avatar/',
+  head: '/head/'
+};
+
+/** Older callers used bust/body renders; those now fall back to a flat avatar. */
+export function normalizeKind(kind) {
+  return kind === 'head' ? 'head' : 'avatar';
 }
 
-/** Normalises an account into something the render service understands. */
+/** Works with an account object, a bare uuid, or a bare username. */
 export function skinIdentifier(account, uuid, name) {
-  const rawUuid = uuid ?? account?.uuid ?? null;
-  if (rawUuid) {
-    const cleaned = String(rawUuid).replace(/-/g, '');
-    if (/^[0-9a-fA-F]{32}$/.test(cleaned)) return cleaned;
-  }
+  const raw =
+    account?.uuid ||
+    account?.id ||
+    uuid ||
+    account?.name ||
+    name ||
+    FALLBACK_SKIN;
 
-  const rawName = name ?? account?.name ?? '';
-  if (/^[A-Za-z0-9_]{2,16}$/.test(rawName) && rawName.toLowerCase() !== 'guest') {
-    return rawName;
-  }
+  const value = String(raw).trim();
+  if (!value || value === 'guest') return FALLBACK_SKIN;
 
-  return null;
+  // mc-heads accepts both dashed and undashed uuids, but undashed is safer.
+  return value.replace(/-/g, '');
+}
+
+/** Legacy alias kept for existing imports. */
+export const accountIdentifier = skinIdentifier;
+
+export function skinRenderUrl(kind, identifier, size) {
+  const safeKind = normalizeKind(kind);
+  const path = KIND_PATHS[safeKind];
+  const pixels = Number(size) > 0 ? Math.round(Number(size)) : SKIN_RENDER_SIZES[safeKind];
+  const id = encodeURIComponent(identifier || FALLBACK_SKIN);
+
+  return SKIN_SERVICE + path + id + '/' + pixels;
+}
+
+export function fallbackSkinFor(kind = 'avatar', size) {
+  return skinRenderUrl(kind, FALLBACK_SKIN, size);
+}
+
+/* ---------- preload cache ---------- */
+
+const readyUrls = new Set();
+const failedUrls = new Set();
+const pending = new Map();
+
+export function isAvatarReady(url) {
+  return Boolean(url) && readyUrls.has(url);
+}
+
+export function didAvatarFail(url) {
+  return Boolean(url) && failedUrls.has(url);
+}
+
+/**
+ * Resolves once the image is decoded and safe to paint. Repeat calls for the
+ * same url share one request, so switching accounts back and forth is instant.
+ */
+export function preloadAvatar(url) {
+  if (!url) return Promise.resolve(false);
+  if (readyUrls.has(url)) return Promise.resolve(true);
+  if (failedUrls.has(url)) return Promise.resolve(false);
+  if (pending.has(url)) return pending.get(url);
+
+  const task = new Promise((resolve) => {
+    if (typeof Image === 'undefined') {
+      resolve(false);
+      return;
+    }
+
+    const image = new Image();
+    image.decoding = 'async';
+
+    image.onload = () => {
+      readyUrls.add(url);
+      resolve(true);
+    };
+
+    image.onerror = () => {
+      failedUrls.add(url);
+      resolve(false);
+    };
+
+    image.src = url;
+  }).finally(() => {
+    pending.delete(url);
+  });
+
+  pending.set(url, task);
+  return task;
+}
+
+/** Warm the cache for every signed-in account so the drawer opens instantly. */
+export function preloadAccountAvatars(accounts = [], size = 64) {
+  accounts.forEach((account) => {
+    preloadAvatar(skinRenderUrl('avatar', skinIdentifier(account), size));
+  });
 }
