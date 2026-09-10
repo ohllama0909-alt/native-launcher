@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { BrowserWindow, WebContentsView, shell } = require('electron');
+const { BrowserWindow, safeStorage } = require('electron');
 const { Auth } = require('msmc');
 
 /**
@@ -18,10 +18,7 @@ let mcSessions = {}; // id -> msmc mc token object
 let activeAuthWindow = null;
 let microsoftLoginPromise = null;
 
-const AUTH_HEADER_HEIGHT = 58;
 const appIcon = path.join(__dirname, '..', 'icon.png');
-const authShell = path.join(__dirname, 'auth-window.html');
-const authPreload = path.join(__dirname, 'auth-preload.js');
 
 const accountsPath = () => path.join(deps.app.getPath('userData'), 'accounts.json');
 const legacyPath  = () => path.join(deps.app.getPath('userData'), 'account.json');
@@ -50,20 +47,46 @@ function readAccounts() {
 }
 
 function saveAccounts(data) {
-  fs.writeFileSync(accountsPath(), JSON.stringify(data, null, 2));
+  const protectedData = {
+    ...data,
+    accounts: (data.accounts || []).map((account) => ({
+      ...account,
+      refresh: protectRefresh(account.refresh)
+    }))
+  };
+  fs.writeFileSync(accountsPath(), JSON.stringify(protectedData, null, 2));
+}
+
+function protectRefresh(refresh) {
+  if (!refresh || (typeof refresh === 'string' && refresh.startsWith('safe:v1:'))) return refresh;
+  try {
+    if (safeStorage?.isEncryptionAvailable?.()) {
+      return `safe:v1:${safeStorage.encryptString(JSON.stringify(refresh)).toString('base64')}`;
+    }
+  } catch {}
+  return refresh;
+}
+
+function revealRefresh(refresh) {
+  if (typeof refresh !== 'string' || !refresh.startsWith('safe:v1:')) return refresh;
+  try {
+    return JSON.parse(safeStorage.decryptString(Buffer.from(refresh.slice(8), 'base64')));
+  } catch {
+    throw new Error('The encrypted Microsoft session could not be unlocked on this computer.');
+  }
 }
 
 function microsoftAuthCode(authManager) {
   return new Promise((resolve, reject) => {
     const parent = deps?.getWin?.();
     const authWindow = new BrowserWindow({
-      width: 540,
-      height: 760,
-      minWidth: 480,
-      minHeight: 640,
+      width: 520,
+      height: 720,
+      minWidth: 440,
+      minHeight: 560,
       parent: parent && !parent.isDestroyed() ? parent : undefined,
-      modal: Boolean(parent && !parent.isDestroyed()),
-      frame: false,
+      modal: false,
+      frame: true,
       show: false,
       center: true,
       resizable: true,
@@ -72,15 +95,7 @@ function microsoftAuthCode(authManager) {
       backgroundColor: '#f4f4f4',
       icon: appIcon,
       title: 'Sign in to Microsoft — Native',
-      webPreferences: {
-        preload: authPreload,
-        contextIsolation: true,
-        nodeIntegration: false,
-        sandbox: true
-      }
-    });
-
-    const authView = new WebContentsView({
+      autoHideMenuBar: true,
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
@@ -91,18 +106,6 @@ function microsoftAuthCode(authManager) {
     });
 
     activeAuthWindow = authWindow;
-    authWindow.contentView.addChildView(authView);
-
-    const layoutAuthView = () => {
-      if (authWindow.isDestroyed()) return;
-      const [width, height] = authWindow.getContentSize();
-      authView.setBounds({
-        x: 0,
-        y: AUTH_HEADER_HEIGHT,
-        width,
-        height: Math.max(0, height - AUTH_HEADER_HEIGHT)
-      });
-    };
 
     let settled = false;
     const complete = (error, code) => {
@@ -131,8 +134,6 @@ function microsoftAuthCode(authManager) {
       }
     };
 
-    layoutAuthView();
-    authWindow.on('resize', layoutAuthView);
     authWindow.on('closed', () => {
       if (activeAuthWindow === authWindow) activeAuthWindow = null;
       if (!settled) {
@@ -145,23 +146,7 @@ function microsoftAuthCode(authManager) {
       if (!authWindow.isDestroyed()) authWindow.show();
     });
 
-    const contents = authView.webContents;
-    let authPageLoading = true;
-    const publishLoadingState = () => {
-      if (!authWindow.isDestroyed()) {
-        authWindow.webContents.send('auth-window:loading', authPageLoading);
-      }
-    };
-
-    authWindow.webContents.on('did-finish-load', publishLoadingState);
-    contents.on('did-start-loading', () => {
-      authPageLoading = true;
-      publishLoadingState();
-    });
-    contents.on('did-stop-loading', () => {
-      authPageLoading = false;
-      publishLoadingState();
-    });
+    const contents = authWindow.webContents;
     contents.on('will-redirect', (event, url) => {
       if (inspectRedirect(url)) event.preventDefault();
     });
@@ -173,13 +158,7 @@ function microsoftAuthCode(authManager) {
       complete(new Error(`Could not load Microsoft sign-in: ${description}`));
     });
 
-    contents.setWindowOpenHandler(({ url }) => {
-      if (/^https:\/\//i.test(url)) shell.openExternal(url);
-      return { action: 'deny' };
-    });
-
-    authWindow.loadFile(authShell).catch((error) => complete(error));
-    contents.loadURL(authManager.createLink()).catch((error) => {
+    authWindow.loadURL(authManager.createLink()).catch((error) => {
       // Redirect interception can reject loadURL after the login has already completed.
       if (!settled) complete(error);
     });
@@ -224,11 +203,10 @@ async function loginMicrosoft() {
   }
 }
 
-/** MCLC-compatible auth for the current active account. Returns null if not an MS account or token expired. */
-async function getMclcAuth() {
+async function getMinecraftSession(accountId) {
   try {
     const { accounts, activeId } = readAccounts();
-    const acc = accounts.find(a => a.id === activeId);
+    const acc = accounts.find(a => a.id === (accountId || activeId));
     if (!acc || acc.type !== 'microsoft') return null;
 
     const cached = mcSessions[acc.id];
@@ -239,7 +217,7 @@ async function getMclcAuth() {
     if (!acc.refresh) return null;
 
     const authManager = new Auth('select_account');
-    const xbox = await authManager.refresh(acc.refresh);
+    const xbox = await authManager.refresh(revealRefresh(acc.refresh));
     const mc = await xbox.getMinecraft();
     mcSessions[acc.id] = mc;
 
@@ -252,10 +230,21 @@ async function getMclcAuth() {
       saveAccounts(data);
     }
 
-    return mc.mclc();
+    return mc;
   } catch {
     return null;
   }
+}
+
+/** MCLC-compatible auth for the current active account. Returns null if not an MS account or token expired. */
+async function getMclcAuth() {
+  const mc = await getMinecraftSession();
+  return mc?.mclc?.() || null;
+}
+
+async function getMinecraftAccessToken(accountId) {
+  const mc = await getMinecraftSession(accountId);
+  return mc?.mclc?.().access_token || null;
 }
 
 function init(dependencies, ipcMain) {
@@ -378,4 +367,4 @@ function init(dependencies, ipcMain) {
   });
 }
 
-module.exports = { init, getMclcAuth };
+module.exports = { init, getMclcAuth, getMinecraftAccessToken };

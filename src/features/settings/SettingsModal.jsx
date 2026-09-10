@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
 import AppearancePanel from './AppearancePanel.jsx';
-import AccountsPanel from './AccountsPanel.jsx';
 import StoragePanel from './StoragePanel.jsx';
 import ChangelogPanel from './ChangelogPanel.jsx';
 import { SUPPORTED_LOCALES } from '../../i18n/catalogs.js';
@@ -13,7 +12,6 @@ const TABS = [
   { id: 'minecraft', key: 'settings.minecraft', icon: 'play' },
   { id: 'appearance', key: 'settings.appearance', icon: 'paint-pour' },
   { id: 'java', key: 'settings.java', icon: 'terminal' },
-  { id: 'accounts', key: 'account.accounts', icon: 'users-01' },
   { id: 'storage', key: 'settings.storage', icon: 'database' },
   { id: 'changelog', key: 'settings.changelog', icon: 'clock-rewind' }
 ];
@@ -46,13 +44,7 @@ function readPrefs() {
 export default function SettingsModal({
   open,
   onClose,
-  accounts = [],
-  activeId,
   instances = [],
-  onAddMicrosoft,
-  onAddOffline,
-  onSwitchAccount,
-  onRemoveAccount,
   onOpenUpdater
 }) {
   const { locale, setLocale, t } = useI18n();
@@ -110,7 +102,7 @@ export default function SettingsModal({
 
   if (!open) return null;
 
-  const wide = activeTab === 'accounts' || activeTab === 'storage' || activeTab === 'changelog';
+  const wide = activeTab === 'storage' || activeTab === 'changelog';
 
   return (
     <div className="settings-modal-backdrop" onClick={onClose}>
@@ -311,17 +303,6 @@ export default function SettingsModal({
                   />
                 </div>
               </div>
-            )}
-
-            {activeTab === 'accounts' && (
-              <AccountsPanel
-                accounts={accounts}
-                activeId={activeId}
-                onSwitchAccount={onSwitchAccount}
-                onAddMicrosoft={onAddMicrosoft}
-                onAddOffline={onAddOffline}
-                onRemoveAccount={onRemoveAccount}
-              />
             )}
 
             {activeTab === 'storage' && <StoragePanel instances={instances} />}

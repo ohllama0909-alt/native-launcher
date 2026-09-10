@@ -7,7 +7,8 @@ import BrowseView from '../browser/BrowseView.jsx';
 import StatsView from '../stats/StatsView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import SettingsModal from '../settings/SettingsModal.jsx';
-import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
+import AccountsView from '../accounts/AccountsView.jsx';
+import ActionCenter from '../actions/ActionCenter.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
 import useLauncher from '../launcher/useLauncher.js';
@@ -32,10 +33,11 @@ export default function Shell({
   onAddOffline,
   onSwitchAccount,
   onRemoveAccount,
+  onWardrobeChanged,
   onOpenUpdater
 }) {
   const { locale, t } = useI18n();
-  // 'home' | 'instances' | 'versions' | 'browse' | 'stats' | 'cluster-detail'
+  // 'home' | 'instances' | 'versions' | 'browse' | 'stats' | 'accounts' | 'cluster-detail'
   const [currentTab, setCurrentTab] = useState('home');
   const [clusterDetailTab, setClusterDetailTab] = useState('overview');
   const [browseReturnTab, setBrowseReturnTab] = useState('instances');
@@ -45,7 +47,8 @@ export default function Shell({
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
+  const [actionCenterOpen, setActionCenterOpen] = useState(false);
+  const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
@@ -138,7 +141,7 @@ export default function Shell({
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenNotifications={() => setNotificationsOpen(true)}
-        onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
+        onOpenAccountSwitcher={() => setCurrentTab('accounts')}
         unreadCount={notifications.length}
         account={account}
         isMaximized={isMaximized}
@@ -155,6 +158,8 @@ export default function Shell({
             onSelectCluster={instancesManager.select}
             onOpenCluster={handleOpenCluster}
             onOpenVersions={() => setCurrentTab('versions')}
+            onOpenActionCenter={() => setActionCenterOpen(true)}
+            account={account}
             launcherState={launcher}
             onLaunch={handleLaunch}
             onKill={launcher.kill}
@@ -195,6 +200,7 @@ export default function Shell({
 
         {currentTab === 'browse' && (
           <BrowseView
+            initialIntent={browseIntent}
             instances={instancesManager.instances}
             selectedCluster={instancesManager.selected}
             onSelectCluster={instancesManager.select}
@@ -206,6 +212,20 @@ export default function Shell({
         )}
 
         {currentTab === 'stats' && <StatsView instances={instancesManager.instances} />}
+
+        {currentTab === 'accounts' && (
+          <AccountsView
+            account={account}
+            accounts={accounts}
+            activeId={activeId}
+            onAddMicrosoft={onAddMicrosoft}
+            onAddOffline={onAddOffline}
+            onSwitchAccount={onSwitchAccount}
+            onRemoveAccount={onRemoveAccount}
+            onNotify={notify}
+            onWardrobeChanged={onWardrobeChanged}
+          />
+        )}
 
         {currentTab === 'cluster-detail' && (
           <ClusterDetailView
@@ -225,25 +245,23 @@ export default function Shell({
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        accounts={accounts}
-        activeId={activeId}
         instances={instancesManager.instances}
-        onAddMicrosoft={onAddMicrosoft}
-        onAddOffline={onAddOffline}
-        onSwitchAccount={onSwitchAccount}
-        onRemoveAccount={onRemoveAccount}
         onOpenUpdater={onOpenUpdater}
       />
 
-      <AccountSwitcherModal
-        open={accountSwitcherOpen}
-        onClose={() => setAccountSwitcherOpen(false)}
-        accounts={accounts}
-        activeId={activeId}
-        onSwitchAccount={onSwitchAccount}
-        onAddMicrosoft={onAddMicrosoft}
-        onAddOffline={onAddOffline}
-        onRemoveAccount={onRemoveAccount}
+      <ActionCenter
+        open={actionCenterOpen}
+        onClose={() => setActionCenterOpen(false)}
+        onNavigate={(tab) => {
+          setCurrentTab(tab);
+          setActionCenterOpen(false);
+        }}
+        onBrowse={({ contentType, query }) => {
+          setBrowseIntent({ contentType, query, nonce: Date.now() });
+          setBrowseReturnTab('home');
+          setCurrentTab('browse');
+          setActionCenterOpen(false);
+        }}
       />
 
       <NotificationDrawer

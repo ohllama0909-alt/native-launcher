@@ -50,10 +50,11 @@ export default function AccountsPanel({
     setBusy(true);
     setError('');
     try {
-      await onAddOffline?.(name);
+      const result = await onAddOffline?.(name);
+      if (result?.ok === false) throw new Error(result.error);
       setOfflineName('');
-    } catch {
-      setError(t('error.offlineAccount'));
+    } catch (error) {
+      setError(error?.message || t('error.offlineAccount'));
     } finally {
       setBusy(false);
     }
@@ -63,9 +64,10 @@ export default function AccountsPanel({
     setBusy(true);
     setError('');
     try {
-      await onAddMicrosoft?.();
-    } catch {
-      setError(t('error.microsoftLogin'));
+      const result = await onAddMicrosoft?.();
+      if (result?.ok === false) throw new Error(result.error);
+    } catch (error) {
+      setError(error?.message || t('error.microsoftLogin'));
     } finally {
       setBusy(false);
     }
@@ -73,6 +75,13 @@ export default function AccountsPanel({
 
   return (
     <div className="acc-panel">
+      {busy && (
+        <div className="acc-secure-overlay" role="status">
+          <span className="acc-secure-orbit"><NativeIcon name="shield" size={21} /></span>
+          <strong>{t('account.securing')}</strong>
+          <small>{t('account.securingDesc')}</small>
+        </div>
+      )}
       {/* ---------------- character stage ---------------- */}
       <section className="acc-stage-card">
         <div className="acc-stage-glow" />

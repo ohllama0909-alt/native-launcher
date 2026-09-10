@@ -11,6 +11,7 @@ const updaterMod = require('./updater');
 const instanceMod = require('./instance');
 const newsMod = require('./news');
 const serverPingMod = require('./serverPing');
+const wardrobeMod = require('./wardrobe');
 
 let win;
 const appIcon = path.join(__dirname, '..', 'icon.png');
@@ -100,6 +101,7 @@ updaterMod.init({ app, getWin: () => win, getSettings: () => settingsMod.get() }
 instanceMod.init({ app }, ipcMain);
 newsMod.init({ app }, ipcMain);
 serverPingMod.init({ app }, ipcMain);
+wardrobeMod.init({ app, auth: authMod }, ipcMain);
 
 app.whenReady().then(() => {
   app.setName('Native');

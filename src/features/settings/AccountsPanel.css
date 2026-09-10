@@ -3,11 +3,18 @@
    ============================================================ */
 
 .acc-panel {
+  position: relative;
   display: grid;
   grid-template-columns: 268px minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
+
+.acc-secure-overlay { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border-radius: inherit; background: color-mix(in srgb, var(--page-sunken) 86%, transparent); backdrop-filter: blur(14px); color: var(--fg-primary); }
+.acc-secure-overlay strong { font: 700 14px var(--font-sans); }
+.acc-secure-overlay small { color: var(--fg-muted); font: 11.5px var(--font-sans); }
+.acc-secure-orbit { position: relative; display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 5px; border-radius: 50%; color: var(--brand-soft); background: var(--brand-subtle); }
+.acc-secure-orbit::after { content: ''; position: absolute; inset: -5px; border: 2px solid transparent; border-top-color: var(--brand); border-right-color: var(--brand-border); border-radius: 50%; animation: skin3d-spin .9s linear infinite; }
 
 /* ---------- 3D character stage ---------- */
 

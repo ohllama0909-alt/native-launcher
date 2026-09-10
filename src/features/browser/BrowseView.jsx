@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 import './BrowseView.css';
 
 const MODRINTH_API = 'https://api.modrinth.com/v2';
@@ -58,6 +60,7 @@ function loaderOf(instance) {
 }
 
 export default function BrowseView({
+  initialIntent,
   instances = [],
   selectedCluster,
   onSelectCluster,
@@ -91,6 +94,16 @@ export default function BrowseView({
   const [instancePickerOpen, setInstancePickerOpen] = useState(false);
 
   const resultsRef = useRef(null);
+
+  useEffect(() => {
+    if (!initialIntent) return;
+    if (CONTENT_TYPES.some((entry) => entry.id === initialIntent.contentType)) {
+      setContentType(initialIntent.contentType);
+    }
+    setQuery(initialIntent.query || '');
+    setDebouncedQuery(initialIntent.query || '');
+    setDetail(null);
+  }, [initialIntent?.nonce]);
 
   const activeType = CONTENT_TYPES.find((entry) => entry.id === contentType) || CONTENT_TYPES[0];
   const target = selectedCluster || instances[0] || null;
@@ -397,6 +410,63 @@ export default function BrowseView({
     setPage(Math.min(totalPages, Math.max(1, next)));
     resultsRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (detail) {
+    const project = detailData || detail;
+    const body = project.body || project.description || detail.description || '';
+    const safeBody = DOMPurify.sanitize(marked.parse(body));
+    const installed = installedKeys.has(detail.project_id);
+    const busy = busyIds.has(detail.project_id);
+
+    return (
+      <div className="content-detail-page">
+        <header className="content-detail-nav">
+          <button type="button" onClick={() => setDetail(null)}><NativeIcon name="arrow-left" size={15} /> Back to results</button>
+          <span>{t(activeType.labelKey)}</span>
+        </header>
+
+        <div className="content-detail-scroll">
+          <section className="content-detail-hero">
+            <span className="content-detail-icon">
+              {detail.icon_url ? <img src={detail.icon_url} alt="" /> : <NativeIcon name={activeType.icon} size={30} />}
+            </span>
+            <div className="content-detail-heading">
+              <div className="content-detail-badges"><span>{activeType.projectType}</span>{project.status && <span>{project.status}</span>}</div>
+              <h1>{project.title || detail.title}</h1>
+              <p>{project.description || detail.description}</p>
+              <div className="content-detail-byline">by <strong>{project.author || detail.author || t('browse.unknown')}</strong></div>
+            </div>
+            <div className="content-detail-primary-actions">
+              <button type="button" className="content-modal-link" onClick={() => window.native?.openExternal?.(`https://modrinth.com/project/${detail.slug || detail.project_id}`)}><NativeIcon name="external-link" size={14} /> Modrinth</button>
+              {installed && activeType.id !== 'modpack' ? (
+                <button type="button" className="content-remove-btn" onClick={() => handleRemove(detail)} disabled={busy}>{t('common.remove')}</button>
+              ) : (
+                <button type="button" className="content-install-btn content-detail-install" onClick={() => handleInstall(detail)} disabled={busy || (activeType.id !== 'modpack' && !target)}>{busy ? <NativeIcon name="refresh" size={14} className="is-spinning" /> : <NativeIcon name="download" size={14} />} {activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</button>
+              )}
+            </div>
+          </section>
+
+          <div className="content-detail-layout">
+            <main className="content-detail-main">
+              {(project.gallery || []).length > 0 && (
+                <div className="content-detail-gallery">{project.gallery.slice(0, 5).map((image) => <img key={image.url} src={image.url} alt={image.title || ''} loading="lazy" />)}</div>
+              )}
+              <article className="content-detail-description" dangerouslySetInnerHTML={{ __html: safeBody }} />
+            </main>
+
+            <aside className="content-detail-sidebar">
+              <div className="content-detail-stat-grid">
+                <div><NativeIcon name="download" size={15} /><span>Downloads</span><strong>{formatDownloads(project.downloads || detail.downloads)}</strong></div>
+                <div><NativeIcon name="star" size={15} /><span>Followers</span><strong>{formatDownloads(project.followers || detail.follows)}</strong></div>
+              </div>
+              <section><h3>Information</h3><dl><div><dt>Licence</dt><dd>{project.license?.id || detail.license || t('browse.unknown')}</dd></div><div><dt>Updated</dt><dd>{project.updated ? new Date(project.updated).toLocaleDateString() : '—'}</dd></div><div><dt>Client</dt><dd>{project.client_side || '—'}</dd></div><div><dt>Server</dt><dd>{project.server_side || '—'}</dd></div></dl></section>
+              <section><h3>Recent versions</h3><div className="content-detail-versions">{detailVersions.length ? detailVersions.map((version) => <div key={version.id}><strong>{version.version_number}</strong><span>{(version.game_versions || []).slice(-3).join(', ')}</span><small>{(version.loaders || []).join(' · ')}</small></div>) : <p>{t('browse.loadingVersions')}</p>}</div></section>
+            </aside>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="browse-view">

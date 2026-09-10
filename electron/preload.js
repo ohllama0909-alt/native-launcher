@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('native', {
     remove:       (id)   => ipcRenderer.invoke('accounts:remove', id),
     getAvatar:    (uuid) => ipcRenderer.invoke('accounts:getAvatar', uuid)
   },
+  wardrobe: {
+    get: (account) => ipcRenderer.invoke('wardrobe:get', account),
+    choose: (payload) => ipcRenderer.invoke('wardrobe:choose', payload),
+    select: (account, slot) => ipcRenderer.invoke('wardrobe:select', { account, slot }),
+    setModel: (account, slot, model) => ipcRenderer.invoke('wardrobe:setModel', { account, slot, model }),
+    sync: (account) => ipcRenderer.invoke('wardrobe:sync', account),
+    officialProfile: (account) => ipcRenderer.invoke('wardrobe:officialProfile', account),
+    applyOfficialSkin: (account, slot) => ipcRenderer.invoke('wardrobe:applyOfficialSkin', { account, slot }),
+    activateOfficialCape: (account, capeId) => ipcRenderer.invoke('wardrobe:activateOfficialCape', { account, capeId })
+  },
   settings: {
     load: () => ipcRenderer.invoke('settings:load'),
     save: (settings) => ipcRenderer.invoke('settings:save', settings),

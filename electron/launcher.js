@@ -1,10 +1,13 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const AdmZip = require('adm-zip');
 const { Client, Authenticator } = require('minecraft-launcher-core');
 const auth = require('./auth');
 const settingsMod = require('./settings');
 const javaMod = require('./java');
 const { downloadFile, fetchJson, writeFileAtomic } = require('./download');
+const wardrobeMod = require('./wardrobe');
 
 /**
  * Game launch pipeline (main process).
@@ -15,9 +18,9 @@ const { downloadFile, fetchJson, writeFileAtomic } = require('./download');
  *     forge-installers/         <- cached Forge installer jars
  *     instances/<id>/           <- per-instance game dir (worlds, mods, configs)
  *
- * Sharing the root means a version's jars/assets download once and are
- * SHA1-verified by minecraft-launcher-core on every launch; each instance
- * still gets its own isolated game directory.
+ * Sharing the root means a version's jars/assets download once; Fabric's
+ * runtime files are verified before launch, while each instance still gets
+ * its own isolated game directory.
  */
 
 const launcher = new Client();
@@ -56,7 +59,102 @@ const setState = (status, detail = '') => send('launcher:state', { status, detai
 const rootDir = () => path.join(deps.app.getPath('userData'), 'minecraft');
 const instanceDir = (id) => path.join(rootDir(), 'instances', id);
 
-/** Latest stable Fabric loader for a MC version -> installs its version profile, returns profile name. */
+function mavenArtifact(library) {
+  const artifactUrl = (relativePath, repository) => {
+    const url = repository ? new URL(relativePath, repository) : new URL(relativePath);
+    // Historical Fabric profiles contain HTTP Maven Central links, which the
+    // repository now rejects. All repositories used here support HTTPS.
+    if (url.protocol === 'http:') url.protocol = 'https:';
+    return url.toString();
+  };
+  const artifact = library?.downloads?.artifact;
+  if (artifact?.path) {
+    const repository = library.url || 'https://libraries.minecraft.net/';
+    return {
+      relativePath: artifact.path,
+      url: artifactUrl(artifact.url || artifact.path, artifact.url ? undefined : repository),
+      sha1: artifact.sha1 || library.sha1 || null,
+      size: artifact.size || library.size || null
+    };
+  }
+
+  const [coordinate, extension = 'jar'] = String(library?.name || '').split('@', 2);
+  const [group, artifactId, version, classifier] = coordinate.split(':');
+  if (!group || !artifactId || !version) {
+    throw new Error(`Invalid Fabric library coordinate: ${library?.name || '(missing)'}`);
+  }
+
+  const filename = `${artifactId}-${version}${classifier ? `-${classifier}` : ''}.${extension}`;
+  const relativePath = `${group.replace(/\./g, '/')}/${artifactId}/${version}/${filename}`;
+  return {
+    relativePath,
+    // The Minecraft version format uses the official library repository when
+    // a Maven entry does not provide its own repository URL.
+    url: artifactUrl(relativePath, library.url || 'https://libraries.minecraft.net/'),
+    sha1: library.sha1 || null,
+    size: library.size || null
+  };
+}
+
+async function fileMatches(filePath, { sha1, size }) {
+  try {
+    const stat = await fs.promises.stat(filePath);
+    if (!stat.isFile() || stat.size === 0 || (size && stat.size !== size)) return false;
+    if (!sha1) {
+      // Fabric's loader and intermediary entries currently omit checksums.
+      // Parsing the central directory still catches empty, HTML, and truncated downloads.
+      return new AdmZip(filePath).getEntries().length > 0;
+    }
+
+    const hash = crypto.createHash('sha1');
+    for await (const chunk of fs.createReadStream(filePath)) hash.update(chunk);
+    return hash.digest('hex').toLowerCase() === String(sha1).toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+/** Verify and repair Fabric's complete runtime before the less strict launch library runs. */
+async function ensureFabricLibraries(profile) {
+  const libraries = Array.isArray(profile?.libraries) ? profile.libraries : [];
+  if (!libraries.some((library) => library.name?.includes(':sponge-mixin:'))) {
+    throw new Error('The Fabric profile is missing its SpongePowered Mixin dependency.');
+  }
+
+  const libraryRoot = path.join(rootDir(), 'libraries');
+  for (let index = 0; index < libraries.length; index += 1) {
+    const library = libraries[index];
+    const artifact = mavenArtifact(library);
+    const targetPath = path.resolve(libraryRoot, artifact.relativePath);
+    const relative = path.relative(path.resolve(libraryRoot), targetPath);
+    if (relative.startsWith(`..${path.sep}`) || relative === '..' || path.isAbsolute(relative)) {
+      throw new Error(`Invalid Fabric library path: ${artifact.relativePath}`);
+    }
+    if (await fileMatches(targetPath, artifact)) continue;
+    if (!artifact.url) throw new Error(`Fabric did not provide a download URL for ${library.name}`);
+
+    const detail = `Downloading Fabric libraries (${index + 1}/${libraries.length})…`;
+    setState('downloading', detail);
+    await downloadFile(artifact.url, targetPath, {
+      retries: 3,
+      expectedHashes: artifact.sha1 ? { sha1: artifact.sha1 } : {},
+      onProgress: ({ percent, received, total }) => {
+        send('launcher:progress', {
+          percent: percent ?? Math.round((index / Math.max(1, libraries.length)) * 100),
+          detail,
+          phase: 'downloading',
+          bytes: received,
+          size: total
+        });
+      }
+    });
+    if (!(await fileMatches(targetPath, artifact))) {
+      throw new Error(`Downloaded Fabric library is invalid: ${library.name}`);
+    }
+  }
+}
+
+/** Latest stable Fabric loader for a MC version -> installs and verifies its profile. */
 async function resolveFabric(mcVersion, requestedVersion = null) {
   if (!fabricLoadersCache.has(mcVersion)) {
     fabricLoadersCache.set(
@@ -78,14 +176,16 @@ async function resolveFabric(mcVersion, requestedVersion = null) {
 
   const name = `fabric-loader-${loader}-${mcVersion}`;
   const jsonPath = path.join(rootDir(), 'versions', name, `${name}.json`);
-  if (!fs.existsSync(jsonPath)) {
-    setState('preparing', `Installing Fabric loader ${loader}…`);
-    const profile = await fetchJson(
-      `https://meta.fabricmc.net/v2/versions/loader/${mcVersion}/${loader}/profile/json`
-    );
-    fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
-    writeFileAtomic(jsonPath, JSON.stringify(profile, null, 2));
+  setState('preparing', `Installing Fabric loader ${loader}…`);
+  const profile = await fetchJson(
+    `https://meta.fabricmc.net/v2/versions/loader/${mcVersion}/${loader}/profile/json`
+  );
+  if (profile?.id !== name || typeof profile?.mainClass !== 'string' || !profile.mainClass) {
+    throw new Error(`Fabric returned an invalid launch profile for Minecraft ${mcVersion}`);
   }
+  fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
+  writeFileAtomic(jsonPath, JSON.stringify(profile, null, 2));
+  await ensureFabricLibraries(profile);
   return name;
 }
 
@@ -200,6 +300,8 @@ async function launch({ instance, account }) {
     if (instance.loader === 'Fabric') {
       setState('preparing', 'Resolving Fabric…');
       opts.version.custom = await resolveFabric(instance.version, instance.loaderVersion);
+      const wardrobe = await wardrobeMod.prepareFabricInstance(instance, account, (detail) => setState('preparing', detail));
+      if (wardrobe.warning) launcher.emit('debug', `[Native]: Wardrobe integration: ${wardrobe.warning}`);
     } else if (instance.loader === 'Forge') {
       setState('preparing', 'Resolving Forge…');
       opts.forge = await resolveForge(instance.version, instance.loaderVersion);
@@ -229,6 +331,10 @@ async function launch({ instance, account }) {
 
     let sawOutput = false;
     let childFailed = false;
+    let outputTail = '';
+    const captureOutput = (data) => {
+      outputTail = `${outputTail}${String(data)}`.slice(-12000);
+    };
     const markRunning = () => {
       if (!sawOutput) {
         sawOutput = true;
@@ -242,6 +348,8 @@ async function launch({ instance, account }) {
         }
       }
     };
+    child.stdout?.on('data', captureOutput);
+    child.stderr?.on('data', captureOutput);
     child.stdout?.on('data', markRunning);
     child.stderr?.on('data', markRunning);
     const runningFallback = setTimeout(() => {
@@ -257,7 +365,13 @@ async function launch({ instance, account }) {
       clearTimeout(runningFallback);
       activeChild = null;
       if (!childFailed) {
-        setState('idle', code === 0 || code === null ? '' : `Game exited with code ${code}`);
+        if (code === 0 || code === null) {
+          setState('idle', '');
+        } else if (outputTail.includes('org/spongepowered/asm/launch/MixinBootstrap')) {
+          setState('error', 'Fabric Mixin failed to load after repair. Check the logs and try launching again.');
+        } else {
+          setState('error', `Minecraft exited with code ${code}. Check the logs for the cause.`);
+        }
       }
       const win = deps.getWin();
       const { launcherAction, reopenOnExit } = settingsMod.get().behavior;
@@ -391,4 +505,8 @@ function init(dependencies, ipcMain) {
   });
 }
 
-module.exports = { init };
+module.exports = {
+  init,
+  // Exported for focused launch-pipeline regression tests.
+  _internals: { mavenArtifact, fileMatches, ensureFabricLibraries, resolveFabric }
+};

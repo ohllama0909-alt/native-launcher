@@ -10,7 +10,8 @@ export const NAV_TABS = [
   { id: 'instances', labelKey: 'nav.instances' },
   { id: 'versions', labelKey: 'nav.versions' },
   { id: 'browse', labelKey: 'nav.browse' },
-  { id: 'stats', labelKey: 'nav.stats' }
+  { id: 'stats', labelKey: 'nav.stats' },
+  { id: 'accounts', labelKey: 'account.wardrobe' }
 ];
 
 export default function AppNavbar({

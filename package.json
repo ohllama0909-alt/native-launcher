@@ -2,7 +2,7 @@
   "name": "native",
   "productName": "Native",
   "desktopName": "Native",
-  "version": "3.9.15",
+  "version": "3.9.16",
   "description": "Native — a Minecraft launcher",
   "homepage": "https://github.com/ohllama0909-alt/native-launcher",
   "author": {
@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "vite build",
+    "test": "node --test",
     "start": "npm run build && electron .",
     "bump": "node scripts/bump-version.js",
     "release:ensure": "node scripts/ensure-release.js",

@@ -13,13 +13,30 @@ export default function App() {
   const [activeId, setActiveId] = useState(null);
   const [startup, setStartup] = useState({ ready: false, onboarding: false, settings: null });
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [wardrobe, setWardrobe] = useState(null);
   const autoShownVersion = useRef(null);
   const updater = useUpdater();
 
   const activeAccount = accounts.find(a => a.id === activeId) ?? null;
   const account = activeAccount
-    ? { ...activeAccount, isMicrosoft: activeAccount.type === 'microsoft' }
+    ? {
+        ...activeAccount,
+        ...(wardrobe?.accountId === activeAccount.id ? wardrobe.active : {}),
+        isMicrosoft: activeAccount.type === 'microsoft'
+      }
     : GUEST;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeAccount || !window.native?.wardrobe?.get) {
+      setWardrobe(null);
+      return undefined;
+    }
+    window.native.wardrobe.get(activeAccount).then((value) => {
+      if (!cancelled) setWardrobe({ ...value, accountId: activeAccount.id });
+    }).catch(() => { if (!cancelled) setWardrobe(null); });
+    return () => { cancelled = true; };
+  }, [activeAccount?.id]);
 
   useEffect(() => {
     window.native?.onMaximizedChange(setIsMaximized);
@@ -175,6 +192,7 @@ export default function App() {
             onAddOffline={handleAddOffline}
             onSwitchAccount={handleSwitchAccount}
             onRemoveAccount={handleRemoveAccount}
+            onWardrobeChanged={(value) => setWardrobe({ ...value, accountId: activeAccount?.id })}
             updateStatus={updater.status}
             onOpenUpdater={() => setUpdateOpen(true)}
           />

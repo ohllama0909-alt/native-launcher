@@ -6,8 +6,9 @@ const { pipeline } = require('stream/promises');
 const { app } = require('electron');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const appVersion = app?.getVersion?.() || require('../package.json').version;
 const DEFAULT_HEADERS = {
-  'User-Agent': `NativeLauncher/${app.getVersion()} (https://github.com/ohllama0909-alt/native-launcher)`
+  'User-Agent': `NativeLauncher/${appVersion} (https://github.com/ohllama0909-alt/native-launcher)`
 };
 
 function retryableStatus(status) {

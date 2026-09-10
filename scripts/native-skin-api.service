@@ -1,0 +1,21 @@
+[Unit]
+Description=Native Launcher wardrobe API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/nativelauncher
+Environment=NATIVE_SKIN_PORT=3418
+Environment=NATIVE_SKIN_DATA=/home/ubuntu/.local/share/native-skin-api
+ExecStart=/usr/bin/node /home/ubuntu/nativelauncher/skin-server/server.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/.local/share/native-skin-api
+
+[Install]
+WantedBy=multi-user.target

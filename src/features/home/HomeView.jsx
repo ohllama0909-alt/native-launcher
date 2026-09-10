@@ -6,6 +6,8 @@ import { getClusterArt } from '../../data/versionsData.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { formatLaunchProgress } from '../launcher/useLauncher.js';
 import useIsInstalled from '../instances/useIsInstalled.js';
+import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
+import { useAppearance } from '../../lib/appearance.js';
 import './HomeView.css';
 
 export default function HomeView({
@@ -14,11 +16,15 @@ export default function HomeView({
   onSelectCluster,
   onOpenCluster,
   onOpenVersions,
+  onOpenActionCenter,
+  account,
   launcherState,
   onLaunch,
   onKill
 }) {
   const { t } = useI18n();
+  const [appearance] = useAppearance();
+  const [avatarHovered, setAvatarHovered] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const railRef = useRef(null);
   const cardRefs = useRef({});
@@ -121,6 +127,24 @@ export default function HomeView({
         <img src={backgroundArt} alt={cluster?.name || 'Minecraft'} className="home-bg-img" />
         <div className="home-bg-overlay" />
         <div className="home-bg-fade" />
+      </div>
+
+      <div
+        className={`home-avatar-companion ${appearance.homeAvatarMode === 'runner' ? 'is-runner' : 'is-flying'} ${avatarHovered ? 'is-hovered' : ''}`}
+        onMouseEnter={() => setAvatarHovered(true)}
+        onMouseLeave={() => setAvatarHovered(false)}
+        title={account?.name || 'Player'}
+      >
+        <div className="home-avatar-speed-lines" />
+        <SkinViewer3D
+          account={account}
+          width={190}
+          height={260}
+          animation={appearance.homeAvatarMode === 'runner' || avatarHovered ? 'run' : 'fly'}
+          autoRotate={false}
+          className="home-avatar-viewer"
+        />
+        <span className="home-avatar-name">{account?.name || 'Player'}</span>
       </div>
 
       {/* Active instance + launch */}
@@ -236,7 +260,7 @@ export default function HomeView({
             </button>
           )}
 
-          <button className="other-versions-tile" onClick={onOpenVersions} title={t('home.allVersions')}>
+          <button className="other-versions-tile" onClick={onOpenActionCenter || onOpenVersions} title={t('action.title')}>
             <Icon name="dots-grid" size={40} />
           </button>
         </div>

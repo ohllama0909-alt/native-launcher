@@ -6,11 +6,13 @@ const SKIN_PATH = '/skin/';
 const CAPE_PATH = '/cape/';
 
 export function skinTextureUrl(account) {
+  if (account?.skinUrl) return account.skinUrl;
   const id = skinIdentifier(account) || FALLBACK_SKIN;
   return SKIN_SERVICE + SKIN_PATH + encodeURIComponent(id);
 }
 
 export function capeTextureUrl(account) {
+  if (account?.capeUrl) return account.capeUrl;
   const id = skinIdentifier(account) || FALLBACK_SKIN;
   return SKIN_SERVICE + CAPE_PATH + encodeURIComponent(id);
 }
