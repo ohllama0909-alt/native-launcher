@@ -27,7 +27,7 @@ export default function SkinViewer3D({
   account,
   width = 200,
   height = 300,
-  animation = 'walk',
+  animation = null,
   paused = false,
   autoRotate = false,
   className = ''
@@ -66,6 +66,11 @@ export default function SkinViewer3D({
         if (viewer.controls) {
           viewer.controls.enableZoom = false;
           viewer.controls.enablePan = false;
+          viewer.controls.addEventListener('change', () => {
+            if (viewer.renderPaused) {
+              viewer.render();
+            }
+          });
         }
 
         viewerRef.current = viewer;
@@ -92,13 +97,20 @@ export default function SkinViewer3D({
     const viewer = viewerRef.current;
     if (!viewer || !ready) return;
 
-    viewer.loadSkin(skinUrl).catch(() => {
-      viewer.loadSkin(SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN).catch(() => {});
+    viewer.loadSkin(skinUrl).then(() => {
+      if (viewer.renderPaused) viewer.render();
+    }).catch(() => {
+      viewer.loadSkin(SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN).then(() => {
+        if (viewer.renderPaused) viewer.render();
+      }).catch(() => {});
     });
 
-    viewer.loadCape(capeTextureUrl(account)).catch(() => {
+    viewer.loadCape(capeTextureUrl(account)).then(() => {
+      if (viewer.renderPaused) viewer.render();
+    }).catch(() => {
       try {
         viewer.loadCape(null);
+        if (viewer.renderPaused) viewer.render();
       } catch {
         /* no cape is fine */
       }
@@ -111,28 +123,53 @@ export default function SkinViewer3D({
     const lib = libRef.current;
     if (!viewer || !lib || !ready) return;
 
+    if (!animation || animation === 'none') {
+      viewer.animation = null;
+      if (viewer.playerObject?.skin) {
+        viewer.playerObject.skin.leftArm.rotation.set(0, 0, 0);
+        viewer.playerObject.skin.rightArm.rotation.set(0, 0, 0);
+        viewer.playerObject.skin.leftLeg.rotation.set(0, 0, 0);
+        viewer.playerObject.skin.rightLeg.rotation.set(0, 0, 0);
+        viewer.playerObject.skin.head.rotation.set(0, 0, 0);
+      }
+      if (!autoRotate) {
+        viewer.renderPaused = true;
+      }
+      viewer.render();
+      return;
+    }
+
     const build = () => {
       if (animation === 'run' && lib.RunningAnimation) return new lib.RunningAnimation();
       if (animation === 'fly' && lib.FlyingAnimation) return new lib.FlyingAnimation();
       if (animation === 'idle' && lib.IdleAnimation) return new lib.IdleAnimation();
-      if (lib.WalkingAnimation) return new lib.WalkingAnimation();
+      if (animation === 'walk' && lib.WalkingAnimation) return new lib.WalkingAnimation();
       return null;
     };
 
     const next = build();
-    if (!next) return;
+    if (!next) {
+      viewer.animation = null;
+      if (!autoRotate) viewer.renderPaused = true;
+      viewer.render();
+      return;
+    }
 
+    viewer.renderPaused = false;
     next.speed = animation === 'run' ? 1.15 : 0.85;
     if ('headBobbing' in next) next.headBobbing = true;
 
     viewer.animation = next;
     viewer.animation.paused = paused;
-  }, [animation, paused, ready]);
+  }, [animation, paused, autoRotate, ready]);
 
   /* ---- keep the canvas in sync with the layout ---- */
   useEffect(() => {
     if (!viewerRef.current || !ready) return;
     viewerRef.current.setSize?.(width, height);
+    if (viewerRef.current.renderPaused) {
+      viewerRef.current.render();
+    }
   }, [width, height, ready]);
 
   if (failed) {
