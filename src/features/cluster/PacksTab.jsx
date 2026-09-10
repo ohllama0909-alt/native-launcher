@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 
-export default function PacksTab({ cluster, type = 'shaders' }) {
+export default function PacksTab({ cluster, type = 'shaders', onNavigateBrowse }) {
   const { t } = useI18n();
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,14 +33,24 @@ export default function PacksTab({ cluster, type = 'shaders' }) {
     }
   };
 
+  const browseLabel = type === 'shaders' ? (t('packs.browseShaders') || 'Browse shaders') : (t('packs.browsePacks') || 'Browse resource packs');
+
   return (
     <div className="cluster-tab-pane packs-tab">
       <div className="tab-pane-toolbar">
         <span className="toolbar-info">{packs.length} {label}</span>
-        <button className="sub-btn" onClick={handleOpenFolder}>
-          <Icon name="folder" size={14} />
-          <span>{t('common.openFolder')}</span>
-        </button>
+        <div className="toolbar-actions" style={{ display: 'flex', gap: '8px' }}>
+          {onNavigateBrowse && (
+            <button className="sub-btn brand-btn" onClick={() => onNavigateBrowse(cluster)}>
+              <Icon name="plus" size={14} />
+              <span>{browseLabel}</span>
+            </button>
+          )}
+          <button className="sub-btn" onClick={handleOpenFolder}>
+            <Icon name="folder" size={14} />
+            <span>{t('common.openFolder')}</span>
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -49,10 +59,18 @@ export default function PacksTab({ cluster, type = 'shaders' }) {
         <div className="tab-empty-placeholder">
           <Icon name={type === 'shaders' ? 'paint-pour' : 'colors'} size={36} />
           <p>{t('packs.empty', { type: label.toLocaleLowerCase() })}</p>
-          <button className="sub-btn brand-btn" onClick={handleOpenFolder}>
-            <Icon name="folder" size={14} />
-            <span>{t('packs.openFolder', { folder: subDir })}</span>
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {onNavigateBrowse && (
+              <button className="sub-btn brand-btn" onClick={() => onNavigateBrowse(cluster)}>
+                <Icon name="plus" size={14} />
+                <span>{browseLabel}</span>
+              </button>
+            )}
+            <button className="sub-btn" onClick={handleOpenFolder}>
+              <Icon name="folder" size={14} />
+              <span>{t('packs.openFolder', { folder: subDir })}</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="packs-list">

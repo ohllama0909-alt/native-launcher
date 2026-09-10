@@ -81,7 +81,7 @@ export default function AppNavbar({
           onClick={() => onSelectTab('home')}
           title="Native"
         >
-          <Logo height={26} />
+          <Logo height={32} />
         </button>
       </div>
 

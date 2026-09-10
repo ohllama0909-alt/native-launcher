@@ -100,8 +100,8 @@ async function downloadRuntime(major, onProgress = () => {}) {
   await downloadFile(url, archivePath, {
     retries: 3,
     timeoutMs: 10 * 60 * 1000,
-    onProgress: ({ percent }) => {
-      if (percent !== null) onProgress(percent);
+    onProgress: ({ percent, received, total }) => {
+      if (percent !== null) onProgress({ percent, received, total });
     }
   });
 
@@ -168,8 +168,14 @@ async function ensureJava(mcVersion, { setState = () => {}, sendProgress = () =>
 
   // 4. download a fresh runtime
   setState('downloading', `Downloading Java ${slot}…`);
-  const binary = await downloadRuntime(slot, (percent) =>
-    sendProgress({ percent, detail: `Downloading Java ${slot}` })
+  const binary = await downloadRuntime(slot, ({ percent, received, total }) =>
+    sendProgress({
+      percent,
+      detail: `Downloading Java ${slot}`,
+      phase: 'downloading',
+      bytes: received,
+      size: total
+    })
   );
   rememberPath(slot, binary);
   return binary;

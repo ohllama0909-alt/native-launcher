@@ -4,6 +4,7 @@ import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import ContextMenu from '../../components/ui/ContextMenu.jsx';
 import { getClusterArt } from '../../data/versionsData.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { formatLaunchProgress } from '../launcher/useLauncher.js';
 import './HomeView.css';
 
 export default function HomeView({
@@ -34,14 +35,7 @@ export default function HomeView({
   );
 
   const getLaunchButtonLabel = () => {
-    if (isRunning) return t('home.kill');
-    if (isDownloading) {
-      return launcherState?.percent
-        ? t('home.downloading', { percent: Math.round(launcherState.percent) })
-        : t('home.downloadingPlain');
-    }
-    if (launcherState?.status === 'preparing') return t('home.preparing');
-    return t('home.launch');
+    return formatLaunchProgress(launcherState, t);
   };
 
   // ---- switching -------------------------------------------------

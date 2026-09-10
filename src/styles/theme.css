@@ -53,7 +53,8 @@
   --brand-subtle-hover: rgba(76, 154, 255, 0.22);
   --brand-border: rgba(76, 154, 255, 0.38);
   --brand-glow: rgba(76, 154, 255, 0.42);
-  --brand-soft: #b9d8ff;
+  --brand-solid: var(--brand);
+  --brand-solid-fg: #ffffff;
   --brand-gradient: linear-gradient(135deg, #4489e6 0%, #4c9aff 55%, #7fb8ff 100%);
 
   /* ---------- providers ---------- */

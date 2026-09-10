@@ -27,6 +27,15 @@ let launchInProgress = false;
 const fabricLoadersCache = new Map();
 let forgePromosCache = null;
 
+// Cumulative download stats across the entire launch session
+let cumulativeDownloadedBytes = 0;
+const inFlightFiles = new Map(); // name -> bytes received so far
+let lastProgressSentAt = 0;
+let lastPercentSent = -1;
+let lastPhaseSent = null;
+let currentDetail = 'Downloading game files…';
+let currentPhase = 'downloading';
+
 const PHASE_LABELS = {
   assets: 'Verifying assets',
   'assets-copy': 'Copying assets',
@@ -125,6 +134,13 @@ async function launch({ instance, account }) {
   }
 
   launchInProgress = true;
+  cumulativeDownloadedBytes = 0;
+  inFlightFiles.clear();
+  lastProgressSentAt = 0;
+  lastPercentSent = -1;
+  lastPhaseSent = null;
+  currentDetail = 'Preparing…';
+  currentPhase = 'preparing';
   try {
   const settings = settingsMod.get();
 
@@ -204,6 +220,12 @@ async function launch({ instance, account }) {
     }
     activeChild = child;
     setState('launching', 'Starting Minecraft…');
+    send('launcher:progress', {
+      percent: 100,
+      detail: 'Starting Minecraft…',
+      phase: 'launching',
+      bytes: cumulativeDownloadedBytes
+    });
 
     let sawOutput = false;
     let childFailed = false;
@@ -256,45 +278,65 @@ async function launch({ instance, account }) {
 function init(dependencies, ipcMain) {
   deps = dependencies;
 
-  // mclc reports file counts per phase; 'download-status' reports bytes for the
-  // file currently in flight. Neither alone is a size, so bytes are accumulated
-  // here: completed files are banked as each download finishes, and the in
-  // flight file is added on top. Reset per phase so a count doesn't carry over.
-  let phase = null;
-  let bankedBytes = 0;
-  let activeBytes = 0;
-  const inFlight = new Map();
-
-  const resetBytes = () => {
-    bankedBytes = 0;
-    activeBytes = 0;
-    inFlight.clear();
-  };
-
   launcher.on('download-status', ({ name, type, current, total }) => {
-    if (type !== phase) return;
-    inFlight.set(name, current);
-    activeBytes = 0;
-    for (const value of inFlight.values()) activeBytes += value;
-    // A finished file is banked so its bytes survive the map being cleared.
+    const prev = inFlightFiles.get(name) || 0;
+    if (current > prev) {
+      cumulativeDownloadedBytes += (current - prev);
+      inFlightFiles.set(name, current);
+    }
     if (total && current >= total) {
-      bankedBytes += current;
-      inFlight.delete(name);
-      activeBytes -= current;
+      inFlightFiles.delete(name);
+    }
+
+    const now = Date.now();
+
+    // Special handling for version-jar: MCLC does NOT emit a 'progress' event for the client jar!
+    if (type === 'version-jar') {
+      currentPhase = 'downloading';
+      currentDetail = 'Downloading game jar';
+      const jarPercent = total ? Math.min(100, Math.round((current / total) * 100)) : 0;
+      if (now - lastProgressSentAt >= 100 || jarPercent === 100) {
+        lastProgressSentAt = now;
+        lastPercentSent = jarPercent;
+        lastPhaseSent = type;
+        send('launcher:progress', {
+          percent: jarPercent,
+          detail: currentDetail,
+          phase: 'downloading',
+          task: current,
+          total: total,
+          bytes: cumulativeDownloadedBytes,
+          size: total
+        });
+      }
+      return;
+    }
+
+    // For other downloads, periodically send real-time byte updates so the MB size smoothly increments
+    if (now - lastProgressSentAt >= 120) {
+      lastProgressSentAt = now;
+      send('launcher:progress', {
+        percent: lastPercentSent >= 0 ? lastPercentSent : 0,
+        detail: currentDetail,
+        phase: currentPhase,
+        bytes: cumulativeDownloadedBytes
+      });
     }
   });
 
-  let lastProgressSentAt = 0;
-  let lastPercentSent = -1;
-  let lastPhaseSent = null;
-
   launcher.on('progress', (e) => {
-    if (e.type !== phase) {
-      phase = e.type;
-      resetBytes();
-    }
-    const percent = e.total ? Math.round((e.task / e.total) * 100) : 0;
+    const isAssets = e.type === 'assets' || e.type === 'assets-copy';
+    const percent = e.total ? Math.min(100, Math.round((e.task / e.total) * 100)) : 0;
     const now = Date.now();
+
+    currentPhase = isAssets ? 'verifying' : 'downloading';
+    currentDetail = PHASE_LABELS[e.type] ?? `Downloading ${e.type}`;
+
+    // If assets are finished or verified, avoid showing "Downloading 100%"
+    if (isAssets && percent >= 100) {
+      currentDetail = 'Preparing to start…';
+      currentPhase = 'verifying';
+    }
 
     if (e.type !== lastPhaseSent || percent !== lastPercentSent || now - lastProgressSentAt >= 100) {
       lastProgressSentAt = now;
@@ -303,13 +345,11 @@ function init(dependencies, ipcMain) {
 
       send('launcher:progress', {
         percent,
-        detail: PHASE_LABELS[e.type] ?? `Downloading ${e.type}`,
-        // 'assets' is mostly a SHA1 sweep of files already on disk, so it is
-        // reported as verifying rather than downloading.
-        phase: e.type === 'assets' ? 'verifying' : 'downloading',
+        detail: currentDetail,
+        phase: currentPhase,
         task: e.task,
         total: e.total,
-        bytes: bankedBytes + activeBytes
+        bytes: cumulativeDownloadedBytes
       });
     }
   });

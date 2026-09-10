@@ -183,17 +183,22 @@ select {
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: -0.005em;
-  color: var(--fg-secondary);
+  color: #ffffff;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
     color 0.15s var(--ease);
 }
 
+:root .sub-btn span,
+:root .sub-btn svg {
+  color: #ffffff;
+}
+
 :root .sub-btn:hover:not(:disabled) {
   background: var(--component-bg-hover);
   border-color: var(--component-border-hover);
-  color: var(--fg-primary);
+  color: #ffffff;
 }
 
 :root .sub-btn:disabled,
@@ -207,23 +212,25 @@ select {
 
 :root .sub-btn.brand-btn,
 :root button.brand-btn {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.16);
   background: var(--brand-gradient);
-  color: var(--fg-on-brand);
+  color: #ffffff !important;
   font-weight: 650;
   box-shadow: var(--shadow-brand);
+}
+
+:root .sub-btn.brand-btn span,
+:root .sub-btn.brand-btn svg,
+:root button.brand-btn span,
+:root button.brand-btn svg {
+  color: #ffffff !important;
 }
 
 :root .sub-btn.brand-btn:hover:not(:disabled),
 :root button.brand-btn:hover:not(:disabled) {
   filter: brightness(1.08);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: var(--fg-on-brand);
-}
-
-:root .sub-btn.brand-btn svg,
-:root button.brand-btn svg {
-  color: currentColor;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff !important;
 }
 
 :root .tab-empty-placeholder .sub-btn,

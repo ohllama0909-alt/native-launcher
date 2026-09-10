@@ -7,6 +7,7 @@ import ModsTab from './ModsTab.jsx';
 import PacksTab from './PacksTab.jsx';
 import SettingsTab from './SettingsTab.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { formatLaunchProgress } from '../launcher/useLauncher.js';
 import './ClusterDetailView.css';
 
 export default function ClusterDetailView({
@@ -71,14 +72,7 @@ export default function ClusterDetailView({
   const isBusy = launcherState?.busy;
 
   const getLaunchButtonLabel = () => {
-    if (isRunning) return t('cluster.kill');
-    if (isDownloading) {
-      return launcherState?.percent
-        ? t('cluster.downloadingPercent', { percent: Math.round(launcherState.percent) })
-        : t('cluster.downloading');
-    }
-    if (launcherState?.status === 'preparing') return t('cluster.preparing');
-    return t('cluster.launch');
+    return formatLaunchProgress(launcherState, t);
   };
 
   const handleOpenFolder = () => {
@@ -153,8 +147,8 @@ export default function ClusterDetailView({
         {activeTab === 'mods' && !isVanilla && (
           <ModsTab cluster={cluster} onNavigateBrowse={onNavigateBrowse} />
         )}
-        {activeTab === 'shaders' && !isVanilla && <PacksTab cluster={cluster} type="shaders" />}
-        {activeTab === 'textures' && <PacksTab cluster={cluster} type="textures" />}
+        {activeTab === 'shaders' && !isVanilla && <PacksTab cluster={cluster} type="shaders" onNavigateBrowse={onNavigateBrowse} />}
+        {activeTab === 'textures' && <PacksTab cluster={cluster} type="textures" onNavigateBrowse={onNavigateBrowse} />}
         {activeTab === 'settings' && (
           <SettingsTab cluster={cluster} onUpdateCluster={onUpdateCluster} />
         )}

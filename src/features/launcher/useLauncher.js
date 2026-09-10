@@ -8,9 +8,10 @@ const IDLE = {
   task: null,
   total: null,
   bytes: 0,
-  size: 0
+  size: 0,
+  instanceId: null
 };
-const INSTALLING = new Set(['preparing', 'downloading']);
+const INSTALLING = new Set(['preparing', 'downloading', 'verifying', 'launching']);
 
 export function useLauncherInstallLock() {
   const [locked, setLocked] = useState(false);
@@ -42,7 +43,8 @@ export default function useLauncher() {
         ...(settled ? IDLE : prev),
         status,
         detail,
-        percent: settled ? 0 : prev.percent
+        percent: settled ? 0 : prev.percent,
+        bytes: settled ? 0 : prev.bytes
       }));
       if (status === 'error') {
         errorTimer.current = setTimeout(() => setState(IDLE), 7000);
@@ -50,18 +52,25 @@ export default function useLauncher() {
     });
 
     const offProgress = api.onProgress(({ percent, detail, phase, task, total, bytes, size }) => {
-      setState((prev) => ({
-        ...prev,
-        status: 'downloading',
-        percent,
-        detail,
-        phase: phase ?? null,
-        task: task ?? null,
-        total: total ?? null,
-        // Counters restart per phase, so a stale byte total must not linger.
-        bytes: bytes ?? 0,
-        size: size ?? 0
-      }));
+      setState((prev) => {
+        let nextStatus = prev.status;
+        if (phase === 'verifying') nextStatus = 'verifying';
+        else if (phase === 'launching') nextStatus = 'launching';
+        else if (phase === 'downloading') nextStatus = 'downloading';
+        else if (prev.status === 'idle' || prev.status === 'preparing') nextStatus = 'downloading';
+
+        return {
+          ...prev,
+          status: nextStatus,
+          percent: typeof percent === 'number' ? percent : prev.percent,
+          detail: detail || prev.detail,
+          phase: phase ?? prev.phase,
+          task: task ?? prev.task,
+          total: total ?? prev.total,
+          bytes: typeof bytes === 'number' ? bytes : prev.bytes,
+          size: typeof size === 'number' ? size : prev.size
+        };
+      });
     });
 
     return () => {
@@ -78,6 +87,12 @@ export default function useLauncher() {
       errorTimer.current = setTimeout(() => setState(IDLE), 5000);
       return;
     }
+    setState({
+      ...IDLE,
+      status: 'preparing',
+      detail: 'Preparing…',
+      instanceId: instance?.id || null
+    });
     api.launch(instance, {
       username: account?.name ?? 'Player',
       useMicrosoft: Boolean(account?.isMicrosoft)
@@ -104,3 +119,55 @@ export function formatBytes(bytes) {
   }
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
 }
+
+export function formatDownloadSize(bytes) {
+  if (!bytes || bytes <= 0) return null;
+  const mb = bytes / (1024 * 1024);
+  if (mb < 0.1) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+}
+
+export function formatLaunchProgress(state, t = (k) => k) {
+  if (!state) return t('home.launch');
+  const { status, phase, percent, bytes, detail } = state;
+
+  if (status === 'running' || status === 'game-running') {
+    return t('home.kill');
+  }
+
+  if (status === 'launching' || phase === 'launching') {
+    return detail || 'Starting Minecraft…';
+  }
+
+  if (status === 'verifying' || phase === 'verifying') {
+    const pct = Math.round(percent || 0);
+    if (pct > 0 && pct < 100) {
+      return `Verifying assets (${pct}%)`;
+    }
+    return detail || 'Verifying assets…';
+  }
+
+  if (status === 'downloading' || phase === 'downloading') {
+    const mbText = formatDownloadSize(bytes);
+    const pct = Math.round(percent || 0);
+
+    if (mbText) {
+      if (pct > 0 && pct < 100) {
+        return `Downloading ${pct}% (${mbText})`;
+      }
+      return `Downloading (${mbText})`;
+    }
+
+    if (pct > 0 && pct < 100) {
+      return t('home.downloading', { percent: pct });
+    }
+    return t('home.downloadingPlain');
+  }
+
+  if (status === 'preparing') {
+    return detail || t('home.preparing');
+  }
+
+  return t('home.launch');
+}
+

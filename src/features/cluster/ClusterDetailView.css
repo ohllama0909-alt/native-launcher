@@ -417,23 +417,35 @@
   border-radius: var(--radius-sm);
   background: var(--component-bg);
   border: 1px solid var(--component-border);
-  color: var(--fg-primary);
+  color: #ffffff;
   cursor: pointer;
   transition: background-color 0.12s ease;
 }
 
+.sub-btn span,
+.sub-btn svg {
+  color: #ffffff;
+}
+
 .sub-btn:hover {
   background: var(--component-bg-hover);
+  color: #ffffff;
 }
 
 .sub-btn.brand-btn {
   background: var(--brand);
   border-color: transparent;
-  color: #fff;
+  color: #ffffff !important;
+}
+
+.sub-btn.brand-btn span,
+.sub-btn.brand-btn svg {
+  color: #ffffff !important;
 }
 
 .sub-btn.brand-btn:hover {
   background: var(--brand-hover);
+  color: #ffffff !important;
 }
 
 .tab-empty-placeholder {

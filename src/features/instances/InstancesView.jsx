@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { getClusterArt } from '../../data/versionsData.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { formatLaunchProgress } from '../launcher/useLauncher.js';
 import './InstancesView.css';
 
 const SORTS = [
@@ -352,7 +353,7 @@ export default function InstancesView({
                     {running && (
                       <span className="instance-card-live">
                         <NativeIcon name="dot" size={10} />
-                        {launcher.status === 'running' ? t('instances.running') : launcher.status}
+                        {launcher.status === 'running' ? t('instances.running') : formatLaunchProgress(launcherState, t)}
                       </span>
                     )}
 
@@ -362,7 +363,7 @@ export default function InstancesView({
                         className={`instance-card-play ${running ? 'stop' : ''}`}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (running) onKill?.();
+                          if (running && launcher.status === 'running') onKill?.();
                           else {
                             onSelect?.(instance.id);
                             onLaunch?.(instance);
@@ -370,8 +371,8 @@ export default function InstancesView({
                         }}
                         title={running ? t('home.kill') : t('instances.playNamed', { name: instance.name })}
                       >
-                        <NativeIcon name={running ? 'stop' : 'play'} size={16} />
-                        <span>{running ? t('home.kill') : t('instances.play')}</span>
+                        <NativeIcon name={running && launcher.status === 'running' ? 'stop' : 'play'} size={16} />
+                        <span>{running ? formatLaunchProgress(launcherState, t) : t('instances.play')}</span>
                       </button>
                     </div>
                   </div>
