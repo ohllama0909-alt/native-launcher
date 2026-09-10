@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import ContextMenu from '../../components/ui/ContextMenu.jsx';
 import { getClusterArt } from '../../data/versionsData.js';
 import './HomeView.css';
@@ -15,6 +16,8 @@ export default function HomeView({
   onKill
 }) {
   const [contextMenu, setContextMenu] = useState(null);
+  const railRef = useRef(null);
+  const cardRefs = useRef({});
 
   const cluster = selectedCluster || instances[0] || null;
   const backgroundArt = getClusterArt(cluster);
@@ -22,6 +25,11 @@ export default function HomeView({
   const isRunning = launcherState?.status === 'running' || launcherState?.status === 'game-running';
   const isDownloading = launcherState?.status === 'downloading';
   const isBusy = launcherState?.busy;
+
+  const activeIndex = useMemo(
+    () => instances.findIndex((item) => item.id === cluster?.id),
+    [instances, cluster]
+  );
 
   const getLaunchButtonLabel = () => {
     if (isRunning) return 'Kill';
@@ -34,6 +42,61 @@ export default function HomeView({
     return 'Launch';
   };
 
+  // ---- switching -------------------------------------------------
+
+  const selectByOffset = (delta) => {
+    if (!instances.length) return;
+    const base = activeIndex < 0 ? 0 : activeIndex;
+    const next = Math.min(instances.length - 1, Math.max(0, base + delta));
+    const target = instances[next];
+    if (target && target.id !== cluster?.id) onSelectCluster(target.id);
+  };
+
+  // Vertical wheel over the rail scrolls it sideways. Registered
+  // manually because React attaches wheel listeners passively.
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return undefined;
+
+    const onWheel = (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (rail.scrollWidth <= rail.clientWidth) return;
+      event.preventDefault();
+      rail.scrollLeft += event.deltaY * 1.15;
+    };
+
+    rail.addEventListener('wheel', onWheel, { passive: false });
+    return () => rail.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Arrow keys switch the active instance from anywhere on the page.
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        selectByOffset(1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        selectByOffset(-1);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [instances, activeIndex, cluster]);
+
+  // Keep the active card in view when it changes.
+  useEffect(() => {
+    const card = cardRefs.current[cluster?.id];
+    if (card?.scrollIntoView) {
+      card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [cluster?.id]);
+
   const handleCardContextMenu = (e, targetCluster) => {
     e.preventDefault();
     setContextMenu({
@@ -41,67 +104,34 @@ export default function HomeView({
       y: e.clientY,
       title: `${targetCluster.mc_version || targetCluster.version} ${targetCluster.mc_loader || targetCluster.loader}`,
       items: [
-        {
-          label: 'Overview',
-          icon: 'info-circle',
-          action: () => onOpenCluster(targetCluster, 'overview')
-        },
-        {
-          label: 'Logs',
-          icon: 'terminal',
-          action: () => onOpenCluster(targetCluster, 'logs')
-        },
-        {
-          label: 'Screenshots',
-          icon: 'eye',
-          action: () => onOpenCluster(targetCluster, 'screenshots')
-        },
-        {
-          label: 'Mods',
-          icon: 'code-snippet-02',
-          action: () => onOpenCluster(targetCluster, 'mods')
-        },
-        {
-          label: 'Shaders',
-          icon: 'paint-pour',
-          action: () => onOpenCluster(targetCluster, 'shaders')
-        },
-        {
-          label: 'Textures',
-          icon: 'colors',
-          action: () => onOpenCluster(targetCluster, 'textures')
-        },
-        {
-          label: 'Settings',
-          icon: 'settings-02',
-          action: () => onOpenCluster(targetCluster, 'settings')
-        }
+        { label: 'Overview', icon: 'info-circle', action: () => onOpenCluster(targetCluster, 'overview') },
+        { label: 'Logs', icon: 'terminal', action: () => onOpenCluster(targetCluster, 'logs') },
+        { label: 'Screenshots', icon: 'eye', action: () => onOpenCluster(targetCluster, 'screenshots') },
+        { label: 'Mods', icon: 'code-snippet-02', action: () => onOpenCluster(targetCluster, 'mods') },
+        { label: 'Shaders', icon: 'paint-pour', action: () => onOpenCluster(targetCluster, 'shaders') },
+        { label: 'Textures', icon: 'colors', action: () => onOpenCluster(targetCluster, 'textures') },
+        { label: 'Settings', icon: 'settings-02', action: () => onOpenCluster(targetCluster, 'settings') }
       ]
     });
   };
 
   return (
     <div className="home-view">
-      {/* Dynamic Hero Wallpaper Background */}
+      {/* Wallpaper */}
       <div className="home-bg-layer">
-        <img
-          src={backgroundArt}
-          alt={cluster?.name || 'Minecraft'}
-          className="home-bg-img"
-        />
+        <img src={backgroundArt} alt={cluster?.name || 'Minecraft'} className="home-bg-img" />
         <div className="home-bg-overlay" />
+        <div className="home-bg-fade" />
       </div>
 
-      {/* Middle Left: Active Cluster Info & Launch Button */}
+      {/* Active instance + launch */}
       <div className="home-hero-content">
         {cluster ? (
           <>
             <h1 className="home-cluster-title">
               {cluster.mc_version || cluster.version} {cluster.mc_loader || cluster.loader}
             </h1>
-            <p className="home-cluster-subtitle">
-              {cluster.name || 'Minecraft'}
-            </p>
+            <p className="home-cluster-subtitle">{cluster.name || 'Minecraft'}</p>
 
             <div className="home-actions-row">
               <button
@@ -126,51 +156,83 @@ export default function HomeView({
             </div>
           </>
         ) : (
-          <h2 className="home-cluster-title" style={{ fontSize: 32 }}>No versions yet</h2>
+          <h2 className="home-cluster-title" style={{ fontSize: 32 }}>No instances yet</h2>
         )}
       </div>
 
-      {/* Bottom: Version Cards Carousel + Other Versions Button */}
+      {/* Instance switcher rail */}
       <div className="home-recents-container">
-        <div className="recents-scroll-track">
-          {instances.slice(0, 6).map((item) => {
-            const isSelected = cluster?.id === item.id;
-            const itemArt = getClusterArt(item);
-            const title = `${item.mc_version || item.version} ${item.mc_loader || item.loader}`;
+        {instances.length > 0 && (
+          <div className="recents-head">
+            <span className="recents-title">Your instances</span>
+            <span className="recents-hint">Scroll the row or press the arrow keys to switch</span>
+            {activeIndex >= 0 && (
+              <span className="recents-counter">
+                {activeIndex + 1} / {instances.length}
+              </span>
+            )}
+          </div>
+        )}
 
-            return (
-              <div
-                key={item.id}
-                className={`version-card ${isSelected ? 'active' : ''}`}
-                onClick={() => onSelectCluster(item.id)}
-                onDoubleClick={() => onOpenCluster(item, 'overview')}
-                onContextMenu={(e) => handleCardContextMenu(e, item)}
-              >
-                <img
-                  src={itemArt}
-                  alt={title}
-                  className="version-card-bg"
-                />
-                <div className="version-card-gradient" />
-                <div className="version-card-label" title={title}>
-                  {title}
+        <div className="recents-rail-row">
+          {instances.length > 1 && (
+            <button
+              type="button"
+              className="recents-rail-btn"
+              onClick={() => selectByOffset(-1)}
+              disabled={activeIndex <= 0}
+              title="Previous instance"
+            >
+              <NativeIcon name="chevron-left" size={18} />
+            </button>
+          )}
+
+          <div className="recents-scroll-track" ref={railRef}>
+            {instances.map((item) => {
+              const isSelected = cluster?.id === item.id;
+              const itemArt = getClusterArt(item);
+              const title = `${item.mc_version || item.version} ${item.mc_loader || item.loader}`;
+
+              return (
+                <div
+                  key={item.id}
+                  ref={(element) => {
+                    cardRefs.current[item.id] = element;
+                  }}
+                  className={`version-card ${isSelected ? 'active' : ''}`}
+                  onClick={() => onSelectCluster(item.id)}
+                  onDoubleClick={() => onOpenCluster(item, 'overview')}
+                  onContextMenu={(e) => handleCardContextMenu(e, item)}
+                >
+                  <img src={itemArt} alt={title} className="version-card-bg" />
+                  <div className="version-card-gradient" />
+                  <div className="version-card-label" title={title}>
+                    <span className="version-card-name">{item.name || title}</span>
+                    <span className="version-card-sub">{title}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
 
-        {/* 3x3 Dots Grid Tile: Other Versions */}
-        <button
-          className="other-versions-tile"
-          onClick={onOpenVersions}
-          title="All Versions"
-        >
-          <Icon name="dots-grid" size={48} />
-        </button>
+          {instances.length > 1 && (
+            <button
+              type="button"
+              className="recents-rail-btn"
+              onClick={() => selectByOffset(1)}
+              disabled={activeIndex >= instances.length - 1}
+              title="Next instance"
+            >
+              <NativeIcon name="chevron-right" size={18} />
+            </button>
+          )}
+
+          <button className="other-versions-tile" onClick={onOpenVersions} title="All versions">
+            <Icon name="dots-grid" size={40} />
+          </button>
+        </div>
       </div>
 
-      {/* Context Menu Popup */}
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
