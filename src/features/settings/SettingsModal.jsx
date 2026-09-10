@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
-import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import AppearancePanel from './AppearancePanel.jsx';
+import AccountsPanel from './AccountsPanel.jsx';
+import StoragePanel from './StoragePanel.jsx';
+import ChangelogPanel from './ChangelogPanel.jsx';
 import './SettingsModal.css';
 
 const TABS = [
@@ -11,7 +13,7 @@ const TABS = [
   { id: 'java', label: 'Java', icon: 'terminal' },
   { id: 'accounts', label: 'Accounts', icon: 'users-01' },
   { id: 'storage', label: 'Storage', icon: 'database' },
-  { id: 'changelog', label: 'Changelog', icon: 'code-snippet-02' }
+  { id: 'changelog', label: 'Changelog', icon: 'clock-rewind' }
 ];
 
 const PREFS_KEY = 'native.preferences';
@@ -40,6 +42,7 @@ export default function SettingsModal({
   onClose,
   accounts = [],
   activeId,
+  instances = [],
   onAddMicrosoft,
   onAddOffline,
   onSwitchAccount,
@@ -48,7 +51,6 @@ export default function SettingsModal({
 }) {
   const [activeTab, setActiveTab] = useState('launcher');
   const [prefs, setPrefs] = useState(readPrefs);
-  const [offlineName, setOfflineName] = useState('');
   const [dataDir, setDataDir] = useState('');
 
   useEffect(() => {
@@ -84,9 +86,14 @@ export default function SettingsModal({
 
   if (!open) return null;
 
+  const wide = activeTab === 'accounts' || activeTab === 'storage' || activeTab === 'changelog';
+
   return (
     <div className="settings-modal-backdrop" onClick={onClose}>
-      <div className="settings-shell-container" onClick={(event) => event.stopPropagation()}>
+      <div
+        className={'settings-shell-container ' + (wide ? 'is-wide' : '')}
+        onClick={(event) => event.stopPropagation()}
+      >
         <aside className="settings-sidebar">
           <div className="settings-sidebar-header">
             <span className="settings-sidebar-title">Settings</span>
@@ -271,129 +278,19 @@ export default function SettingsModal({
             )}
 
             {activeTab === 'accounts' && (
-              <div className="settings-section">
-                <h4 className="settings-section-heading">CONNECTED ACCOUNTS</h4>
-
-                <div className="mods-list-container">
-                  {accounts.length === 0 && (
-                    <div className="settings-row">
-                      <div className="settings-row-info">
-                        <span className="settings-row-title">No accounts yet</span>
-                        <span className="settings-row-desc">Add a Microsoft or offline account to start playing</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {accounts.map((account) => {
-                    const isActive = account.id === activeId;
-                    return (
-                      <div key={account.id} className="package-item-row">
-                        <div className="package-icon-wrap">
-                          <PlayerAvatar account={account} kind="avatar" size={28} />
-                        </div>
-                        <div className="package-info-col">
-                          <span className="package-title">{account.name}</span>
-                          <span className="package-version-tag">
-                            {account.type === 'offline' ? 'Offline player' : 'Microsoft account'}
-                          </span>
-                        </div>
-                        <div className="toolbar-actions">
-                          {isActive ? (
-                            <span className="badge-installed">Active</span>
-                          ) : (
-                            <button className="sub-btn" onClick={() => onSwitchAccount(account.id)}>
-                              Select
-                            </button>
-                          )}
-                          <button className="icon-delete-btn" onClick={() => onRemoveAccount(account.id)}>
-                            <Icon name="trash-01" size={15} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-                  <button className="sub-btn brand-btn" onClick={onAddMicrosoft}>
-                    <Icon name="plus" size={14} />
-                    <span>Add Microsoft account</span>
-                  </button>
-
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      type="text"
-                      className="text-input"
-                      placeholder="Player name"
-                      value={offlineName}
-                      onChange={(event) => setOfflineName(event.target.value)}
-                    />
-                    <button
-                      className="sub-btn"
-                      onClick={() => {
-                        if (offlineName.trim()) {
-                          onAddOffline(offlineName.trim());
-                          setOfflineName('');
-                        }
-                      }}
-                    >
-                      Add offline
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <AccountsPanel
+                accounts={accounts}
+                activeId={activeId}
+                onSwitchAccount={onSwitchAccount}
+                onAddMicrosoft={onAddMicrosoft}
+                onAddOffline={onAddOffline}
+                onRemoveAccount={onRemoveAccount}
+              />
             )}
 
-            {activeTab === 'storage' && (
-              <div className="settings-section">
-                <h4 className="settings-section-heading">DISK USAGE AND CACHES</h4>
-                <div className="settings-row">
-                  <div className="settings-row-info">
-                    <span className="settings-row-title">Cached avatars and metadata</span>
-                    <span className="settings-row-desc">Skin renders and version manifests stored on disk</span>
-                  </div>
-                  <button
-                    className="sub-btn"
-                    onClick={() => {
-                      try {
-                        window.localStorage.removeItem('native.versionManifest');
-                      } catch {
-                        /* ignore */
-                      }
-                    }}
-                  >
-                    Clear cache
-                  </button>
-                </div>
+            {activeTab === 'storage' && <StoragePanel instances={instances} />}
 
-                <div className="settings-row">
-                  <div className="settings-row-info">
-                    <span className="settings-row-title">Instance files</span>
-                    <span className="settings-row-desc">{dataDir || 'Default user data directory'}</span>
-                  </div>
-                  <button className="sub-btn" onClick={handleOpenDataDir}>
-                    <Icon name="folder" size={14} />
-                    <span>Open folder</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'changelog' && (
-              <div className="settings-section">
-                <h4 className="settings-section-heading">NATIVE RELEASE NOTES</h4>
-                <div className="mod-modal-desc">
-                  <h3>Native v{window.native?.version || '3.9.9'}</h3>
-                  <p style={{ marginTop: 8, lineHeight: 1.7 }}>
-                    Rebuilt navigation, window controls and the Native identity.<br />
-                    New Instances page with custom instance creation and per-instance actions.<br />
-                    Versions page now runs on the live Mojang manifest with loader availability.<br />
-                    Browse supports mods, modpacks, shaderpacks, resourcepacks and datapacks.<br />
-                    Fully customisable appearance: accent, darkness, contrast, rounding and scale.
-                  </p>
-                </div>
-              </div>
-            )}
+            {activeTab === 'changelog' && <ChangelogPanel onOpenUpdater={onOpenUpdater} />}
           </div>
         </main>
       </div>
