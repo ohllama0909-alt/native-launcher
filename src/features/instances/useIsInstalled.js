@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
  * without needing an app restart.
  */
 export default function useIsInstalled(instance, settleKey) {
-  const [installed, setInstalled] = useState(false);
+  const [installed, setInstalled] = useState(true);
   const version = instance?.mc_version || instance?.version;
   const loader = instance?.mc_loader || instance?.loader || 'Vanilla';
 
@@ -20,10 +20,12 @@ export default function useIsInstalled(instance, settleKey) {
       setInstalled(false);
       return undefined;
     }
+    // Do not flash an Install action while the main process checks the disk.
+    // A negative result will replace this optimistic state immediately.
+    setInstalled(true);
     const api = window.native?.instance;
     if (!api) {
-      // In web browser mock mode, assume uninstalled unless specifically in web preview
-      setInstalled(false);
+      // Browser previews cannot inspect the desktop installation.
       return undefined;
     }
 
@@ -34,7 +36,8 @@ export default function useIsInstalled(instance, settleKey) {
         if (!cancelled) setInstalled(Boolean(result));
       })
       .catch(() => {
-        if (!cancelled) setInstalled(false);
+        // A transient IPC failure should not tell an existing user to reinstall.
+        if (!cancelled) setInstalled(true);
       });
 
     return () => {

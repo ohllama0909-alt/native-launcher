@@ -1,5 +1,5 @@
 import React from 'react';
-import nativeLogo from '../../assets/icon.png';
+import nativeLogo from '../../assets/noctra-icon.png';
 import './Logo.css';
 
 export function NativeMark({ size = 32, className = '', style }) {
@@ -46,4 +46,3 @@ export default function Logo({
     </span>
   );
 }
-

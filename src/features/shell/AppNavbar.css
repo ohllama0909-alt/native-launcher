@@ -1,1 +1,184 @@
-.noctra-titlebar{position:absolute;z-index:70;top:0;left:var(--nav-rail-width);right:0;height:38px;display:flex;align-items:center;justify-content:space-between;padding-left:25px;background:#080508;border-bottom:1px solid var(--component-border);-webkit-app-region:drag}.noctra-build{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--fg-muted)}.noctra-build i{width:1px;height:12px;background:var(--component-border-hover)}.noctra-build b{display:flex;align-items:center;gap:5px;font-weight:650;color:#b9b5bc}.noctra-build b span{width:6px;height:6px;border-radius:50%;background:var(--success);box-shadow:0 0 8px #22c55ea6}.noctra-wordmark{font-weight:700;color:#77727a}.window-controls-group{height:100%;display:flex;-webkit-app-region:no-drag}.window-ctrl-btn{width:44px;height:100%;display:grid;place-items:center;color:var(--fg-secondary)}.window-ctrl-btn:hover{background:var(--ghost-overlay-hover);color:#fff}.window-ctrl-btn.close:hover{background:var(--danger)}.noctra-rail{position:absolute;z-index:80;inset:0 auto 0 0;width:60px;display:flex;flex-direction:column;align-items:center;padding:20px 0 18px;background:#090609;border-right:1px solid var(--component-border);-webkit-app-region:drag}.noctra-rail button{position:relative;width:38px;height:38px;display:grid;place-items:center;flex:none;border-radius:10px;color:#d2d2d2;-webkit-app-region:no-drag;transition:.15s var(--ease)}.noctra-rail button:hover{background:#ffffff0f;color:#fff}.noctra-rail button.active{background:#a051a233;box-shadow:inset 0 0 0 1px #a051a273;color:#dca6de}.noctra-rail button.active:before{content:"";position:absolute;left:-11px;width:3px;height:22px;border-radius:0 3px 3px 0;background:var(--brand)}.noctra-logo{margin-bottom:10px!important}.noctra-logo .native-logo{filter:grayscale(1) brightness(3)}.noctra-rail nav{display:flex;flex-direction:column;align-items:center;gap:3px}.rail-divider{width:16px;height:1px;margin:8px 0;background:var(--component-border-hover)}.rail-spacer{flex:1}.rail-badge em{position:absolute;top:3px;right:2px;min-width:13px;height:13px;padding:0 3px;display:grid;place-items:center;border-radius:8px;background:var(--danger);font:700 8px var(--font-sans);font-style:normal;color:#fff}.noctra-rail img{border-radius:6px}
+.noctra-titlebar {
+  position: absolute;
+  z-index: 70;
+  top: 0;
+  left: 111px;
+  right: 0;
+  height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 26px;
+  background: #080608;
+  border-bottom: 1px solid #282428;
+  -webkit-app-region: drag;
+}
+.noctra-build {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 8px;
+  color: #6f6a72;
+}
+.noctra-build > i {
+  width: 1px;
+  height: 10px;
+  background: #312d31;
+}
+.noctra-build b {
+  font-weight: 500;
+  color: #827d85;
+}
+.noctra-build strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 650;
+  color: #d0cdd2;
+}
+.noctra-build strong > span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #34ed79;
+  box-shadow: 0 0 7px #22c55e;
+}
+.noctra-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #5c575f;
+  font-weight: 650;
+}
+.noctra-wordmark .native-mark {
+  filter: grayscale(1) brightness(0.55);
+  border-radius: 0 !important;
+}
+.window-controls-group {
+  height: 100%;
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+.window-ctrl-btn {
+  width: 24px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #c4c0c5;
+}
+.window-ctrl-btn:last-child {
+  margin-right: 11px;
+}
+.window-ctrl-btn:hover {
+  background: #ffffff0d;
+  color: #fff;
+}
+.window-ctrl-btn.close:hover {
+  background: #c42b34;
+}
+.noctra-rail {
+  position: absolute;
+  z-index: 80;
+  inset: 0 auto 0 0;
+  width: 111px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 33px 0 45px;
+  background: #080608;
+  border-right: 1px solid #292429;
+  -webkit-app-region: drag;
+}
+.noctra-rail button {
+  position: relative;
+  width: clamp(38px, 2.25vw, 46px);
+  height: clamp(38px, 2.25vw, 46px);
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 9px;
+  color: #efedf0;
+  -webkit-app-region: no-drag;
+  transition: 0.15s ease;
+}
+.noctra-rail button:hover {
+  background: #ffffff0d;
+}
+.noctra-rail button.active {
+  background: #32122f;
+  box-shadow: inset 0 0 0 1px #7c3475;
+  color: #d899db;
+}
+.noctra-logo {
+  height: 43px !important;
+  margin-bottom: 31px !important;
+}
+.noctra-logo .native-logo {
+  display: grid;
+  place-items: center;
+}
+.noctra-logo .native-mark {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 0 !important;
+  filter: grayscale(1) brightness(3);
+  object-fit: contain;
+  transform: translateX(-6px) scale(0.95);
+}
+.noctra-rail nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1px, 0.2vh, 4px);
+}
+.noctra-rail button > svg {
+  width: clamp(22px, 1.35vw, 27px);
+  height: clamp(22px, 1.35vw, 27px);
+}
+.rail-divider {
+  display: block;
+  width: 13px;
+  height: 1px;
+  margin: 4px 0 29px;
+  background: #2b272b;
+}
+.noctra-rail nav .rail-divider {
+  margin: 17px 0 24px;
+}
+.rail-spacer {
+  flex: 1;
+}
+.noctra-rail > .rail-spacer + button {
+  margin-bottom: 5px;
+}
+.noctra-rail em {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #ef4444;
+  font: 700 7px var(--font-sans);
+  font-style: normal;
+  color: #fff;
+}
+.rail-status {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid #080608;
+}
+.rail-status.gold {
+  background: #e6b33f;
+}
+.rail-status.red {
+  background: #ff3c4b;
+}

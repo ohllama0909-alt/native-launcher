@@ -1,1 +1,55 @@
-import"react";import L from"../../components/ui/Logo.jsx";import N from"../../components/ui/NativeIcon.jsx";import O from"../../components/ui/PlayerAvatar.jsx";import{useI18n as P}from"../../i18n/I18nProvider.jsx";import R from"./SocialDrawer.jsx";import"./AppNavbar.css";const C=[{id:"home",labelKey:"nav.home",icon:"home"},{id:"accounts",labelKey:"account.wardrobe",icon:"user"},{id:"instances",labelKey:"nav.instances",icon:"layers"},{id:"versions",labelKey:"nav.versions",icon:"cube"},{id:"browse",labelKey:"nav.browse",icon:"compass"},{id:"stats",labelKey:"nav.stats",icon:"chart"}];function V({currentTab:f,onSelectTab:y,unreadCount:z=0,onOpenNotifications:K,onOpenSettings:g,onOpenAccountSwitcher:A,account:k,isMaximized:h,onMinimize:x,onMaximize:B,onClose:I}){const{t:e}=P(),D=k?.name?e("account.named",{name:k.name}):e("account.accounts");return<><header className="noctra-titlebar"><div className="noctra-build"><span className="noctra-wordmark">Noctra Client</span><i/>Build 0.9.2<i/><b><span/> 9101 Online</b></div><div className="window-controls-group"><button className="window-ctrl-btn" onClick={x} aria-label={e("window.minimize")}><N name="minimize" size={14}/></button><button className="window-ctrl-btn" onClick={B} aria-label={e(h?"window.restore":"window.maximize")}><N name={h?"restore":"maximize"} size={13}/></button><button className="window-ctrl-btn close" onClick={I} aria-label={e("common.close")}><N name="close" size={14}/></button></div></header><aside className="noctra-rail" aria-label={e("nav.primary")}><button className="noctra-logo" onClick={()=>y("home")} title="Noctra Client"><L height={31}/></button><span className="rail-divider"/><nav>{C.slice(0,2).map(a=><button key={a.id} className={f===a.id?"active":""} onClick={()=>y(a.id)} title={e(a.labelKey)}><N name={a.icon} size={19}/></button>)}<button className="rail-badge" onClick={K} title={e("window.notifications")}><N name="bell" size={19}/>{z>0&&<em>{z>9?"9+":z}</em>}</button><span className="rail-divider"/>{C.slice(2).map(a=><button key={a.id} className={f===a.id?"active":""} onClick={()=>y(a.id)} title={e(a.labelKey)}><N name={a.icon} size={19}/></button>)}</nav><div className="rail-spacer"/><button onClick={A} title={D}><O account={k} size={28} kind="avatar"/></button><button onClick={g} title={e("common.settings")}><N name="settings" size={19}/></button></aside><R account={k}/></>}export{C as NAV_TABS,V as default};
+import React from 'react';
+import { Bell, Boxes, CircleUserRound, Compass, Folder, Home, Layers3, MessageCircle, Minus, Settings, ShoppingCart, X } from 'lucide-react';
+import Logo from '../../components/ui/Logo.jsx';
+import NativeIcon from '../../components/ui/NativeIcon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
+import './AppNavbar.css';
+
+export const NAV_TABS = [
+  { id: 'home', labelKey: 'nav.home', icon: Home },
+  { id: 'accounts', labelKey: 'account.wardrobe', icon: CircleUserRound },
+  { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
+  { id: 'versions', labelKey: 'nav.versions', icon: Boxes },
+  { id: 'browse', labelKey: 'nav.browse', icon: Compass },
+  { id: 'stats', labelKey: 'nav.stats', icon: Folder }
+];
+
+function RailButton({ icon: Icon, active, onClick, title, badge, status }) {
+  return <button className={active ? 'active' : ''} onClick={onClick} title={title}>
+    <Icon size={20} strokeWidth={2.15}/>{badge ? <em>{badge}</em> : null}{status ? <i className={`rail-status ${status}`}/> : null}
+  </button>;
+}
+
+export default function AppNavbar({ currentTab, onSelectTab, unreadCount = 0, onOpenNotifications, onOpenSettings, onOpenAccountSwitcher, account, isMaximized, onMinimize, onMaximize, onClose }) {
+  const { t } = useI18n();
+  return <>
+    <header className="noctra-titlebar">
+      <div className="noctra-build">
+        <span className="noctra-wordmark"><Logo height={10} variant="mark"/> Noctra Client</span><i/><span>Build <b>0.9.2</b></span><i/><strong><span/> 9101 Online</strong>
+      </div>
+      <div className="window-controls-group">
+        <button className="window-ctrl-btn" onClick={onMinimize} aria-label={t('window.minimize')}><Minus size={14}/></button>
+        <button className="window-ctrl-btn" onClick={onMaximize} aria-label={t(isMaximized ? 'window.restore' : 'window.maximize')}><NativeIcon name={isMaximized ? 'restore' : 'maximize'} size={12}/></button>
+        <button className="window-ctrl-btn close" onClick={onClose} aria-label={t('common.close')}><X size={15}/></button>
+      </div>
+    </header>
+    <aside className="noctra-rail" aria-label={t('nav.primary')}>
+      <button className="noctra-logo" onClick={() => onSelectTab('home')} title="Noctra Client"><Logo height={35} variant="mark"/></button>
+      <span className="rail-divider"/>
+      <nav>
+        <RailButton icon={Home} active={currentTab === 'home'} onClick={() => onSelectTab('home')} title={t('nav.home')}/>
+        <RailButton icon={CircleUserRound} active={currentTab === 'accounts'} onClick={onOpenAccountSwitcher} title={account?.name || t('account.accounts')} status="gold"/>
+        <RailButton icon={Bell} onClick={onOpenNotifications} title={t('window.notifications')} badge={unreadCount ? (unreadCount > 9 ? '9+' : unreadCount) : null}/>
+        <span className="rail-divider"/>
+        <RailButton icon={MessageCircle} title="Noctra Relay" onClick={() => onSelectTab('home')}/>
+        <RailButton icon={Layers3} active={currentTab === 'instances'} onClick={() => onSelectTab('instances')} title={t('nav.instances')}/>
+        <RailButton icon={Compass} active={currentTab === 'browse'} onClick={() => onSelectTab('browse')} title={t('nav.browse')}/>
+        <RailButton icon={Boxes} active={currentTab === 'versions'} onClick={() => onSelectTab('versions')} title={t('nav.versions')}/>
+        <RailButton icon={Folder} active={currentTab === 'stats'} onClick={() => onSelectTab('stats')} title={t('nav.stats')} status="red"/>
+      </nav>
+      <div className="rail-spacer"/>
+      <RailButton icon={ShoppingCart} title="Noctra Store" status="red" onClick={() => onSelectTab('home')}/>
+      <RailButton icon={Settings} title={t('common.settings')} onClick={onOpenSettings}/>
+    </aside>
+  </>;
+}

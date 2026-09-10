@@ -349,8 +349,17 @@ export function formatDuration(seconds) {
 export function getClusterArt(cluster) {
   if (!cluster) return ART_ASSETS.default;
 
-  // Ignore low-res 540x540 Mojang patch note thumbnails so they never blur the launcher!
-  if (cluster.art && !String(cluster.art).includes('540x540') && !String(cluster.art).includes('/v2/images/')) {
+  const savedArt = String(cluster.art || '');
+  const staleBundledArt =
+    /^file:/i.test(savedArt) ||
+    savedArt.startsWith('/src/assets/') ||
+    savedArt.includes('/dist/assets/');
+
+  // Imported Vite assets are runtime URLs. Older builds persisted those URLs in
+  // instances.json, leaving development pointed at a packaged /opt/... file and
+  // packaged builds pointed at /src/.... Resolve those from the version below.
+  // Genuine custom/remote artwork remains supported.
+  if (savedArt && !staleBundledArt && !savedArt.includes('540x540') && !savedArt.includes('/v2/images/')) {
     return cluster.art;
   }
 

@@ -65,6 +65,8 @@ function verifyInstallation(version, loader = 'Vanilla') {
 
   let foundLoader = false;
   let loaderJsonPath = null;
+  let loaderBaseJsonPath = null;
+  let loaderProfileName = null;
 
   if (loader && loader !== 'Vanilla') {
     const prefix = loader === 'Fabric' ? 'fabric-loader-' : loader === 'Forge' ? 'forge-' : null;
@@ -78,6 +80,8 @@ function verifyInstallation(version, loader = 'Vanilla') {
             if (hasValidFile(possibleJson)) {
               foundLoader = true;
               loaderJsonPath = possibleJson;
+              loaderBaseJsonPath = path.join(versionsDir, entry.name, `${version}.json`);
+              loaderProfileName = entry.name;
               if (hasValidFile(possibleJar, 1000000)) {
                 targetJarPath = possibleJar;
               }
@@ -103,7 +107,13 @@ function verifyInstallation(version, loader = 'Vanilla') {
     return { installed: false, reason: 'missing_client_jar' };
   }
 
-  targetJsonPath = hasValidFile(vanillaJson) ? vanillaJson : loaderJsonPath;
+  // minecraft-launcher-core places the vanilla metadata alongside a custom
+  // Fabric profile instead of always creating versions/<mcVersion>/.
+  targetJsonPath = hasValidFile(vanillaJson)
+    ? vanillaJson
+    : hasValidFile(loaderBaseJsonPath)
+      ? loaderBaseJsonPath
+      : loaderJsonPath;
   if (!targetJsonPath) {
     return { installed: false, reason: 'missing_version_json' };
   }
@@ -129,9 +139,14 @@ function verifyInstallation(version, loader = 'Vanilla') {
 
   // 3. Asset index check
   const assetIndexId = versionData?.assetIndex?.id || versionData?.assets || version;
-  const assetIndexFile = path.join(root, 'assets', 'indexes', `${assetIndexId}.json`);
+  const indexesDir = path.join(root, 'assets', 'indexes');
+  const assetIndexFile = [
+    path.join(indexesDir, `${assetIndexId}.json`),
+    loaderProfileName ? path.join(indexesDir, `${loaderProfileName}.json`) : null,
+    path.join(indexesDir, `${version}.json`)
+  ].find((candidate) => candidate && hasValidFile(candidate, 10));
 
-  if (!hasValidFile(assetIndexFile, 10)) {
+  if (!assetIndexFile) {
     return { installed: false, reason: 'missing_asset_index', assetIndexId };
   }
 
@@ -216,23 +231,33 @@ function installedVersions() {
   if (!fs.existsSync(versionsDir)) return [];
 
   const verified = [];
+  const seen = new Set();
+  const addVerified = (version, loader) => {
+    if (!version) return;
+    const key = `${version}:${loader}`;
+    if (seen.has(key) || !verifyInstallation(version, loader).installed) return;
+    seen.add(key);
+    verified.push({ version, loader });
+  };
   try {
     const entries = fs.readdirSync(versionsDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
+
       if (entry.name.startsWith('fabric-loader-') || entry.name.startsWith('forge-')) {
+        // MCLC can install only the custom profile directory. Read its parent
+        // version instead of requiring a separate versions/<mcVersion> folder.
+        try {
+          const profilePath = path.join(versionsDir, entry.name, `${entry.name}.json`);
+          const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
+          addVerified(profile.inheritsFrom, entry.name.startsWith('fabric-loader-') ? 'Fabric' : 'Forge');
+        } catch {}
         continue;
       }
       const v = entry.name;
-      if (verifyInstallation(v, 'Vanilla').installed) {
-        verified.push({ version: v, loader: 'Vanilla' });
-      }
-      if (verifyInstallation(v, 'Fabric').installed) {
-        verified.push({ version: v, loader: 'Fabric' });
-      }
-      if (verifyInstallation(v, 'Forge').installed) {
-        verified.push({ version: v, loader: 'Forge' });
-      }
+      addVerified(v, 'Vanilla');
+      addVerified(v, 'Fabric');
+      addVerified(v, 'Forge');
     }
   } catch {}
   return verified;

@@ -1,1 +1,271 @@
-import{useMemo as G}from"react";import N from"../../components/ui/NativeIcon.jsx";import{getClusterArt as I}from"../../data/versionsData.js";import{useI18n as L}from"../../i18n/I18nProvider.jsx";import{formatLaunchProgress as z}from"../launcher/useLauncher.js";import T from"../instances/useIsInstalled.js";import _ from"../../components/ui/PlayerAvatar.jsx";import"./HomeView.css";function D({instances:n=[],selectedCluster:g,onSelectCluster:f,onOpenCluster:E,onOpenVersions:h,onOpenActionCenter:w,account:u,launcherState:s,onLaunch:R,onKill:y}){const{t:i}=L(),a=g||n[0]||null,b=I(a),o=s?.status==="running"||s?.status==="game-running",A=s?.status==="downloading",p=s?.busy,C=T(a,s?.status),O=G(()=>n.slice(0,2),[n]),k=p||o?z(s,i):i(C?"home.launch":"common.install"),M=()=>{a&&(o?y():R(a))};return<div className="home-view"><div className="home-bg-layer"><img src={b} alt="" className="home-bg-img"/><div className="home-bg-overlay"/><div className="home-bg-fade"/></div><section className="noctra-home"><header className="home-greeting"><h1>Good to see you,{" "}<_ account={u} size={19} kind="avatar"/>{" "}{u?.name||"Player"}{" "}<N name="chevron-down" size={13}/></h1><p>Last played: <b>{a?.name||"Minecraft"}</b> · Ready to launch</p></header><div className="home-launch-row"><div className="launch-stack"><button className={`noctra-launch ${o?"kill":""} ${A?"downloading":""}`} onClick={M} disabled={p&&!o}><strong>{k}</strong><span>{a?`${a.mc_loader||a.loader} ${a.mc_version||a.version}`:"Create a profile"}</span></button><button className="change-version" onClick={()=>a?E(a,"overview"):h()}>CHANGE VERSION <N name="chevron-down" size={12}/></button></div><div className="latest-profiles"><h2>LATEST PROFILES</h2>{O.map(e=><button key={e.id} onClick={()=>f(e.id)}><i/><span><b>{e.name}</b><small>{e.mc_loader||e.loader}{" "}{e.mc_version||e.version}</small></span></button>)}</div><div className="partners"><h2>PARTNERS</h2><div>{["H","N","L","G","B","M","C","P"].map((e,P)=><span key={P}>{e}</span>)}</div></div></div><section className="news-feed"><h2>NEWS FEED</h2><div className="news-grid"><article className="news-changelog"><div className="news-mark">N</div><div><h3>NOCTRA CHANGELOG</h3><p>Performance optimizations<br/>General bug fixes & stability</p><button>READ MORE</button></div></article><article className="news-release"><img src={b} alt=""/><span>NEW VERSION!</span><div><small>New Minecraft version!</small><strong>{a?.mc_version||a?.version||"1.21"}</strong><b>Ready in Noctra</b></div></article><article className="news-creator"><small>PARTNER PROGRAM</small><h3>BECOME A<br/>CREATOR</h3></article><article className="news-mods"><small>NEW MODS!</small><h3>NEW MODULES</h3></article></div></section><button className="home-more" onClick={w||h} aria-label="Open action center"><N name="more-horizontal" size={18}/></button></section></div>}export{D as default};
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Icon from '../../components/ui/Icon.jsx';
+import NativeIcon from '../../components/ui/NativeIcon.jsx';
+import ContextMenu from '../../components/ui/ContextMenu.jsx';
+import { getClusterArt } from '../../data/versionsData.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { formatLaunchProgress } from '../launcher/useLauncher.js';
+import useIsInstalled from '../instances/useIsInstalled.js';
+import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
+import './HomeView.css';
+
+export default function HomeView({
+  instances = [],
+  selectedCluster,
+  onSelectCluster,
+  onOpenCluster,
+  onOpenVersions,
+  onOpenActionCenter,
+  account,
+  launcherState,
+  onLaunch,
+  onKill
+}) {
+  const { t } = useI18n();
+  const [contextMenu, setContextMenu] = useState(null);
+  const railRef = useRef(null);
+  const cardRefs = useRef({});
+
+  const cluster = selectedCluster || instances[0] || null;
+  const backgroundArt = getClusterArt(cluster);
+
+  const isRunning = launcherState?.status === 'running' || launcherState?.status === 'game-running';
+  const isDownloading = launcherState?.status === 'downloading';
+  const isBusy = launcherState?.busy;
+
+  const isInstalled = useIsInstalled(cluster, launcherState?.status);
+
+  const activeIndex = useMemo(
+    () => instances.findIndex((item) => item.id === cluster?.id),
+    [instances, cluster]
+  );
+
+  const getLaunchButtonLabel = () => {
+    return formatLaunchProgress(launcherState, t);
+  };
+
+  // ---- switching -------------------------------------------------
+
+  const selectByOffset = (delta) => {
+    if (!instances.length) return;
+    const base = activeIndex < 0 ? 0 : activeIndex;
+    const next = Math.min(instances.length - 1, Math.max(0, base + delta));
+    const target = instances[next];
+    if (target && target.id !== cluster?.id) onSelectCluster(target.id);
+  };
+
+  // Vertical wheel over the rail scrolls it sideways. Registered
+  // manually because React attaches wheel listeners passively.
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return undefined;
+
+    const onWheel = (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (rail.scrollWidth <= rail.clientWidth) return;
+      event.preventDefault();
+      rail.scrollLeft += event.deltaY * 1.15;
+    };
+
+    rail.addEventListener('wheel', onWheel, { passive: false });
+    return () => rail.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Arrow keys switch the active instance from anywhere on the page.
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        selectByOffset(1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        selectByOffset(-1);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [instances, activeIndex, cluster]);
+
+  // Keep the active card in view when it changes.
+  useEffect(() => {
+    const card = cardRefs.current[cluster?.id];
+    if (card?.scrollIntoView) {
+      card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [cluster?.id]);
+
+  const handleCardContextMenu = (e, targetCluster) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      title: `${targetCluster.mc_version || targetCluster.version} ${targetCluster.mc_loader || targetCluster.loader}`,
+      items: [
+        { label: t('detail.overview'), icon: 'info-circle', action: () => onOpenCluster(targetCluster, 'overview') },
+        { label: t('detail.logs'), icon: 'terminal', action: () => onOpenCluster(targetCluster, 'logs') },
+        { label: t('detail.screenshots'), icon: 'eye', action: () => onOpenCluster(targetCluster, 'screenshots') },
+        { label: t('detail.mods'), icon: 'code-snippet-02', action: () => onOpenCluster(targetCluster, 'mods') },
+        { label: t('detail.shaders'), icon: 'paint-pour', action: () => onOpenCluster(targetCluster, 'shaders') },
+        { label: t('detail.textures'), icon: 'colors', action: () => onOpenCluster(targetCluster, 'textures') },
+        { label: t('common.settings'), icon: 'settings-02', action: () => onOpenCluster(targetCluster, 'settings') }
+      ]
+    });
+  };
+
+  return (
+    <div className="home-view">
+      {/* Wallpaper */}
+      <div className="home-bg-layer">
+        <img src={backgroundArt} alt={cluster?.name || 'Minecraft'} className="home-bg-img" />
+        <div className="home-bg-overlay" />
+        <div className="home-bg-fade" />
+      </div>
+
+      <div className="home-avatar-companion" title={account?.name || 'Player'}>
+        <span className="home-avatar-name">{account?.name || 'Player'}</span>
+        <SkinViewer3D
+          account={account}
+          width={230}
+          height={315}
+          animation="idle"
+          autoRotate={false}
+          className="home-avatar-viewer"
+        />
+      </div>
+
+      {/* Active instance + launch */}
+      <div className="home-hero-content">
+        {cluster ? (
+          <>
+            <h1 className="home-cluster-title">
+              {cluster.mc_version || cluster.version} {cluster.mc_loader || cluster.loader}
+            </h1>
+            <p className="home-cluster-subtitle">{cluster.name || 'Minecraft'}</p>
+
+            <div className="home-actions-row">
+              <button
+                className={`launch-btn ${isRunning ? 'kill' : ''} ${!isInstalled && !isBusy ? 'install' : ''}`}
+                onClick={() => {
+                  if (isRunning) onKill();
+                  else onLaunch(cluster);
+                }}
+                disabled={isBusy && !isRunning}
+              >
+                {isRunning ? (
+                  <Icon name="square" size={14} />
+                ) : !isInstalled && !isBusy ? (
+                  <NativeIcon name="arrow-down" size={16} />
+                ) : null}
+                <span>
+                  {isBusy || isRunning
+                    ? getLaunchButtonLabel()
+                    : !isInstalled
+                      ? t('common.install')
+                      : t('home.launch')}
+                </span>
+              </button>
+
+              <button
+                className="cluster-settings-btn"
+                onClick={() => onOpenCluster(cluster, 'overview')}
+                title={t('home.options')}
+              >
+                <Icon name="settings-04" size={20} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <h2 className="home-cluster-title" style={{ fontSize: 32 }}>{t('home.empty')}</h2>
+        )}
+      </div>
+
+      {/* Instance switcher rail */}
+      <div className="home-recents-container">
+        {instances.length > 0 && (
+          <div className="recents-head">
+            <span className="recents-title">{t('home.yours')}</span>
+            <span className="recents-hint">{t('home.switchHint')}</span>
+            {activeIndex >= 0 && (
+              <span className="recents-counter">
+                {activeIndex + 1} / {instances.length}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="recents-rail-row">
+          {instances.length > 1 && (
+            <button
+              type="button"
+              className="recents-rail-btn"
+              onClick={() => selectByOffset(-1)}
+              disabled={activeIndex <= 0}
+              title={t('home.previous')}
+            >
+              <NativeIcon name="chevron-left" size={18} />
+            </button>
+          )}
+
+          <div className="recents-scroll-track" ref={railRef}>
+            {instances.map((item) => {
+              const isSelected = cluster?.id === item.id;
+              const itemArt = getClusterArt(item);
+              const title = `${item.mc_version || item.version} ${item.mc_loader || item.loader}`;
+
+              return (
+                <div
+                  key={item.id}
+                  ref={(element) => {
+                    cardRefs.current[item.id] = element;
+                  }}
+                  className={`version-card ${isSelected ? 'active' : ''}`}
+                  onClick={() => onSelectCluster(item.id)}
+                  onDoubleClick={() => onOpenCluster(item, 'overview')}
+                  onContextMenu={(e) => handleCardContextMenu(e, item)}
+                >
+                  <img src={itemArt} alt={title} className="version-card-bg" />
+                  <div className="version-card-gradient" />
+                  <div className="version-card-label" title={title}>
+                    <span className="version-card-name">{item.name || title}</span>
+                    <span className="version-card-sub">{title}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {instances.length > 1 && (
+            <button
+              type="button"
+              className="recents-rail-btn"
+              onClick={() => selectByOffset(1)}
+              disabled={activeIndex >= instances.length - 1}
+              title={t('home.next')}
+            >
+              <NativeIcon name="chevron-right" size={18} />
+            </button>
+          )}
+
+          <button className="other-versions-tile" onClick={onOpenActionCenter || onOpenVersions} title={t('action.title')}>
+            <Icon name="dots-grid" size={40} />
+          </button>
+        </div>
+      </div>
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          title={contextMenu.title}
+          items={contextMenu.items}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+    </div>
+  );
+}

@@ -16,7 +16,9 @@ function newInstanceId() {
 }
 
 function hydrate(instance) {
-  return { ...instance, art: instance.art || getClusterArt(instance) };
+  // Always pass saved artwork through the resolver. It replaces stale Vite
+  // file URLs from another build while retaining valid custom HTTP artwork.
+  return { ...instance, art: getClusterArt(instance) };
 }
 
 async function loadData() {
