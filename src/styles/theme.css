@@ -1,113 +1,239 @@
 /* ============================================================
    NATIVE — DESIGN SYSTEM
-   Colour, typography, radius, motion and elevation tokens for
-   the Native Minecraft launcher.
+   Dark-first tokens.
+
+   Everything here can be re-themed at runtime from
+   Settings > Appearance. src/lib/appearance.js writes
+   data-attributes onto <html> (surface / contrast / radius /
+   motion / glow) plus a small set of accent variables, so the
+   whole launcher recolours without a reload.
    ============================================================ */
 
 @import './fonts.css';
 
 :root {
-  /* Page backgrounds */
-  --page: #11171c;
-  --page-elevated: #151c22;
-  --page-overlay: rgba(17, 23, 28, 0.72);
-  --page-sunken: #0d1216;
+  color-scheme: dark;
 
-  /* Component / Card backgrounds */
-  --component-bg: #1a2228;
-  --component-bg-hover: #1d242b;
-  --component-bg-pressed: #222c35;
-  --component-border: rgba(255, 255, 255, 0.06);
-  --component-border-hover: rgba(255, 255, 255, 0.12);
-  --component-border-pressed: rgba(255, 255, 255, 0.18);
+  /* ---------- surfaces (default = midnight) ---------- */
+  --page: #08090d;
+  --page-elevated: #0d0f14;
+  --page-overlay: rgba(4, 5, 8, 0.74);
+  --page-sunken: #050609;
+  --elevated-bg: #12161d;
 
-  /* Ghost overlays */
-  --ghost-overlay: rgba(255, 255, 255, 0.047);
-  --ghost-overlay-hover: rgba(255, 255, 255, 0.10);
-  --ghost-overlay-pressed: rgba(255, 255, 255, 0.15);
+  --component-bg: #101319;
+  --component-bg-hover: #151920;
+  --component-bg-pressed: #1a1f27;
+  --component-border: rgba(255, 255, 255, 0.055);
+  --component-border-hover: rgba(255, 255, 255, 0.11);
+  --component-border-pressed: rgba(255, 255, 255, 0.16);
 
-  /* Text & Foreground */
-  --fg-primary: #d5dbff;
-  --fg-primary-hover: #dae0ff;
-  --fg-primary-pressed: #e1e5ff;
-  --fg-secondary: #78818d;
-  --fg-secondary-hover: #8f99a7;
-  --fg-muted: #545c68;
-  --fg-on-brand: #ffffff;
+  --ghost-overlay: rgba(255, 255, 255, 0.04);
+  --ghost-overlay-hover: rgba(255, 255, 255, 0.075);
+  --ghost-overlay-pressed: rgba(255, 255, 255, 0.11);
 
-  /* Brand / Accent — Native signature violet */
-  --brand: #7c5cff;
-  --brand-hover: #6b49f5;
-  --brand-pressed: #8f74ff;
-  --brand-2: #a855f7;
-  --brand-disabled: #3b2f7a;
-  --brand-subtle: rgba(124, 92, 255, 0.15);
-  --brand-subtle-hover: rgba(124, 92, 255, 0.24);
-  --brand-glow: rgba(124, 92, 255, 0.45);
-  --brand-gradient: linear-gradient(135deg, #6d4aff 0%, #8b5cff 55%, #b06bff 100%);
+  /* ---------- foreground ---------- */
+  --fg-primary: #e6e8ee;
+  --fg-primary-hover: #f1f3f7;
+  --fg-primary-pressed: #ffffff;
+  --fg-secondary: #8d93a3;
+  --fg-secondary-hover: #a3a9b8;
+  --fg-muted: #5c6273;
+  --fg-on-brand: #061019;
 
-  /* Providers */
+  /* ---------- accent ----------
+     Defaults only. appearance.js overwrites these inline on
+     <html> from the colour chosen in Settings. ---------- */
+  --brand: #4c9aff;
+  --brand-hover: #66a9ff;
+  --brand-pressed: #3e7ed1;
+  --brand-2: #86bcff;
+  --brand-disabled: #24384f;
+  --brand-subtle: rgba(76, 154, 255, 0.14);
+  --brand-subtle-hover: rgba(76, 154, 255, 0.22);
+  --brand-border: rgba(76, 154, 255, 0.38);
+  --brand-glow: rgba(76, 154, 255, 0.42);
+  --brand-soft: #b9d8ff;
+  --brand-gradient: linear-gradient(135deg, #4489e6 0%, #4c9aff 55%, #7fb8ff 100%);
+
+  /* ---------- providers ---------- */
   --modrinth: #1bd96a;
-  --modrinth-bg: rgba(27, 217, 106, 0.15);
+  --modrinth-bg: rgba(27, 217, 106, 0.14);
   --curseforge: #f16436;
-  --curseforge-bg: rgba(241, 100, 54, 0.15);
+  --curseforge-bg: rgba(241, 100, 54, 0.14);
 
-  /* Feedback & status */
-  --danger: #ff4444;
-  --danger-hover: #d63434;
-  --danger-subtle: rgba(255, 68, 68, 0.15);
-  --success: #239a60;
-  --success-subtle: rgba(35, 154, 96, 0.15);
-  --warning: #e5c07b;
-  --warning-subtle: rgba(229, 192, 123, 0.15);
-  --info: #61afef;
+  /* ---------- status ---------- */
+  --danger: #f2555a;
+  --danger-hover: #d94449;
+  --danger-subtle: rgba(242, 85, 90, 0.14);
+  --success: #35c07d;
+  --success-subtle: rgba(53, 192, 125, 0.14);
+  --warning: #e0a53d;
+  --warning-subtle: rgba(224, 165, 61, 0.14);
+  --info: #5aa9f0;
 
-  /* Fonts */
+  /* ---------- type ---------- */
   --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Radii */
+  /* ---------- radii (default = soft) ---------- */
   --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius: 10px;
+  --radius: 9px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
-  /* Sizing */
-  --navbar-height: 64px;
-  --titlebar-btn-width: 46px;
-  --home-padding: 48px;
+  /* ---------- sizing ---------- */
+  --navbar-height: 56px;
+  --titlebar-btn-width: 44px;
+  --home-padding: 44px;
   --page-padding: 32px;
+  --ui-scale: 1;
+  --home-scrim: 0.72;
 
-  /* Motion */
+  /* ---------- motion ---------- */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
-  /* Shadows */
-  --shadow-card: 0 12px 32px -4px rgba(0, 0, 0, 0.45);
-  --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.6);
-  --shadow-brand: 0 0 24px rgba(124, 92, 255, 0.35);
-  --shadow-lift: 0 18px 44px -12px rgba(0, 0, 0, 0.7);
+  /* ---------- elevation ---------- */
+  --shadow-card: 0 10px 26px -6px rgba(0, 0, 0, 0.55);
+  --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.68);
+  --shadow-brand: 0 0 24px rgba(76, 154, 255, 0.3);
+  --shadow-lift: 0 18px 40px -14px rgba(0, 0, 0, 0.75);
 
-  /* ----------------------------------------------------------
-     Legacy aliases.
-     Older screens (splash, Button.css) reference this shorter
-     set of names. They used to be undefined, which rendered
-     those surfaces transparent — map them onto the tokens above.
-     ---------------------------------------------------------- */
+  /* ---------- legacy aliases ----------
+     Older surfaces (splash, Button.css, cluster detail) use
+     these shorter names. Mapping them onto the tokens above
+     keeps every screen on the active theme instead of the old
+     hard-coded gold. ---------- */
   --bg-raise: var(--component-bg);
   --border: var(--component-border);
   --text: var(--fg-primary);
   --text-dim: var(--fg-secondary);
   --accent: var(--brand);
-  --accent-deep: var(--brand-hover);
+  --accent-deep: var(--brand-pressed);
   --accent-soft: var(--brand-subtle);
-  --accent-border: var(--brand-glow);
-  --panel-grad-1: #171f26;
-  --panel-grad-2: #10161b;
+  --accent-border: var(--brand-border);
+  --accent-text: var(--brand-soft);
+  --panel-grad-1: var(--component-bg);
+  --panel-grad-2: var(--page-elevated);
   --ms-blue-1: #3b7fd4;
   --ms-blue-2: #205ba6;
+}
+
+/* ============================================================
+   Surface levels
+   ============================================================ */
+
+:root[data-surface='dim'] {
+  --page: #12151a;
+  --page-elevated: #171b21;
+  --page-overlay: rgba(10, 12, 16, 0.72);
+  --page-sunken: #0e1116;
+  --elevated-bg: #1c222a;
+  --component-bg: #1a1f26;
+  --component-bg-hover: #1f242c;
+  --component-bg-pressed: #242b34;
+  --component-border: rgba(255, 255, 255, 0.07);
+  --component-border-hover: rgba(255, 255, 255, 0.13);
+}
+
+:root[data-surface='dark'] {
+  --page: #0e1014;
+  --page-elevated: #13161c;
+  --page-overlay: rgba(8, 10, 13, 0.73);
+  --page-sunken: #0a0c10;
+  --elevated-bg: #181c23;
+  --component-bg: #15191f;
+  --component-bg-hover: #1a1f26;
+  --component-bg-pressed: #1f242c;
+}
+
+:root[data-surface='midnight'] {
+  --page: #08090d;
+  --page-elevated: #0d0f14;
+  --page-overlay: rgba(4, 5, 8, 0.74);
+  --page-sunken: #050609;
+  --elevated-bg: #12161d;
+  --component-bg: #101319;
+  --component-bg-hover: #151920;
+  --component-bg-pressed: #1a1f27;
+}
+
+:root[data-surface='black'] {
+  --page: #000000;
+  --page-elevated: #050608;
+  --page-overlay: rgba(0, 0, 0, 0.8);
+  --page-sunken: #000000;
+  --elevated-bg: #0b0d10;
+  --component-bg: #08090c;
+  --component-bg-hover: #0e1013;
+  --component-bg-pressed: #131519;
+  --component-border: rgba(255, 255, 255, 0.08);
+  --component-border-hover: rgba(255, 255, 255, 0.15);
+  --shadow-card: 0 10px 26px -6px rgba(0, 0, 0, 0.9);
+  --shadow-lift: 0 18px 40px -14px rgba(0, 0, 0, 0.95);
+}
+
+/* ============================================================
+   Text contrast
+   ============================================================ */
+
+:root[data-contrast='high'] {
+  --fg-primary: #ffffff;
+  --fg-secondary: #b0b6c6;
+  --fg-muted: #7d8494;
+  --component-border: rgba(255, 255, 255, 0.12);
+  --component-border-hover: rgba(255, 255, 255, 0.2);
+}
+
+:root[data-contrast='soft'] {
+  --fg-primary: #d3d7e0;
+  --fg-secondary: #7b8191;
+  --fg-muted: #4e5464;
+}
+
+/* ============================================================
+   Corner rounding
+   ============================================================ */
+
+:root[data-radius='sharp'] {
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+}
+
+:root[data-radius='round'] {
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 30px;
+}
+
+/* ============================================================
+   Glow / motion switches
+   ============================================================ */
+
+:root[data-glow='off'] {
+  --shadow-brand: none;
+  --brand-glow: rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 6px 18px -8px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 12px 26px -12px rgba(0, 0, 0, 0.7);
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  scroll-behavior: auto !important;
 }
