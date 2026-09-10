@@ -12,6 +12,10 @@ const SORTS = [
 
 const LOADER_FILTERS = ['All', 'Vanilla', 'Fabric', 'Forge', 'NeoForge', 'Quilt'];
 
+/* Approximate height of the card menu, used to decide whether it should
+   open upwards so it never gets clipped by the bottom of the window. */
+const CARD_MENU_HEIGHT = 292;
+
 function versionOf(instance) {
   return instance?.mc_version || instance?.version || '';
 }
@@ -80,6 +84,7 @@ export default function InstancesView({
 
   const [sortOpen, setSortOpen] = useState(false);
   const [menuFor, setMenuFor] = useState(null);
+  const [menuPlacement, setMenuPlacement] = useState('down');
   const [renaming, setRenaming] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -112,6 +117,33 @@ export default function InstancesView({
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [sortOpen, menuFor]);
+
+  /* A scroll or resize while the menu is open would move it away from the
+     button, so just close it instead of letting it float. */
+  useEffect(() => {
+    if (!menuFor) return undefined;
+    const close = () => setMenuFor(null);
+    window.addEventListener('resize', close);
+    return () => window.removeEventListener('resize', close);
+  }, [menuFor]);
+
+  const toggleCardMenu = (instance, event) => {
+    event.stopPropagation();
+    setSortOpen(false);
+
+    if (menuFor === instance.id) {
+      setMenuFor(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const flip = spaceBelow < CARD_MENU_HEIGHT + 18 && spaceAbove > spaceBelow;
+
+    setMenuPlacement(flip ? 'up' : 'down');
+    setMenuFor(instance.id);
+  };
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -305,13 +337,14 @@ export default function InstancesView({
             {visible.map((instance) => {
               const running = launcher.active && launcher.id === instance.id;
               const isSelected = selectedId === instance.id;
+              const menuOpen = menuFor === instance.id;
 
               return (
                 <article
                   key={instance.id}
                   className={`instance-card ${isSelected ? 'selected' : ''} ${
                     running ? 'running' : ''
-                  }`}
+                  } ${menuOpen ? 'menu-open' : ''}`}
                   onClick={() => onSelect?.(instance.id)}
                   onDoubleClick={() => onOpenCluster?.(instance, 'overview')}
                 >
@@ -352,23 +385,21 @@ export default function InstancesView({
                         {instance.name}
                       </h3>
 
-                      <div className="instance-card-menu-wrap" ref={menuFor === instance.id ? menuRef : null}>
+                      <div className="instance-card-menu-wrap" ref={menuOpen ? menuRef : null}>
                         <button
                           type="button"
                           className="instance-card-menu-btn"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSortOpen(false);
-                            setMenuFor((value) => (value === instance.id ? null : instance.id));
-                          }}
+                          onClick={(event) => toggleCardMenu(instance, event)}
                           title="More actions"
                         >
                           <NativeIcon name="more-vertical" size={16} />
                         </button>
 
-                        {menuFor === instance.id && (
+                        {menuOpen && (
                           <div
-                            className="instances-popover align-right"
+                            className={`instances-popover align-right ${
+                              menuPlacement === 'up' ? 'drop-up' : ''
+                            }`}
                             onClick={(event) => event.stopPropagation()}
                           >
                             <button
