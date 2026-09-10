@@ -117,6 +117,35 @@ select {
    from slicing the top off cards as they lift on hover.
    ============================================================ */
 
+/* ---- 1. No dead space under the navbar on any page ---- */
+
+:root .instances-view,
+:root .clusters-view,
+:root .browse-view,
+:root .stats-view,
+:root .cluster-detail-view,
+:root .home-view {
+  padding-top: 14px;
+}
+
+:root .shell-content-layer {
+  padding-top: 0;
+}
+
+:root .home-view {
+  padding-top: 0;
+}
+
+:root .instances-header,
+:root .clusters-view-header,
+:root .browse-header,
+:root .stats-header {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* ---- 2. Instances page: hover lift must not be clipped ---- */
+
 :root .instances-body {
   padding-top: 10px;
   padding-left: 4px;
@@ -124,6 +153,120 @@ select {
   margin-left: -4px;
   margin-right: -4px;
 }
+
+/* ---- 3. Card menu that opens upward near the window bottom ---- */
+
+:root .instances-popover.drop-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform-origin: bottom right;
+  animation: fadeIn 0.12s var(--ease-out);
+}
+
+:root .instance-card.menu-open {
+  z-index: 30;
+}
+
+/* ---- 4. Secondary + browse buttons (Browse mods, Open folder, ...) ---- */
+
+:root .sub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--component-border);
+  background: var(--component-bg);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+
+:root .sub-btn:hover:not(:disabled) {
+  background: var(--component-bg-hover);
+  border-color: var(--component-border-hover);
+  color: var(--fg-primary);
+}
+
+:root .sub-btn:disabled,
+:root .launch-btn:disabled,
+:root .instances-brand-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+  filter: grayscale(0.35);
+}
+
+:root .sub-btn.brand-btn,
+:root button.brand-btn {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--brand-gradient);
+  color: var(--fg-on-brand);
+  font-weight: 650;
+  box-shadow: var(--shadow-brand);
+}
+
+:root .sub-btn.brand-btn:hover:not(:disabled),
+:root button.brand-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--fg-on-brand);
+}
+
+:root .sub-btn.brand-btn svg,
+:root button.brand-btn svg {
+  color: currentColor;
+}
+
+:root .tab-empty-placeholder .sub-btn,
+:root .tab-empty-placeholder .brand-btn {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+:root .toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:root .launch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 20px;
+  border-radius: var(--radius);
+  background: var(--brand-gradient);
+  color: var(--fg-on-brand);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 650;
+  box-shadow: var(--shadow-brand);
+  transition: filter 0.15s var(--ease), transform 0.15s var(--ease-out);
+}
+
+:root .launch-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+:root .launch-btn.kill {
+  background: var(--danger);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+/* ---- 5. Accent-aware colours for the older screens ---- */
 
 :root .instances-chip.active,
 :root .instance-chip.brand,
@@ -139,4 +282,39 @@ select {
 
 :root .instance-card-live {
   color: var(--success);
+}
+
+:root .badge-installed {
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--success-subtle);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--success);
+}
+
+:root .icon-delete-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+:root .icon-delete-btn:hover {
+  background: rgba(242, 85, 90, 0.14);
+  color: var(--danger);
+}
+
+/* Reduced-motion mode from the appearance settings */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
 }
