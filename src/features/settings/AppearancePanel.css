@@ -1,220 +1,247 @@
 /* ============================================================
-   Native — Settings > Appearance
+   Native — Settings / Appearance
    ============================================================ */
 
 .ap-panel {
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 22px;
 }
 
 .ap-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .ap-section-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .ap-section-title {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--fg-secondary);
-}
-
-.ap-section-desc {
-  margin: 5px 0 0;
-  font-size: 12.5px;
-  line-height: 1.5;
   color: var(--fg-muted);
 }
 
-.ap-current-hex {
-  flex: none;
-  padding: 4px 9px;
-  border-radius: var(--radius-sm);
-  background: var(--ghost-overlay);
-  font-family: var(--font-mono);
+.ap-section-note {
+  font-family: var(--font-sans);
   font-size: 11.5px;
-  color: var(--fg-secondary);
-  text-transform: uppercase;
+  color: var(--fg-muted);
 }
 
-/* ---------- accent swatches ---------- */
-
-.ap-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.ap-swatch {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: var(--radius-full);
-  color: #ffffff;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-  transition: transform 0.16s var(--ease-spring), box-shadow 0.16s var(--ease);
-}
-
-.ap-swatch:hover {
-  transform: scale(1.08);
-}
-
-.ap-swatch.active {
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-    0 0 0 2px var(--page),
-    0 0 0 4px currentColor;
-  color: var(--brand);
-}
-
-.ap-swatch.active svg {
-  color: #ffffff;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
-}
-
-.ap-custom-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.ap-color-input {
-  position: relative;
+.ap-reset {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 12px 0 8px;
-  border-radius: var(--radius);
-  background: var(--component-bg);
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--component-border);
-  font-size: 12.5px;
+  background: var(--component-bg);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--fg-secondary);
   cursor: pointer;
+  transition: color 0.14s var(--ease), border-color 0.14s var(--ease);
 }
 
-.ap-color-input:hover {
-  border-color: var(--component-border-hover);
+.ap-reset:hover {
   color: var(--fg-primary);
+  border-color: var(--component-border-hover);
 }
 
-.ap-color-input input[type='color'] {
+/* ---------- accent ---------- */
+
+.ap-accent-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ap-accent-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease-spring), box-shadow 0.15s var(--ease);
+}
+
+.ap-accent-dot:hover {
+  transform: scale(1.1);
+}
+
+.ap-accent-dot.active {
+  border-color: var(--fg-primary);
+  box-shadow: 0 0 0 3px var(--brand-subtle);
+}
+
+.ap-hex-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 8px 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--component-border);
+  background: var(--page-sunken);
+}
+
+.ap-hex-picker {
   width: 22px;
   height: 22px;
   padding: 0;
   border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
+  background: none;
   cursor: pointer;
 }
 
-.ap-hex-input {
-  width: 116px;
-  height: 34px;
-  padding: 0 11px;
-  border-radius: var(--radius);
-  background: var(--page-sunken);
+.ap-hex-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.ap-hex-picker::-webkit-color-swatch {
   border: 1px solid var(--component-border);
+  border-radius: 5px;
+}
+
+.ap-hex-input {
+  width: 74px;
+  background: none;
+  border: none;
+  outline: none;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--fg-primary);
-  text-transform: uppercase;
-  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-.ap-hex-input:focus {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-subtle);
-}
-
-/* ---------- surfaces ---------- */
+/* ---------- surface previews ---------- */
 
 .ap-surface-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
   gap: 10px;
 }
 
 .ap-surface-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px;
-  border-radius: var(--radius-md);
-  background: var(--component-bg);
+  gap: 9px;
+  padding: 9px;
+  border-radius: var(--radius);
   border: 1px solid var(--component-border);
-  text-align: left;
+  background: var(--component-bg);
   cursor: pointer;
-  transition: border-color 0.15s var(--ease), background 0.15s var(--ease),
-    transform 0.15s var(--ease-out);
+  text-align: left;
+  transition: border-color 0.15s var(--ease), transform 0.15s var(--ease-out);
 }
 
 .ap-surface-card:hover {
   border-color: var(--component-border-hover);
-  transform: translateY(-2px);
 }
 
 .ap-surface-card.active {
   border-color: var(--brand);
-  background: var(--brand-subtle);
+  box-shadow: 0 0 0 3px var(--brand-subtle);
 }
 
-.ap-surface-preview {
-  position: relative;
-  display: block;
-  height: 46px;
-  margin-bottom: 6px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.ap-surface-bar {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 46%;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.ap-surface-dot {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  width: 24px;
-  height: 10px;
-  border-radius: var(--radius-full);
-  background: var(--brand);
+.ap-surface-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 2px 2px;
 }
 
 .ap-surface-name {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 650;
   color: var(--fg-primary);
 }
 
 .ap-surface-desc {
-  font-size: 11.5px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
   color: var(--fg-muted);
+}
+
+.ap-surface-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--fg-on-brand);
+}
+
+/* the mini launcher mock — always painted with literal colours */
+.ap-mock {
+  display: flex;
+  flex-direction: column;
+  height: 92px;
+  border-radius: 8px;
+  border: 1px solid;
+  overflow: hidden;
+}
+
+.ap-mock-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border-bottom: 1px solid;
+}
+
+.ap-mock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.ap-mock-line {
+  height: 4px;
+  border-radius: 2px;
+  display: block;
+}
+
+.ap-mock-body {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  padding: 7px;
+}
+
+.ap-mock-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid;
+}
+
+.ap-mock-pill {
+  width: 26px;
+  height: 8px;
 }
 
 /* ---------- rows ---------- */
@@ -223,306 +250,235 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 13px 0;
+  gap: 16px;
+  padding: 12px 0;
   border-bottom: 1px solid var(--component-border);
 }
 
-.ap-row:last-child {
+.ap-row:last-of-type {
   border-bottom: none;
 }
 
 .ap-row-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  min-width: 0;
+  gap: 2px;
 }
 
 .ap-row-title {
   font-family: var(--font-sans);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--fg-primary);
 }
 
 .ap-row-desc {
-  font-size: 12px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
   color: var(--fg-muted);
 }
-
-/* ---------- segmented ---------- */
 
 .ap-segmented {
-  flex: none;
   display: flex;
-  gap: 2px;
+  flex: none;
+  gap: 3px;
   padding: 3px;
-  border-radius: var(--radius);
-  background: var(--page-sunken);
+  border-radius: var(--radius-full);
   border: 1px solid var(--component-border);
+  background: var(--page-sunken);
 }
 
-.ap-segment {
-  padding: 6px 13px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
+.ap-segmented button {
+  padding: 5px 13px;
+  border-radius: var(--radius-full);
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--fg-muted);
+  color: var(--fg-secondary);
   cursor: pointer;
   transition: background 0.14s var(--ease), color 0.14s var(--ease);
 }
 
-.ap-segment:hover {
+.ap-segmented button:hover {
   color: var(--fg-primary);
 }
 
-.ap-segment.active {
-  background: var(--component-bg-hover);
-  color: var(--fg-primary);
-}
-
-/* ---------- switch ---------- */
-
-.ap-switch {
-  flex: none;
-  position: relative;
-  width: 42px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--component-border);
-  border-radius: var(--radius-full);
-  background: var(--page-sunken);
-  cursor: pointer;
-  transition: background 0.16s var(--ease), border-color 0.16s var(--ease);
-}
-
-.ap-switch.active {
+.ap-segmented button.active {
   background: var(--brand);
-  border-color: transparent;
+  color: var(--fg-on-brand);
 }
 
-.ap-switch-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background: var(--fg-secondary);
-  transition: transform 0.18s var(--ease-spring), background 0.16s var(--ease);
-}
-
-.ap-switch.active .ap-switch-knob {
-  transform: translateX(18px);
-  background: var(--fg-on-brand);
-}
-
-/* ---------- sliders ---------- */
-
-.ap-slider-control {
-  flex: none;
+.ap-slider-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex: none;
+  width: 210px;
 }
 
-.ap-range {
-  width: 168px;
+.ap-slider-wrap input[type='range'] {
+  flex: 1;
   height: 4px;
   appearance: none;
-  border-radius: var(--radius-full);
-  background: var(--component-bg-pressed);
+  border-radius: 2px;
+  background: var(--component-border);
   cursor: pointer;
 }
 
-.ap-range::-webkit-slider-thumb {
+.ap-slider-wrap input[type='range']::-webkit-slider-thumb {
   appearance: none;
-  width: 15px;
-  height: 15px;
-  border-radius: var(--radius-full);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
   background: var(--brand);
-  border: 2px solid var(--page);
+  border: 2px solid var(--page-bg, #0b0d12);
   box-shadow: 0 0 0 1px var(--brand-border);
-  cursor: pointer;
 }
 
 .ap-slider-value {
-  min-width: 44px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg-secondary);
+  min-width: 42px;
   text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-secondary);
 }
 
-/* ---------- preview ---------- */
+/* ---------- wallpaper preview ---------- */
 
-.ap-preview {
-  display: flex;
-  gap: 14px;
-  padding: 16px;
-  border-radius: var(--radius-lg);
-  background: var(--page);
+.ap-wallpaper-preview {
+  position: relative;
+  height: 86px;
+  border-radius: var(--radius);
   border: 1px solid var(--component-border);
+  overflow: hidden;
 }
 
-.ap-preview-card {
-  flex: none;
-  width: 210px;
+.ap-wallpaper-art {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 22% 28%, rgba(255, 255, 255, 0.22), transparent 45%),
+    linear-gradient(120deg, #2b6cb0 0%, #6b46c1 45%, #d97706 100%);
+}
+
+.ap-wallpaper-scrim {
+  position: absolute;
+  inset: 0;
+  background: #05060a;
+  transition: opacity 0.18s var(--ease);
+}
+
+.ap-wallpaper-text {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  background: var(--component-bg);
-  border: 1px solid var(--component-border);
-  box-shadow: var(--shadow-card);
+  gap: 2px;
 }
 
-.ap-preview-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ap-preview-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: var(--radius-full);
-  background: var(--brand);
-  box-shadow: var(--shadow-brand);
-}
-
-.ap-preview-name {
+.ap-wallpaper-title {
   font-family: var(--font-sans);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ap-wallpaper-sub {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ---------- live sample ---------- */
+
+.ap-live {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.ap-live-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 13px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--component-border);
+  background: var(--component-bg);
+}
+
+.ap-live-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
   color: var(--fg-primary);
 }
 
-.ap-preview-chips {
-  display: flex;
-  gap: 6px;
+.ap-live-sub {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--fg-muted);
 }
 
-.ap-preview-chip {
-  padding: 3px 8px;
+.ap-live-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.ap-live-chip {
+  padding: 3px 9px;
   border-radius: var(--radius-full);
   background: var(--ghost-overlay);
+  font-family: var(--font-sans);
   font-size: 10.5px;
   font-weight: 600;
   color: var(--fg-secondary);
 }
 
-.ap-preview-chip.mono {
-  font-family: var(--font-mono);
-}
-
-.ap-preview-chip.brand {
+.ap-live-chip.brand {
   background: var(--brand-subtle);
   color: var(--brand-soft);
 }
 
-.ap-preview-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.ap-preview-brand-btn {
-  flex: 1;
-  height: 30px;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--brand-gradient);
-  color: var(--fg-on-brand);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: 0 8px 18px -10px var(--brand-glow);
-  cursor: default;
-}
-
-.ap-preview-ghost-btn {
-  flex: 1;
-  height: 30px;
-  border-radius: var(--radius);
-  background: var(--ghost-overlay);
-  border: 1px solid var(--component-border);
-  color: var(--fg-secondary);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: default;
-}
-
-.ap-preview-side {
-  flex: 1;
+.ap-live-side {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+  width: 148px;
 }
 
-.ap-preview-line {
-  height: 8px;
-  width: 68%;
-  border-radius: var(--radius-full);
-  background: var(--component-bg-hover);
-}
-
-.ap-preview-line.long {
-  width: 88%;
-}
-
-.ap-preview-line.short {
-  width: 42%;
-}
-
-.ap-preview-bar {
-  height: 6px;
-  margin-top: 4px;
-  border-radius: var(--radius-full);
-  background: var(--component-bg-pressed);
-  overflow: hidden;
-}
-
-.ap-preview-bar span {
-  display: block;
-  width: 62%;
-  height: 100%;
-  border-radius: var(--radius-full);
-  background: var(--brand);
-}
-
-/* ---------- reset ---------- */
-
-.ap-reset-btn {
-  align-self: flex-start;
+.ap-live-play {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 14px;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
   border-radius: var(--radius);
-  background: var(--component-bg);
-  border: 1px solid var(--component-border);
+  background: var(--brand-gradient);
+  box-shadow: var(--shadow-brand);
   font-family: var(--font-sans);
-  font-size: 12.5px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ap-live-ghost {
+  height: 34px;
+  border-radius: var(--radius);
+  border: 1px solid var(--component-border);
+  background: var(--component-bg);
+  font-family: var(--font-sans);
+  font-size: 12px;
   font-weight: 600;
   color: var(--fg-secondary);
   cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
 
-.ap-reset-btn:hover:not(:disabled) {
+.ap-live-ghost:hover {
   background: var(--component-bg-hover);
   color: var(--fg-primary);
-}
-
-.ap-reset-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
 }

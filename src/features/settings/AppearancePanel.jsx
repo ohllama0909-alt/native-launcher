@@ -7,128 +7,130 @@ import {
   RADIUS_PRESETS,
   SURFACE_PRESETS,
   normalizeHex,
+  onAccentText,
   resetAppearance,
   useAppearance
 } from '../../lib/appearance.js';
 import './AppearancePanel.css';
 
-function Segmented({ options, value, onChange }) {
+/* Real theme values, hardcoded on purpose: the previews used to read live
+   CSS variables, so every card painted with the *active* theme and looked
+   blank/identical. These paint the actual palette of each option. */
+const SURFACE_SWATCHES = {
+  dim: { page: '#12151a', card: '#1a1f26', sunken: '#0e1116', line: '#242b34' },
+  dark: { page: '#0e1014', card: '#15191f', sunken: '#0a0c10', line: '#1f242c' },
+  midnight: { page: '#08090d', card: '#101319', sunken: '#050609', line: '#1a1f27' },
+  black: { page: '#000000', card: '#08090c', sunken: '#000000', line: '#131519' }
+};
+
+const RADIUS_PX = { sharp: 2, soft: 10, round: 18 };
+
+function SurfacePreview({ surfaceId, accent, radius }) {
+  const palette = SURFACE_SWATCHES[surfaceId] || SURFACE_SWATCHES.midnight;
+  const corner = RADIUS_PX[radius] ?? 10;
+
   return (
-    <div className="ap-segmented">
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          className={'ap-segment' + (value === option.id ? ' active' : '')}
-          onClick={() => onChange(option.id)}
+    <div className="ap-mock" style={{ background: palette.page, borderColor: palette.line }}>
+      <div className="ap-mock-bar" style={{ background: palette.sunken, borderColor: palette.line }}>
+        <span className="ap-mock-dot" style={{ background: accent }} />
+        <span className="ap-mock-line" style={{ background: palette.line, width: 26 }} />
+        <span className="ap-mock-line" style={{ background: palette.line, width: 16 }} />
+      </div>
+
+      <div className="ap-mock-body">
+        <div
+          className="ap-mock-card"
+          style={{ background: palette.card, borderColor: palette.line, borderRadius: corner }}
         >
-          {option.name}
-        </button>
-      ))}
+          <span className="ap-mock-line" style={{ background: palette.line, width: 34 }} />
+          <span className="ap-mock-line" style={{ background: palette.line, width: 20 }} />
+        </div>
+
+        <div
+          className="ap-mock-card"
+          style={{ background: palette.card, borderColor: palette.line, borderRadius: corner }}
+        >
+          <span
+            className="ap-mock-pill"
+            style={{ background: accent, borderRadius: Math.max(3, corner - 3) }}
+          />
+          <span className="ap-mock-line" style={{ background: palette.line, width: 22 }} />
+        </div>
+      </div>
     </div>
   );
 }
 
-function Switch({ checked, onChange }) {
-  return (
-    <button
-      type="button"
-      className={'ap-switch' + (checked ? ' active' : '')}
-      onClick={() => onChange(!checked)}
-      aria-pressed={checked}
-    >
-      <span className="ap-switch-knob" />
-    </button>
-  );
-}
-
 export default function AppearancePanel() {
-  const [appearance, setAppearance] = useAppearance();
+  const [appearance, update] = useAppearance();
   const [hexDraft, setHexDraft] = useState(appearance.accent);
 
-  const isDefault =
-    appearance.accent === DEFAULT_APPEARANCE.accent &&
-    appearance.surface === DEFAULT_APPEARANCE.surface &&
-    appearance.contrast === DEFAULT_APPEARANCE.contrast &&
-    appearance.radius === DEFAULT_APPEARANCE.radius &&
-    appearance.scale === DEFAULT_APPEARANCE.scale &&
-    appearance.wallpaperDim === DEFAULT_APPEARANCE.wallpaperDim &&
-    appearance.animations === DEFAULT_APPEARANCE.animations &&
-    appearance.glow === DEFAULT_APPEARANCE.glow;
-
-  const pickAccent = (hex) => {
-    setHexDraft(hex);
-    setAppearance({ accent: hex });
+  const applyHex = (value) => {
+    setHexDraft(value);
+    const normalized = normalizeHex(value);
+    if (normalized) update({ accent: normalized });
   };
 
-  const commitHex = (raw) => {
-    const parsed = normalizeHex(raw);
-    if (parsed) setAppearance({ accent: parsed });
-    else setHexDraft(appearance.accent);
-  };
-
-  const handleReset = () => {
-    const next = resetAppearance();
-    setHexDraft(next.accent);
-  };
+  const accentText = onAccentText(appearance.accent);
 
   return (
     <div className="ap-panel">
-      {/* ---------- accent ---------- */}
+      {/* ---------------- accent ---------------- */}
       <section className="ap-section">
         <div className="ap-section-head">
-          <div>
-            <h4 className="ap-section-title">Accent colour</h4>
-            <p className="ap-section-desc">Buttons, highlights and focus rings across the launcher.</p>
-          </div>
-          <span className="ap-current-hex">{appearance.accent}</span>
+          <h4 className="ap-section-title">Accent colour</h4>
+          <button type="button" className="ap-reset" onClick={() => {
+            resetAppearance();
+            setHexDraft(DEFAULT_APPEARANCE.accent);
+          }}>
+            <NativeIcon name="refresh" size={13} />
+            <span>Reset all</span>
+          </button>
         </div>
 
-        <div className="ap-swatches">
+        <div className="ap-accent-row">
           {ACCENT_PRESETS.map((preset) => (
             <button
               key={preset.id}
               type="button"
               title={preset.name}
-              className={'ap-swatch' + (appearance.accent === preset.hex ? ' active' : '')}
+              className={'ap-accent-dot ' + (appearance.accent === preset.hex ? 'active' : '')}
               style={{ background: preset.hex }}
-              onClick={() => pickAccent(preset.hex)}
+              onClick={() => {
+                update({ accent: preset.hex });
+                setHexDraft(preset.hex);
+              }}
             >
-              {appearance.accent === preset.hex && <NativeIcon name="check" size={14} />}
+              {appearance.accent === preset.hex && (
+                <NativeIcon name="check" size={13} style={{ color: onAccentText(preset.hex) }} />
+              )}
             </button>
           ))}
-        </div>
 
-        <div className="ap-custom-row">
-          <label className="ap-color-input">
+          <label className="ap-hex-field">
             <input
               type="color"
-              value={appearance.accent}
-              onChange={(event) => pickAccent(event.target.value)}
+              value={normalizeHex(hexDraft) || appearance.accent}
+              onChange={(event) => applyHex(event.target.value)}
+              className="ap-hex-picker"
             />
-            <span>Custom</span>
+            <input
+              type="text"
+              className="ap-hex-input"
+              value={hexDraft}
+              maxLength={7}
+              spellCheck={false}
+              onChange={(event) => applyHex(event.target.value)}
+            />
           </label>
-
-          <input
-            className="ap-hex-input"
-            value={hexDraft}
-            spellCheck={false}
-            onChange={(event) => setHexDraft(event.target.value)}
-            onBlur={(event) => commitHex(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') commitHex(event.currentTarget.value);
-            }}
-          />
         </div>
       </section>
 
-      {/* ---------- darkness ---------- */}
+      {/* ---------------- surfaces ---------------- */}
       <section className="ap-section">
         <div className="ap-section-head">
-          <div>
-            <h4 className="ap-section-title">Background</h4>
-            <p className="ap-section-desc">How dark every surface in the launcher sits.</p>
-          </div>
+          <h4 className="ap-section-title">Background</h4>
+          <span className="ap-section-note">How dark the launcher chrome gets</span>
         </div>
 
         <div className="ap-surface-grid">
@@ -136,63 +138,83 @@ export default function AppearancePanel() {
             <button
               key={preset.id}
               type="button"
-              className={'ap-surface-card' + (appearance.surface === preset.id ? ' active' : '')}
-              onClick={() => setAppearance({ surface: preset.id })}
+              className={'ap-surface-card ' + (appearance.surface === preset.id ? 'active' : '')}
+              onClick={() => update({ surface: preset.id })}
             >
-              <span className="ap-surface-preview" style={{ background: preset.swatch }}>
-                <span className="ap-surface-bar" />
-                <span className="ap-surface-dot" />
-              </span>
-              <span className="ap-surface-name">{preset.name}</span>
-              <span className="ap-surface-desc">{preset.desc}</span>
+              <SurfacePreview
+                surfaceId={preset.id}
+                accent={appearance.accent}
+                radius={appearance.radius}
+              />
+
+              <div className="ap-surface-meta">
+                <span className="ap-surface-name">{preset.name}</span>
+                <span className="ap-surface-desc">{preset.desc}</span>
+              </div>
+
+              {appearance.surface === preset.id && (
+                <span className="ap-surface-check">
+                  <NativeIcon name="check" size={12} />
+                </span>
+              )}
             </button>
           ))}
         </div>
       </section>
 
-      {/* ---------- text + shape ---------- */}
+      {/* ---------------- shape and contrast ---------------- */}
       <section className="ap-section">
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Text contrast</span>
-            <span className="ap-row-desc">Dim the copy down or push it to pure white.</span>
+            <span className="ap-row-title">Contrast</span>
+            <span className="ap-row-desc">Strength of borders and secondary text</span>
           </div>
-          <Segmented
-            options={CONTRAST_PRESETS}
-            value={appearance.contrast}
-            onChange={(id) => setAppearance({ contrast: id })}
-          />
+          <div className="ap-segmented">
+            {CONTRAST_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={appearance.contrast === preset.id ? 'active' : ''}
+                onClick={() => update({ contrast: preset.id })}
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="ap-row">
           <div className="ap-row-info">
             <span className="ap-row-title">Corner rounding</span>
-            <span className="ap-row-desc">Applies to cards, inputs, buttons and dialogs.</span>
+            <span className="ap-row-desc">Applies to cards, buttons and menus</span>
           </div>
-          <Segmented
-            options={RADIUS_PRESETS}
-            value={appearance.radius}
-            onChange={(id) => setAppearance({ radius: id })}
-          />
+          <div className="ap-segmented">
+            {RADIUS_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={appearance.radius === preset.id ? 'active' : ''}
+                onClick={() => update({ radius: preset.id })}
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </section>
 
-      {/* ---------- sliders ---------- */}
-      <section className="ap-section">
         <div className="ap-row">
           <div className="ap-row-info">
             <span className="ap-row-title">Interface scale</span>
-            <span className="ap-row-desc">Zoom the whole launcher up or down.</span>
+            <span className="ap-row-desc">Zoom the whole launcher</span>
           </div>
-          <div className="ap-slider-control">
+          <div className="ap-slider-wrap">
             <input
               type="range"
-              min={80}
-              max={130}
-              step={5}
+              min="80"
+              max="130"
+              step="5"
               value={appearance.scale}
-              onChange={(event) => setAppearance({ scale: Number(event.target.value) })}
-              className="ap-range"
+              onChange={(event) => update({ scale: Number(event.target.value) })}
             />
             <span className="ap-slider-value">{appearance.scale}%</span>
           </div>
@@ -200,84 +222,94 @@ export default function AppearancePanel() {
 
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Home wallpaper dimming</span>
-            <span className="ap-row-desc">Darken the instance artwork behind the home screen.</span>
+            <span className="ap-row-title">Home wallpaper dim</span>
+            <span className="ap-row-desc">Darkens the artwork behind the home page</span>
           </div>
-          <div className="ap-slider-control">
+          <div className="ap-slider-wrap">
             <input
               type="range"
-              min={0}
-              max={95}
-              step={5}
+              min="0"
+              max="95"
+              step="5"
               value={appearance.wallpaperDim}
-              onChange={(event) => setAppearance({ wallpaperDim: Number(event.target.value) })}
-              className="ap-range"
+              onChange={(event) => update({ wallpaperDim: Number(event.target.value) })}
             />
             <span className="ap-slider-value">{appearance.wallpaperDim}%</span>
           </div>
         </div>
-      </section>
 
-      {/* ---------- switches ---------- */}
-      <section className="ap-section">
+        <div className="ap-wallpaper-preview">
+          <div className="ap-wallpaper-art" />
+          <div
+            className="ap-wallpaper-scrim"
+            style={{ opacity: appearance.wallpaperDim / 100 }}
+          />
+          <div className="ap-wallpaper-text">
+            <span className="ap-wallpaper-title">Home wallpaper</span>
+            <span className="ap-wallpaper-sub">Live preview of the dim level</span>
+          </div>
+        </div>
+
         <div className="ap-row">
           <div className="ap-row-info">
             <span className="ap-row-title">Animations</span>
-            <span className="ap-row-desc">Card lifts, page transitions and hover motion.</span>
+            <span className="ap-row-desc">Transitions, hover lifts and page fades</span>
           </div>
-          <Switch
-            checked={appearance.animations}
-            onChange={(next) => setAppearance({ animations: next })}
-          />
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={appearance.animations}
+              onChange={(event) => update({ animations: event.target.checked })}
+            />
+            <span className="slider" />
+          </label>
         </div>
 
         <div className="ap-row">
           <div className="ap-row-info">
             <span className="ap-row-title">Accent glow</span>
-            <span className="ap-row-desc">Soft coloured bloom under accented buttons and cards.</span>
+            <span className="ap-row-desc">Soft light around active and playing elements</span>
           </div>
-          <Switch checked={appearance.glow} onChange={(next) => setAppearance({ glow: next })} />
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={appearance.glow}
+              onChange={(event) => update({ glow: event.target.checked })}
+            />
+            <span className="slider" />
+          </label>
         </div>
       </section>
 
-      {/* ---------- preview + reset ---------- */}
+      {/* ---------------- live sample ---------------- */}
       <section className="ap-section">
-        <h4 className="ap-section-title">Preview</h4>
-        <div className="ap-preview">
-          <div className="ap-preview-card">
-            <div className="ap-preview-head">
-              <span className="ap-preview-dot" />
-              <span className="ap-preview-name">1.21.4 Fabric</span>
-            </div>
-            <div className="ap-preview-chips">
-              <span className="ap-preview-chip mono">1.21.4</span>
-              <span className="ap-preview-chip brand">Fabric</span>
-            </div>
-            <div className="ap-preview-actions">
-              <button type="button" className="ap-preview-brand-btn">Play</button>
-              <button type="button" className="ap-preview-ghost-btn">Manage</button>
-            </div>
-          </div>
-
-          <div className="ap-preview-side">
-            <div className="ap-preview-line long" />
-            <div className="ap-preview-line" />
-            <div className="ap-preview-line short" />
-            <div className="ap-preview-bar">
-              <span />
-            </div>
-          </div>
+        <div className="ap-section-head">
+          <h4 className="ap-section-title">Preview</h4>
+          <span className="ap-section-note">Uses your current theme</span>
         </div>
 
-        <button
-          type="button"
-          className="ap-reset-btn"
-          onClick={handleReset}
-          disabled={isDefault}
-        >
-          <NativeIcon name="refresh" size={14} />
-          <span>Reset to defaults</span>
-        </button>
+        <div className="ap-live">
+          <div className="ap-live-card">
+            <span className="ap-live-title">Survival 1.21</span>
+            <span className="ap-live-sub">Fabric - 42 mods</span>
+            <div className="ap-live-chips">
+              <span className="ap-live-chip">Vanilla</span>
+              <span className="ap-live-chip brand">Playing</span>
+            </div>
+          </div>
+
+          <div className="ap-live-side">
+            <button
+              type="button"
+              className="ap-live-play"
+              style={{ color: accentText }}
+            >
+              <NativeIcon name="play" size={14} />
+              <span>Play</span>
+            </button>
+            <button type="button" className="ap-live-ghost">Secondary</button>
+          </div>
+        </div>
       </section>
     </div>
   );
