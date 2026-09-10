@@ -33,7 +33,7 @@ body,
   border-radius: 0;
 }
 
-/* Scrollbar matching OneLauncher */
+/* Native scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -44,12 +44,12 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 img {
@@ -65,7 +65,9 @@ button {
   color: inherit;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
   outline: none;
   border: none;
@@ -75,16 +77,66 @@ input, textarea, select {
 
 /* Utility Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 16px rgba(43, 75, 255, 0.4); }
-  50% { box-shadow: 0 0 28px rgba(43, 75, 255, 0.7); }
+  0%,
+  100% {
+    box-shadow: 0 0 16px var(--brand-glow);
+  }
+  50% {
+    box-shadow: 0 0 28px var(--brand-glow);
+  }
+}
+
+/* ============================================================
+   Theme + layout corrections
+
+   These live here (with a :root prefix so they win over the
+   component sheets regardless of import order) to keep older
+   screens on the active accent and to stop scroll containers
+   from slicing the top off cards as they lift on hover.
+   ============================================================ */
+
+:root .instances-body {
+  padding-top: 10px;
+  padding-left: 4px;
+  padding-right: 4px;
+  margin-left: -4px;
+  margin-right: -4px;
+}
+
+:root .instances-chip.active,
+:root .instance-chip.brand,
+:root .instances-popover-item.active,
+:root .instances-empty-icon,
+:root .instance-add-card:hover {
+  color: var(--brand-soft);
+}
+
+:root .instances-popover-item.danger {
+  color: var(--danger);
+}
+
+:root .instance-card-live {
+  color: var(--success);
 }
