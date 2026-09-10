@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 export default function ModsTab({ cluster, onNavigateBrowse }) {
+  const { t } = useI18n();
   const [mods, setMods] = useState({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -48,7 +50,7 @@ export default function ModsTab({ cluster, onNavigateBrowse }) {
           <Icon name="search-md" size={14} />
           <input
             type="text"
-            placeholder="Search installed mods..."
+            placeholder={t('mods.search')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -57,24 +59,24 @@ export default function ModsTab({ cluster, onNavigateBrowse }) {
         <div className="toolbar-actions">
           <button className="sub-btn" onClick={handleOpenFolder}>
             <Icon name="folder" size={14} />
-            <span>Open Folder</span>
+            <span>{t('common.openFolder')}</span>
           </button>
           <button className="sub-btn brand-btn" onClick={() => onNavigateBrowse(cluster)}>
             <Icon name="plus" size={14} />
-            <span>Add Mods</span>
+            <span>{t('mods.add')}</span>
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="tab-empty-placeholder">Loading mods...</div>
+        <div className="tab-empty-placeholder">{t('mods.loading')}</div>
       ) : entries.length === 0 ? (
         <div className="tab-empty-placeholder">
           <Icon name="code-snippet-02" size={36} />
-          <p>No mods installed for this version yet.</p>
+          <p>{t('mods.empty')}</p>
           <button className="sub-btn brand-btn" onClick={() => onNavigateBrowse(cluster)}>
             <Icon name="plus" size={14} />
-            <span>Browse Mods</span>
+            <span>{t('mods.browse')}</span>
           </button>
         </div>
       ) : (
@@ -82,7 +84,7 @@ export default function ModsTab({ cluster, onNavigateBrowse }) {
           {filtered.map(([id, data]) => {
             const meta = data?.metadata || {};
             const title = meta.title || data?.filename || id;
-            const author = meta.author ? `by ${meta.author}` : '';
+            const author = meta.author ? t('mods.byAuthor', { author: meta.author }) : '';
             const version = meta.version || '';
             const isCF = meta.source === 'cf';
 
@@ -116,7 +118,7 @@ export default function ModsTab({ cluster, onNavigateBrowse }) {
                   <button
                     className="icon-delete-btn"
                     onClick={() => handleRemove(id)}
-                    title="Remove mod"
+                    title={t('mods.remove')}
                   >
                     <Icon name="trash-01" size={16} />
                   </button>

@@ -179,7 +179,9 @@ export function loaderAvailability(loader, versionId, fabricSet) {
     if (loader === 'Fabric' && fabricSet?.has(versionId)) return { available: true };
     return {
       available: false,
-      reason: `${loader} does not publish builds for snapshots like ${versionId}`
+      reason: `${loader} does not publish builds for snapshots like ${versionId}`,
+      reasonKey: 'versions.loaderSnapshotUnavailable',
+      reasonVars: { loader, version: versionId }
     };
   }
 
@@ -187,35 +189,35 @@ export function loaderAvailability(loader, versionId, fabricSet) {
     if (!fabricSet) return { available: true, unverified: true };
     return fabricSet.has(versionId)
       ? { available: true }
-      : { available: false, reason: `Fabric has no build for ${versionId}` };
+      : { available: false, reason: `Fabric has no build for ${versionId}`, reasonKey: 'versions.loaderNoBuild', reasonVars: { loader: 'Fabric', version: versionId } };
   }
 
   if (loader === 'Quilt') {
     return compareVersions(versionId, '1.14') >= 0
       ? { available: true }
-      : { available: false, reason: 'Quilt supports 1.14 and newer' };
+      : { available: false, reason: 'Quilt supports 1.14 and newer', reasonKey: 'versions.loaderMinimum', reasonVars: { loader: 'Quilt', version: '1.14' } };
   }
 
   if (loader === 'NeoForge') {
     return compareVersions(versionId, '1.20.1') >= 0
       ? { available: true }
-      : { available: false, reason: 'NeoForge supports 1.20.1 and newer' };
+      : { available: false, reason: 'NeoForge supports 1.20.1 and newer', reasonKey: 'versions.loaderMinimum', reasonVars: { loader: 'NeoForge', version: '1.20.1' } };
   }
 
   if (loader === 'Forge') {
     return compareVersions(versionId, '1.1') >= 0
       ? { available: true }
-      : { available: false, reason: 'Forge has no build for this version' };
+      : { available: false, reason: 'Forge has no build for this version', reasonKey: 'versions.loaderNoBuild', reasonVars: { loader: 'Forge', version: versionId } };
   }
 
   return { available: true };
 }
 
-export function formatReleaseDate(iso) {
+export function formatReleaseDate(iso, locale) {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'

@@ -12,6 +12,7 @@ import {
   useAppearance
 } from '../../lib/appearance.js';
 import './AppearancePanel.css';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 /* Real theme values, hardcoded on purpose: the previews used to read live
    CSS variables, so every card painted with the *active* theme and looked
@@ -62,6 +63,7 @@ function SurfacePreview({ surfaceId, accent, radius }) {
 }
 
 export default function AppearancePanel() {
+  const { t } = useI18n();
   const [appearance, update] = useAppearance();
   const [hexDraft, setHexDraft] = useState(appearance.accent);
 
@@ -78,13 +80,13 @@ export default function AppearancePanel() {
       {/* ---------------- accent ---------------- */}
       <section className="ap-section">
         <div className="ap-section-head">
-          <h4 className="ap-section-title">Accent colour</h4>
+          <h4 className="ap-section-title">{t('appearance.accent')}</h4>
           <button type="button" className="ap-reset" onClick={() => {
             resetAppearance();
             setHexDraft(DEFAULT_APPEARANCE.accent);
           }}>
             <NativeIcon name="refresh" size={13} />
-            <span>Reset all</span>
+            <span>{t('appearance.reset')}</span>
           </button>
         </div>
 
@@ -93,7 +95,7 @@ export default function AppearancePanel() {
             <button
               key={preset.id}
               type="button"
-              title={preset.name}
+              title={t(`appearance.accent.${preset.id}`)}
               className={'ap-accent-dot ' + (appearance.accent === preset.hex ? 'active' : '')}
               style={{ background: preset.hex }}
               onClick={() => {
@@ -129,8 +131,8 @@ export default function AppearancePanel() {
       {/* ---------------- surfaces ---------------- */}
       <section className="ap-section">
         <div className="ap-section-head">
-          <h4 className="ap-section-title">Background</h4>
-          <span className="ap-section-note">How dark the launcher chrome gets</span>
+          <h4 className="ap-section-title">{t('appearance.background')}</h4>
+          <span className="ap-section-note">{t('appearance.backgroundDesc')}</span>
         </div>
 
         <div className="ap-surface-grid">
@@ -148,8 +150,8 @@ export default function AppearancePanel() {
               />
 
               <div className="ap-surface-meta">
-                <span className="ap-surface-name">{preset.name}</span>
-                <span className="ap-surface-desc">{preset.desc}</span>
+                <span className="ap-surface-name">{t(`appearance.surface.${preset.id}`)}</span>
+                <span className="ap-surface-desc">{t(`appearance.surfaceDesc.${preset.id}`)}</span>
               </div>
 
               {appearance.surface === preset.id && (
@@ -166,8 +168,8 @@ export default function AppearancePanel() {
       <section className="ap-section">
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Contrast</span>
-            <span className="ap-row-desc">Strength of borders and secondary text</span>
+            <span className="ap-row-title">{t('appearance.contrast')}</span>
+            <span className="ap-row-desc">{t('appearance.contrastDesc')}</span>
           </div>
           <div className="ap-segmented">
             {CONTRAST_PRESETS.map((preset) => (
@@ -177,7 +179,7 @@ export default function AppearancePanel() {
                 className={appearance.contrast === preset.id ? 'active' : ''}
                 onClick={() => update({ contrast: preset.id })}
               >
-                {preset.name}
+                {t(`appearance.contrast.${preset.id}`)}
               </button>
             ))}
           </div>
@@ -185,8 +187,8 @@ export default function AppearancePanel() {
 
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Corner rounding</span>
-            <span className="ap-row-desc">Applies to cards, buttons and menus</span>
+            <span className="ap-row-title">{t('appearance.rounding')}</span>
+            <span className="ap-row-desc">{t('appearance.roundingDesc')}</span>
           </div>
           <div className="ap-segmented">
             {RADIUS_PRESETS.map((preset) => (
@@ -196,7 +198,7 @@ export default function AppearancePanel() {
                 className={appearance.radius === preset.id ? 'active' : ''}
                 onClick={() => update({ radius: preset.id })}
               >
-                {preset.name}
+                {t(`appearance.radius.${preset.id}`)}
               </button>
             ))}
           </div>
@@ -204,8 +206,8 @@ export default function AppearancePanel() {
 
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Interface scale</span>
-            <span className="ap-row-desc">Zoom the whole launcher</span>
+            <span className="ap-row-title">{t('appearance.scale')}</span>
+            <span className="ap-row-desc">{t('appearance.scaleDesc')}</span>
           </div>
           <div className="ap-slider-wrap">
             <input
@@ -222,8 +224,8 @@ export default function AppearancePanel() {
 
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Home wallpaper dim</span>
-            <span className="ap-row-desc">Darkens the artwork behind the home page</span>
+            <span className="ap-row-title">{t('appearance.wallpaperDim')}</span>
+            <span className="ap-row-desc">{t('appearance.wallpaperDimDesc')}</span>
           </div>
           <div className="ap-slider-wrap">
             <input
@@ -245,15 +247,15 @@ export default function AppearancePanel() {
             style={{ opacity: appearance.wallpaperDim / 100 }}
           />
           <div className="ap-wallpaper-text">
-            <span className="ap-wallpaper-title">Home wallpaper</span>
-            <span className="ap-wallpaper-sub">Live preview of the dim level</span>
+            <span className="ap-wallpaper-title">{t('appearance.homeWallpaper')}</span>
+            <span className="ap-wallpaper-sub">{t('appearance.liveDim')}</span>
           </div>
         </div>
 
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Animations</span>
-            <span className="ap-row-desc">Transitions, hover lifts and page fades</span>
+            <span className="ap-row-title">{t('appearance.animations')}</span>
+            <span className="ap-row-desc">{t('appearance.animationsDesc')}</span>
           </div>
           <label className="toggle-switch">
             <input
@@ -267,8 +269,8 @@ export default function AppearancePanel() {
 
         <div className="ap-row">
           <div className="ap-row-info">
-            <span className="ap-row-title">Accent glow</span>
-            <span className="ap-row-desc">Soft light around active and playing elements</span>
+            <span className="ap-row-title">{t('appearance.glow')}</span>
+            <span className="ap-row-desc">{t('appearance.glowDesc')}</span>
           </div>
           <label className="toggle-switch">
             <input
@@ -284,17 +286,17 @@ export default function AppearancePanel() {
       {/* ---------------- live sample ---------------- */}
       <section className="ap-section">
         <div className="ap-section-head">
-          <h4 className="ap-section-title">Preview</h4>
-          <span className="ap-section-note">Uses your current theme</span>
+          <h4 className="ap-section-title">{t('create.preview')}</h4>
+          <span className="ap-section-note">{t('appearance.previewDesc')}</span>
         </div>
 
         <div className="ap-live">
           <div className="ap-live-card">
-            <span className="ap-live-title">Survival 1.21</span>
-            <span className="ap-live-sub">Fabric - 42 mods</span>
+            <span className="ap-live-title">{t('appearance.sampleTitle')}</span>
+            <span className="ap-live-sub">Fabric · 42 mods</span>
             <div className="ap-live-chips">
               <span className="ap-live-chip">Vanilla</span>
-              <span className="ap-live-chip brand">Playing</span>
+              <span className="ap-live-chip brand">{t('appearance.playing')}</span>
             </div>
           </div>
 
@@ -305,9 +307,9 @@ export default function AppearancePanel() {
               style={{ color: accentText }}
             >
               <NativeIcon name="play" size={14} />
-              <span>Play</span>
+              <span>{t('instances.play')}</span>
             </button>
-            <button type="button" className="ap-live-ghost">Secondary</button>
+            <button type="button" className="ap-live-ghost">{t('appearance.secondary')}</button>
           </div>
         </div>
       </section>

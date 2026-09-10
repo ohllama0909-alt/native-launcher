@@ -6,6 +6,7 @@ import ScreenshotsTab from './ScreenshotsTab.jsx';
 import ModsTab from './ModsTab.jsx';
 import PacksTab from './PacksTab.jsx';
 import SettingsTab from './SettingsTab.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './ClusterDetailView.css';
 
 export default function ClusterDetailView({
@@ -19,6 +20,7 @@ export default function ClusterDetailView({
   onNavigateBrowse,
   initialTab = 'overview'
 }) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const loaderName = String(cluster?.mc_loader || cluster?.loader || 'Vanilla');
@@ -28,18 +30,18 @@ export default function ClusterDetailView({
      be installed. Resource packs still work, so Textures stays. */
   const tabs = useMemo(() => {
     const list = [
-      { id: 'overview', label: 'Overview' },
-      { id: 'logs', label: 'Logs' },
-      { id: 'screenshots', label: 'Screenshots' }
+      { id: 'overview', key: 'cluster.overview' },
+      { id: 'logs', key: 'cluster.logs' },
+      { id: 'screenshots', key: 'cluster.screenshots' }
     ];
 
     if (!isVanilla) {
-      list.push({ id: 'mods', label: 'Mods' });
-      list.push({ id: 'shaders', label: 'Shaders' });
+      list.push({ id: 'mods', key: 'cluster.mods' });
+      list.push({ id: 'shaders', key: 'cluster.shaders' });
     }
 
-    list.push({ id: 'textures', label: 'Textures' });
-    list.push({ id: 'settings', label: 'Settings' });
+    list.push({ id: 'textures', key: 'cluster.textures' });
+    list.push({ id: 'settings', key: 'common.settings' });
     return list;
   }, [isVanilla]);
 
@@ -59,7 +61,7 @@ export default function ClusterDetailView({
           <Icon name="arrow-left" size={14} />
           <span>{backLabel}</span>
         </button>
-        <div className="tab-empty-placeholder">No instance selected.</div>
+        <div className="tab-empty-placeholder">{t('cluster.noneSelected')}</div>
       </div>
     );
   }
@@ -69,14 +71,14 @@ export default function ClusterDetailView({
   const isBusy = launcherState?.busy;
 
   const getLaunchButtonLabel = () => {
-    if (isRunning) return 'Kill';
+    if (isRunning) return t('cluster.kill');
     if (isDownloading) {
       return launcherState?.percent
-        ? `Downloading ${Math.round(launcherState.percent)}%`
-        : 'Downloading...';
+        ? t('cluster.downloadingPercent', { percent: Math.round(launcherState.percent) })
+        : t('cluster.downloading');
     }
-    if (launcherState?.status === 'preparing') return 'Preparing...';
-    return 'Launch';
+    if (launcherState?.status === 'preparing') return t('cluster.preparing');
+    return t('cluster.launch');
   };
 
   const handleOpenFolder = () => {
@@ -89,8 +91,8 @@ export default function ClusterDetailView({
   const title = cluster.name || `${loaderName} ${version}`;
 
   const fallbackDesc = isVanilla
-    ? `Pure Minecraft ${version} with its own worlds, saves and settings.`
-    : `Minecraft ${version} on ${loaderName}, with its own mods, worlds and settings.`;
+    ? t('cluster.vanillaDescription', { version })
+    : t('cluster.loaderDescription', { version, loader: loaderName });
 
   return (
     <div className="cluster-detail-view">
@@ -109,7 +111,7 @@ export default function ClusterDetailView({
           <button
             className="cluster-icon-btn"
             onClick={handleOpenFolder}
-            title="Open game folder"
+            title={t('cluster.openGameFolder')}
           >
             <Icon name="folder" size={18} />
           </button>
@@ -137,7 +139,7 @@ export default function ClusterDetailView({
               className={`cluster-tab-btn ${isActive ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
-              <span>{tab.label}</span>
+              <span>{t(tab.key)}</span>
               {isActive && <div className="cluster-tab-underline" />}
             </button>
           );

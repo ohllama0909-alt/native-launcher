@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
 export const DEFAULTS = {
+  onboarding: {
+    completed: null,
+    language: 'en'
+  },
   appearance: {
     theme: 'redstone',
     backgroundMotion: true,

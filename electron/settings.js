@@ -4,6 +4,13 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const DEFAULTS = {
+  onboarding: {
+    // null distinguishes installs created before the onboarding flow existed.
+    // Existing account/instance data is used to migrate those users without
+    // making them repeat first-run setup.
+    completed: null,
+    language: 'en'
+  },
   appearance: {
     theme: 'redstone',
     backgroundMotion: true,

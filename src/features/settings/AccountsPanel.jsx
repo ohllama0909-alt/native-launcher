@@ -3,15 +3,16 @@ import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
 import { preloadAccountAvatars } from '../../lib/skins.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './AccountsPanel.css';
 
 const OFFLINE_NAME = /^[A-Za-z0-9_]{3,16}$/;
 
 const POSES = [
-  { id: 'walk', label: 'Walk' },
-  { id: 'run', label: 'Run' },
-  { id: 'idle', label: 'Idle' },
-  { id: 'fly', label: 'Fly' }
+  { id: 'walk', key: 'account.pose.walk' },
+  { id: 'run', key: 'account.pose.run' },
+  { id: 'idle', key: 'account.pose.idle' },
+  { id: 'fly', key: 'account.pose.fly' }
 ];
 
 export default function AccountsPanel({
@@ -22,6 +23,7 @@ export default function AccountsPanel({
   onAddOffline,
   onRemoveAccount
 }) {
+  const { t, formatNumber } = useI18n();
   const [pose, setPose] = useState('walk');
   const [paused, setPaused] = useState(false);
   const [spin, setSpin] = useState(true);
@@ -41,7 +43,7 @@ export default function AccountsPanel({
   const addOffline = async () => {
     const name = offlineName.trim();
     if (!OFFLINE_NAME.test(name)) {
-      setError('Use 3 to 16 letters, numbers or underscores.');
+      setError(t('error.offlineName'));
       return;
     }
 
@@ -51,7 +53,7 @@ export default function AccountsPanel({
       await onAddOffline?.(name);
       setOfflineName('');
     } catch {
-      setError('Could not add that account.');
+      setError(t('error.offlineAccount'));
     } finally {
       setBusy(false);
     }
@@ -63,7 +65,7 @@ export default function AccountsPanel({
     try {
       await onAddMicrosoft?.();
     } catch {
-      setError('Microsoft sign-in was cancelled.');
+      setError(t('error.microsoftLogin'));
     } finally {
       setBusy(false);
     }
@@ -88,13 +90,13 @@ export default function AccountsPanel({
         ) : (
           <div className="acc-stage-empty">
             <NativeIcon name="user" size={30} />
-            <span>No account yet</span>
+            <span>{t('account.noAccount')}</span>
           </div>
         )}
 
-        <div className="acc-stage-name">{active?.name || 'Signed out'}</div>
+        <div className="acc-stage-name">{active?.name || t('account.signedOut')}</div>
         <div className="acc-stage-sub">
-          {active ? (active.type === 'offline' ? 'Offline account' : 'Microsoft account') : 'Add an account to play'}
+          {active ? t(active.type === 'offline' ? 'account.offlineLong' : 'account.microsoftLong') : t('account.addToPlay')}
         </div>
 
         <div className="acc-pose-row">
@@ -105,7 +107,7 @@ export default function AccountsPanel({
               className={'acc-pose-btn ' + (pose === entry.id ? 'active' : '')}
               onClick={() => setPose(entry.id)}
             >
-              {entry.label}
+              {t(entry.key)}
             </button>
           ))}
         </div>
@@ -117,7 +119,7 @@ export default function AccountsPanel({
             onClick={() => setPaused((value) => !value)}
           >
             <NativeIcon name={paused ? 'play' : 'stop'} size={13} />
-            <span>{paused ? 'Play' : 'Pause'}</span>
+            <span>{paused ? t('instances.play') : t('account.pause')}</span>
           </button>
           <button
             type="button"
@@ -125,7 +127,7 @@ export default function AccountsPanel({
             onClick={() => setSpin((value) => !value)}
           >
             <NativeIcon name="refresh" size={13} />
-            <span>Rotate</span>
+            <span>{t('account.rotate')}</span>
           </button>
         </div>
       </section>
@@ -133,17 +135,16 @@ export default function AccountsPanel({
       {/* ---------------- account list ---------------- */}
       <section className="acc-list-col">
         <div className="acc-list-head">
-          <h3 className="acc-list-title">Your accounts</h3>
+          <h3 className="acc-list-title">{t('account.yours')}</h3>
           <span className="acc-list-count">
-            {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+            {t('account.count', { count: formatNumber(accounts.length) })}
           </span>
         </div>
 
         <div className="acc-list">
           {accounts.length === 0 && (
             <p className="acc-empty-text">
-              Sign in with Microsoft to play online, or create an offline profile for singleplayer
-              and LAN worlds.
+              {t('account.emptyLong')}
             </p>
           )}
 
@@ -165,17 +166,17 @@ export default function AccountsPanel({
                 <div className="acc-row-text">
                   <span className="acc-row-name">{account.name}</span>
                   <span className="acc-row-meta">
-                    {account.type === 'offline' ? 'Offline' : 'Microsoft'}
-                    {isActive ? ' - active' : ''}
+                    {t(account.type === 'offline' ? 'account.offline' : 'account.microsoft')}
+                    {isActive ? ` · ${t('account.active')}` : ''}
                   </span>
                 </div>
 
-                {isActive && <span className="acc-row-badge">Active</span>}
+                {isActive && <span className="acc-row-badge">{t('account.active')}</span>}
 
                 <button
                   type="button"
                   className="acc-row-remove"
-                  title={'Remove ' + account.name}
+                  title={t('account.removeNamed', { name: account.name })}
                   onClick={(event) => {
                     event.stopPropagation();
                     onRemoveAccount?.(account.id);
@@ -191,7 +192,7 @@ export default function AccountsPanel({
         <div className="acc-add-block">
           <button type="button" className="acc-ms-btn" onClick={addMicrosoft} disabled={busy}>
             <NativeIcon name="shield" size={15} />
-            <span>Sign in with Microsoft</span>
+            <span>{t('account.signInMicrosoft')}</span>
           </button>
 
           <div className="acc-offline-row">
@@ -200,7 +201,7 @@ export default function AccountsPanel({
               type="text"
               value={offlineName}
               maxLength={16}
-              placeholder="Offline username"
+              placeholder={t('account.offlineUsername')}
               onChange={(event) => {
                 setOfflineName(event.target.value);
                 if (error) setError('');
@@ -216,14 +217,14 @@ export default function AccountsPanel({
               disabled={busy || !offlineName.trim()}
             >
               <NativeIcon name="plus" size={15} />
-              <span>Add</span>
+              <span>{t('account.addButton')}</span>
             </button>
           </div>
 
           {error ? (
             <p className="acc-hint danger">{error}</p>
           ) : (
-            <p className="acc-hint">Offline profiles cannot join servers that require authentication.</p>
+            <p className="acc-hint">{t('account.offlineHint')}</p>
           )}
         </div>
       </section>

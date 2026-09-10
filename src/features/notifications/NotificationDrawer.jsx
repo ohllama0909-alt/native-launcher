@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './NotificationDrawer.css';
 
 export default function NotificationDrawer({
@@ -8,6 +9,7 @@ export default function NotificationDrawer({
   notifications = [],
   onClear
 }) {
+  const { t } = useI18n();
   if (!open) return null;
 
   return (
@@ -15,11 +17,11 @@ export default function NotificationDrawer({
       <div className="notifications-drawer-backdrop" onClick={onClose} />
       <div className="notifications-drawer-panel" onClick={(e) => e.stopPropagation()}>
         <div className="notifications-header">
-          <span className="notifications-title">Notifications</span>
+          <span className="notifications-title">{t('window.notifications')}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {notifications.length > 0 && (
               <button className="sub-btn" onClick={onClear}>
-                Clear All
+                {t('notifications.clear')}
               </button>
             )}
             <button className="icon-ctrl-btn" onClick={onClose}>
@@ -32,8 +34,8 @@ export default function NotificationDrawer({
           {notifications.length === 0 ? (
             <div className="tab-empty-placeholder">
               <Icon name="bell-01" size={28} />
-              <p>No new notifications</p>
-              <span>You're all caught up!</span>
+              <p>{t('notifications.empty')}</p>
+              <span>{t('notifications.caughtUp')}</span>
             </div>
           ) : (
             notifications.map((n) => (

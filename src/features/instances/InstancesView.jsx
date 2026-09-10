@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
-import { getClusterArt, formatDuration } from '../../data/versionsData.js';
+import { getClusterArt } from '../../data/versionsData.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './InstancesView.css';
 
 const SORTS = [
-  { id: 'recent', label: 'Recently played' },
-  { id: 'name', label: 'Name' },
-  { id: 'created', label: 'Newest' },
-  { id: 'playtime', label: 'Most played' }
+  { id: 'recent', key: 'instances.sortRecent' },
+  { id: 'name', key: 'instances.sortName' },
+  { id: 'created', key: 'instances.sortNewest' },
+  { id: 'playtime', key: 'instances.sortPlayed' }
 ];
 
 const LOADER_FILTERS = ['All', 'Vanilla', 'Fabric', 'Forge', 'NeoForge', 'Quilt'];
@@ -28,13 +29,13 @@ function artOf(instance) {
   return instance?.art || getClusterArt(instance || {});
 }
 
-function relativeTime(value) {
-  if (!value) return 'Never played';
+function relativeTime(value, formatRelativeTime, t) {
+  if (!value) return t('instances.neverPlayed');
   const then = new Date(value).getTime();
-  if (Number.isNaN(then)) return 'Never played';
+  if (Number.isNaN(then)) return t('instances.neverPlayed');
 
   const seconds = Math.max(1, Math.round((Date.now() - then) / 1000));
-  if (seconds < 60) return 'Just now';
+  if (seconds < 60) return formatRelativeTime(0, 'second');
 
   const steps = [
     { limit: 3600, div: 60, unit: 'minute' },
@@ -46,12 +47,12 @@ function relativeTime(value) {
   for (const step of steps) {
     if (seconds < step.limit) {
       const amount = Math.floor(seconds / step.div);
-      return `${amount} ${step.unit}${amount === 1 ? '' : 's'} ago`;
+      return formatRelativeTime(-amount, step.unit);
     }
   }
 
   const years = Math.floor(seconds / 31536000);
-  return `${years} year${years === 1 ? '' : 's'} ago`;
+  return formatRelativeTime(-years, 'year');
 }
 
 /** Reads whichever shape the launcher hook reports without assuming one. */
@@ -77,6 +78,7 @@ export default function InstancesView({
   onNavigateBrowse,
   onNotify
 }) {
+  const { t, formatDuration, formatNumber, formatRelativeTime } = useI18n();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('recent');
   const [loaderFilter, setLoaderFilter] = useState('All');
@@ -179,7 +181,7 @@ export default function InstancesView({
     try {
       await window.native?.instance?.openFolder?.(instance.id);
     } catch {
-      onNotify?.('Could not open folder', `Native could not open the folder for ${instance.name}.`);
+      onNotify?.(t('instances.folderError'), t('instances.folderErrorBody', { name: instance.name }));
     }
   };
 
@@ -195,7 +197,7 @@ export default function InstancesView({
   const doDelete = () => {
     if (!confirmDelete) return;
     onRemove?.(confirmDelete.id);
-    onNotify?.('Instance removed', `${confirmDelete.name} was deleted from your library.`);
+    onNotify?.(t('instances.removed'), t('instances.removedBody', { name: confirmDelete.name }));
     setConfirmDelete(null);
   };
 
@@ -205,19 +207,17 @@ export default function InstancesView({
     <div className="instances-view">
       <header className="instances-header">
         <div className="instances-heading-group">
-          <h1 className="instances-title">Instances</h1>
+          <h1 className="instances-title">{t('nav.instances')}</h1>
           <p className="instances-subtitle">
             {instances.length === 0
-              ? 'Create your first instance to get started.'
-              : `${instances.length} instance${instances.length === 1 ? '' : 's'} \u2022 ${formatDuration(
-                  totalPlaytime
-                )} played`}
+              ? t('instances.getStarted')
+              : t('instances.summary', { count: formatNumber(instances.length), duration: formatDuration(totalPlaytime) })}
           </p>
         </div>
 
         <button type="button" className="instances-brand-btn" onClick={onOpenCreateModal}>
           <NativeIcon name="plus" size={16} />
-          <span>New instance</span>
+          <span>{t('instances.new')}</span>
         </button>
       </header>
 
@@ -228,7 +228,7 @@ export default function InstancesView({
             <input
               type="text"
               value={search}
-              placeholder="Search instances"
+              placeholder={t('instances.search')}
               onChange={(event) => setSearch(event.target.value)}
             />
             {search && (
@@ -236,7 +236,7 @@ export default function InstancesView({
                 type="button"
                 className="instances-search-clear"
                 onClick={() => setSearch('')}
-                title="Clear search"
+                title={t('instances.clearSearch')}
               >
                 <NativeIcon name="close" size={14} />
               </button>
@@ -251,7 +251,7 @@ export default function InstancesView({
                 className={`instances-chip ${loaderFilter === option ? 'active' : ''}`}
                 onClick={() => setLoaderFilter(option)}
               >
-                {option}
+                {option === 'All' ? t('instances.all') : option}
               </button>
             ))}
           </div>
@@ -264,7 +264,7 @@ export default function InstancesView({
                 onClick={() => setSortOpen((value) => !value)}
               >
                 <NativeIcon name="sort" size={15} />
-                <span>{activeSort.label}</span>
+                <span>{t(activeSort.key)}</span>
                 <NativeIcon name="chevron-down" size={13} />
               </button>
 
@@ -280,7 +280,7 @@ export default function InstancesView({
                         setSortOpen(false);
                       }}
                     >
-                      <span>{entry.label}</span>
+                      <span>{t(entry.key)}</span>
                       {sort === entry.id && <NativeIcon name="check" size={13} />}
                     </button>
                   ))}
@@ -293,7 +293,7 @@ export default function InstancesView({
                 type="button"
                 className={layout === 'grid' ? 'active' : ''}
                 onClick={() => setLayout('grid')}
-                title="Grid view"
+                title={t('instances.gridView')}
               >
                 <NativeIcon name="grid" size={15} />
               </button>
@@ -301,7 +301,7 @@ export default function InstancesView({
                 type="button"
                 className={layout === 'list' ? 'active' : ''}
                 onClick={() => setLayout('list')}
-                title="List view"
+                title={t('instances.listView')}
               >
                 <NativeIcon name="list" size={15} />
               </button>
@@ -316,21 +316,18 @@ export default function InstancesView({
             <div className="instances-empty-icon">
               <NativeIcon name="cube" size={28} />
             </div>
-            <h2>No instances yet</h2>
-            <p>
-              An instance is one isolated copy of Minecraft with its own version, mod loader, mods
-              and worlds. Make as many as you like.
-            </p>
+            <h2>{t('home.empty')}</h2>
+            <p>{t('instances.emptyBody')}</p>
             <button type="button" className="instances-brand-btn" onClick={onOpenCreateModal}>
               <NativeIcon name="plus" size={16} />
-              <span>Create an instance</span>
+              <span>{t('instances.create')}</span>
             </button>
           </div>
         ) : visible.length === 0 ? (
           <div className="instances-empty small">
             <NativeIcon name="search" size={22} />
-            <h2>Nothing matches</h2>
-            <p>Try a different search or clear the loader filter.</p>
+            <h2>{t('instances.noMatch')}</h2>
+            <p>{t('instances.noMatchBody')}</p>
           </div>
         ) : (
           <div className={`instances-grid is-${layout}`}>
@@ -355,7 +352,7 @@ export default function InstancesView({
                     {running && (
                       <span className="instance-card-live">
                         <NativeIcon name="dot" size={10} />
-                        {launcher.status === 'running' ? 'Running' : launcher.status}
+                        {launcher.status === 'running' ? t('instances.running') : launcher.status}
                       </span>
                     )}
 
@@ -371,10 +368,10 @@ export default function InstancesView({
                             onLaunch?.(instance);
                           }
                         }}
-                        title={running ? 'Stop' : `Play ${instance.name}`}
+                        title={running ? t('home.kill') : t('instances.playNamed', { name: instance.name })}
                       >
                         <NativeIcon name={running ? 'stop' : 'play'} size={16} />
-                        <span>{running ? 'Stop' : 'Play'}</span>
+                        <span>{running ? t('home.kill') : t('instances.play')}</span>
                       </button>
                     </div>
                   </div>
@@ -390,7 +387,7 @@ export default function InstancesView({
                           type="button"
                           className="instance-card-menu-btn"
                           onClick={(event) => toggleCardMenu(instance, event)}
-                          title="More actions"
+                          title={t('instances.moreActions')}
                         >
                           <NativeIcon name="more-vertical" size={16} />
                         </button>
@@ -411,7 +408,7 @@ export default function InstancesView({
                               }}
                             >
                               <NativeIcon name="external-link" size={14} />
-                              <span>Open instance</span>
+                              <span>{t('instances.open')}</span>
                             </button>
                             <button
                               type="button"
@@ -422,7 +419,7 @@ export default function InstancesView({
                               }}
                             >
                               <NativeIcon name="compass" size={14} />
-                              <span>Add content</span>
+                              <span>{t('instances.addContent')}</span>
                             </button>
                             <button
                               type="button"
@@ -433,7 +430,7 @@ export default function InstancesView({
                               }}
                             >
                               <NativeIcon name="folder" size={14} />
-                              <span>Open folder</span>
+                              <span>{t('instances.openFolder')}</span>
                             </button>
 
                             <div className="instances-popover-divider" />
@@ -448,7 +445,7 @@ export default function InstancesView({
                               }}
                             >
                               <NativeIcon name="edit" size={14} />
-                              <span>Rename</span>
+                              <span>{t('common.rename')}</span>
                             </button>
                             <button
                               type="button"
@@ -459,7 +456,7 @@ export default function InstancesView({
                               }}
                             >
                               <NativeIcon name="copy" size={14} />
-                              <span>Duplicate</span>
+                              <span>{t('common.duplicate')}</span>
                             </button>
                             <button
                               type="button"
@@ -470,7 +467,7 @@ export default function InstancesView({
                               }}
                             >
                               <NativeIcon name="trash" size={14} />
-                              <span>Delete</span>
+                              <span>{t('common.delete')}</span>
                             </button>
                           </div>
                         )}
@@ -487,7 +484,7 @@ export default function InstancesView({
                         <NativeIcon name="clock" size={12} />
                         {formatDuration(instance.playtimeSecs || 0)}
                       </span>
-                      <span>{relativeTime(instance.lastPlayed)}</span>
+                      <span>{relativeTime(instance.lastPlayed, formatRelativeTime, t)}</span>
                     </div>
                   </div>
                 </article>
@@ -496,7 +493,7 @@ export default function InstancesView({
 
             <button type="button" className="instance-add-card" onClick={onOpenCreateModal}>
               <NativeIcon name="plus" size={22} />
-              <span>New instance</span>
+              <span>{t('instances.new')}</span>
             </button>
           </div>
         )}
@@ -505,7 +502,7 @@ export default function InstancesView({
       {renaming && (
         <div className="instances-dialog-backdrop" onClick={() => setRenaming(null)}>
           <div className="instances-dialog" onClick={(event) => event.stopPropagation()}>
-            <h3>Rename instance</h3>
+            <h3>{t('instances.rename')}</h3>
             <input
               className="instances-dialog-input"
               type="text"
@@ -520,7 +517,7 @@ export default function InstancesView({
             />
             <div className="instances-dialog-actions">
               <button type="button" className="instances-ghost-btn" onClick={() => setRenaming(null)}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -528,7 +525,7 @@ export default function InstancesView({
                 onClick={submitRename}
                 disabled={!renameValue.trim()}
               >
-                Save
+                {t('common.save')}
               </button>
             </div>
           </div>
@@ -538,9 +535,9 @@ export default function InstancesView({
       {confirmDelete && (
         <div className="instances-dialog-backdrop" onClick={() => setConfirmDelete(null)}>
           <div className="instances-dialog" onClick={(event) => event.stopPropagation()}>
-            <h3>Delete instance</h3>
+            <h3>{t('instances.delete')}</h3>
             <p className="instances-dialog-text">
-              {`Remove \u201c${confirmDelete.name}\u201d from your library? Files already downloaded stay on disk.`}
+              {t('instances.deleteConfirm', { name: confirmDelete.name })}
             </p>
             <div className="instances-dialog-actions">
               <button
@@ -548,10 +545,10 @@ export default function InstancesView({
                 className="instances-ghost-btn"
                 onClick={() => setConfirmDelete(null)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="button" className="instances-danger-btn" onClick={doDelete}>
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           </div>

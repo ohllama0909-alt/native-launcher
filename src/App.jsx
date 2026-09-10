@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import Shell from './features/shell/Shell.jsx';
 import UpdateCenter from './features/updater/UpdateCenter.jsx';
 import useUpdater from './features/updater/useUpdater.js';
+import OnboardingFlow from './features/onboarding/OnboardingFlow.jsx';
+import { setApplicationLocale } from './i18n/I18nProvider.jsx';
 
 const GUEST = { id: 'guest', name: 'Guest', uuid: null, type: 'guest', isMicrosoft: false };
 
@@ -9,6 +11,7 @@ export default function App() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  const [startup, setStartup] = useState({ ready: false, onboarding: false, settings: null });
   const [updateOpen, setUpdateOpen] = useState(false);
   const autoShownVersion = useRef(null);
   const updater = useUpdater();
@@ -20,12 +23,56 @@ export default function App() {
 
   useEffect(() => {
     window.native?.onMaximizedChange(setIsMaximized);
-    // Load saved accounts on startup
-    window.native?.accounts?.list().then((res) => {
-      if (res?.accounts?.length) {
-        setAccounts(res.accounts);
-        setActiveId(res.activeId);
+
+    const loadStartup = async () => {
+      if (window.native) {
+        const [accountData, settings, instanceData] = await Promise.all([
+          window.native.accounts?.list(),
+          window.native.settings?.load(),
+          window.native.instances?.load()
+        ]);
+
+        setAccounts(accountData?.accounts ?? []);
+        setActiveId(accountData?.activeId ?? null);
+
+        const completion = settings?.onboarding?.completed;
+        const hasExistingData = Boolean(
+          accountData?.accounts?.length || instanceData?.instances?.length
+        );
+        const onboarding = completion === true ? false : completion === false ? true : !hasExistingData;
+        setApplicationLocale(settings?.onboarding?.language || 'en');
+
+        // Transparently mark pre-onboarding installs as complete.
+        let migratedSettings = settings;
+        if (completion == null && hasExistingData) {
+          migratedSettings = {
+            ...settings,
+            onboarding: { language: settings?.onboarding?.language || 'en', completed: true }
+          };
+          await window.native.settings?.save(migratedSettings);
+        }
+
+        setStartup({ ready: true, onboarding, settings: migratedSettings });
+        return;
       }
+
+      const savedAccounts = [];
+      const rawSettings = localStorage.getItem('native.settings');
+      const rawInstances = localStorage.getItem('native.instances');
+      const settings = rawSettings ? JSON.parse(rawSettings) : {};
+      const instanceData = rawInstances ? JSON.parse(rawInstances) : null;
+      const completion = settings?.onboarding?.completed;
+      const hasExistingData = Boolean(instanceData?.instances?.length);
+      const onboarding = completion === true ? false : completion === false ? true : !hasExistingData;
+      setApplicationLocale(settings?.onboarding?.language || 'en');
+
+      setAccounts(savedAccounts);
+      setStartup({ ready: true, onboarding, settings });
+    };
+
+    loadStartup().catch((error) => {
+      console.error('Could not load startup state:', error);
+      setStartup({ ready: true, onboarding: true, settings: {} });
     });
   }, []);
 
@@ -71,29 +118,68 @@ export default function App() {
     await refreshAccounts();
   };
 
+  const handleOnboardingComplete = async ({ language, instance }) => {
+    const instanceData = { instances: [instance], selectedId: instance.id };
+    const nextSettings = {
+      ...(startup.settings ?? {}),
+      onboarding: { completed: true, language }
+    };
+
+    // Save the instance first. The completion marker is written last so a
+    // failed write never strands the user outside setup without an instance.
+    if (window.native) {
+      await window.native.instances.save(instanceData);
+      const savedSettings = await window.native.settings.save(nextSettings);
+      setStartup({ ready: true, onboarding: false, settings: savedSettings ?? nextSettings });
+    } else {
+      localStorage.setItem('native.instances', JSON.stringify(instanceData));
+      localStorage.setItem('native.settings', JSON.stringify(nextSettings));
+      setStartup({ ready: true, onboarding: false, settings: nextSettings });
+    }
+  };
+
+  if (!startup.ready) {
+    return <div className="window-frame" aria-label="Loading Native" />;
+  }
+
   return (
     <div className={`window-frame${isMaximized ? ' maximized' : ''}`}>
-      <UpdateCenter
-        open={updateOpen}
-        onClose={() => setUpdateOpen(false)}
-        status={updater.status}
-        onCheck={updater.check}
-        onDownload={updater.download}
-        onCancel={updater.cancel}
-        onInstall={updater.install}
-      />
-      <Shell
-        isMaximized={isMaximized}
-        account={account}
-        accounts={accounts}
-        activeId={activeId}
-        onAddMicrosoft={handleAddMicrosoft}
-        onAddOffline={handleAddOffline}
-        onSwitchAccount={handleSwitchAccount}
-        onRemoveAccount={handleRemoveAccount}
-        updateStatus={updater.status}
-        onOpenUpdater={() => setUpdateOpen(true)}
-      />
+      {startup.onboarding ? (
+        <OnboardingFlow
+          isMaximized={isMaximized}
+          accounts={accounts}
+          activeId={activeId}
+          initialLanguage={startup.settings?.onboarding?.language}
+          onAddMicrosoft={handleAddMicrosoft}
+          onAddOffline={handleAddOffline}
+          onSwitchAccount={handleSwitchAccount}
+          onComplete={handleOnboardingComplete}
+        />
+      ) : (
+        <>
+          <UpdateCenter
+            open={updateOpen}
+            onClose={() => setUpdateOpen(false)}
+            status={updater.status}
+            onCheck={updater.check}
+            onDownload={updater.download}
+            onCancel={updater.cancel}
+            onInstall={updater.install}
+          />
+          <Shell
+            isMaximized={isMaximized}
+            account={account}
+            accounts={accounts}
+            activeId={activeId}
+            onAddMicrosoft={handleAddMicrosoft}
+            onAddOffline={handleAddOffline}
+            onSwitchAccount={handleSwitchAccount}
+            onRemoveAccount={handleRemoveAccount}
+            updateStatus={updater.status}
+            onOpenUpdater={() => setUpdateOpen(true)}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -12,14 +12,15 @@ import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
 import useLauncher from '../launcher/useLauncher.js';
 import useInstances from '../instances/useInstances.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './Shell.css';
 
 const BACK_LABELS = {
-  home: 'Back to Home',
-  instances: 'Back to Instances',
-  versions: 'Back to Versions',
-  stats: 'Back to Statistics',
-  browse: 'Back to Browse'
+  home: 'back.home',
+  instances: 'back.instances',
+  versions: 'back.versions',
+  stats: 'back.stats',
+  browse: 'back.browse'
 };
 
 export default function Shell({
@@ -33,6 +34,7 @@ export default function Shell({
   onRemoveAccount,
   onOpenUpdater
 }) {
+  const { locale, t } = useI18n();
   // 'home' | 'instances' | 'versions' | 'browse' | 'stats' | 'cluster-detail'
   const [currentTab, setCurrentTab] = useState('home');
   const [clusterDetailTab, setClusterDetailTab] = useState('overview');
@@ -58,21 +60,22 @@ export default function Shell({
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           title,
           body,
-          time: new Date().toLocaleTimeString()
+          time: new Date().toLocaleTimeString(locale)
         },
         ...prev
       ].slice(0, 60)
     );
-  }, []);
+  }, [locale]);
 
   const handleLaunch = (cluster) => {
     if (!cluster) return;
     launcher.launch(cluster, account);
     notify(
-      'Launching game',
-      `Starting ${cluster.name || cluster.mc_version || cluster.version} \u2014 ${
-        cluster.mc_version || cluster.version
-      } ${cluster.mc_loader || cluster.loader}`
+      t('notify.launching'),
+      t('notify.starting', {
+        name: cluster.name || cluster.mc_version || cluster.version,
+        version: `${cluster.mc_version || cluster.version} ${cluster.mc_loader || cluster.loader}`
+      })
     );
   };
 
@@ -98,7 +101,7 @@ export default function Shell({
 
   const handleCreateInstance = (values, { open = true } = {}) => {
     const created = instancesManager.create(values);
-    notify('Instance created', `${created.name} \u2014 ${created.version} ${created.loader}`);
+    notify(t('notify.created'), `${created.name} \u2014 ${created.version} ${created.loader}`);
     if (open) handleOpenCluster(created, 'overview');
     return created;
   };
@@ -106,19 +109,19 @@ export default function Shell({
   const handleAddInstance = (instance) => {
     if (!instance?.id) return;
     instancesManager.add(instance);
-    notify('Modpack installed', `${instance.name} is ready to play`);
+    notify(t('notify.modpackInstalled'), t('notify.ready', { name: instance.name }));
   };
 
   const handleDuplicate = (id) => {
     const copy = instancesManager.duplicate(id);
-    if (copy) notify('Instance duplicated', copy.name);
+    if (copy) notify(t('notify.duplicated'), copy.name);
     return copy;
   };
 
   const handleRemoveInstance = (id) => {
     const target = instancesManager.instances.find((item) => item.id === id);
     instancesManager.remove(id);
-    if (target) notify('Instance removed', target.name);
+    if (target) notify(t('instances.removed'), target.name);
     if (currentTab === 'cluster-detail') setCurrentTab(detailOrigin);
   };
 
@@ -208,7 +211,7 @@ export default function Shell({
             cluster={instancesManager.selected}
             initialTab={clusterDetailTab}
             onBack={() => setCurrentTab(detailOrigin)}
-            backLabel={BACK_LABELS[detailOrigin] || 'Back'}
+            backLabel={BACK_LABELS[detailOrigin] ? t(BACK_LABELS[detailOrigin]) : t('common.back')}
             onLaunch={handleLaunch}
             onKill={launcher.kill}
             launcherState={launcher}

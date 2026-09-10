@@ -14,10 +14,12 @@ import {
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import './UpdateCenter.css';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 const BUSY_TYPES = new Set(['checking', 'preparing', 'downloading', 'installing']);
 
 export default function UpdateCenter({ open, onClose, status, onCheck, onDownload, onCancel, onInstall }) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (event) => event.key === 'Escape' && onClose();
@@ -29,7 +31,7 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
   if (!open) return null;
 
   const percent = Math.round(status.percent ?? 0);
-  const eta = getEta(status.total, status.transferred, status.bytesPerSecond);
+  const eta = getEta(status.total, status.transferred, status.bytesPerSecond, t);
   const checking = status.type === 'checking';
   const busy = BUSY_TYPES.has(status.type);
 
@@ -48,21 +50,21 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
             <span className="uc-brand-icon"><Rocket size={19} /></span>
             <span>
               <small>Native</small>
-              <strong id="uc-title">Update Center</strong>
+              <strong id="uc-title">{t('update.title')}</strong>
             </span>
           </div>
-          <button className="uc-close" onClick={onClose} aria-label="Close update center">
+          <button className="uc-close" onClick={onClose} aria-label={t('update.close')}>
             <X size={17} />
           </button>
         </header>
 
         <div className="uc-body">
-          <StatusHero status={status} percent={percent} />
+          <StatusHero status={status} percent={percent} t={t} />
 
           {status.type === 'downloading' && (
             <div className="uc-download-card">
               <div className="uc-progress-labels">
-                <span>{status.optimized ? 'Optimized patch' : 'Update package'}</span>
+                <span>{status.optimized ? t('update.optimizedPatch') : t('update.package')}</span>
                 <strong>{percent}%</strong>
               </div>
               <div className="uc-progress" role="progressbar" aria-valuenow={percent} aria-valuemin="0" aria-valuemax="100">
@@ -75,7 +77,7 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
               </div>
               {status.optimized && (
                 <p className="uc-smart-note">
-                  <Sparkles size={13} /> Reusing files already on this PC—only changed blocks are downloading.
+                  <Sparkles size={13} /> {t('update.reusingFiles')}
                 </p>
               )}
             </div>
@@ -84,21 +86,21 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
           {status.type === 'available' && (
             <>
               <div className="uc-version-row">
-                <VersionBadge label="Installed" version={status.currentVersion} />
+                <VersionBadge label={t('update.installed')} version={status.currentVersion} />
                 <span className="uc-version-arrow">→</span>
-                <VersionBadge label="Available" version={status.version} accent />
+                <VersionBadge label={t('update.available')} version={status.version} accent />
               </div>
               <div className="uc-benefits">
-                <span><Gauge size={14} /> Differential downloads</span>
-                <span><ShieldCheck size={14} /> Verified before install</span>
-                {status.fullSize > 0 && <span><DownloadCloud size={14} /> {formatBytes(status.fullSize)} full package</span>}
+                <span><Gauge size={14} /> {t('update.differential')}</span>
+                <span><ShieldCheck size={14} /> {t('update.verified')}</span>
+                {status.fullSize > 0 && <span><DownloadCloud size={14} /> {t('update.fullPackage', { size: formatBytes(status.fullSize) })}</span>}
               </div>
               <div className="uc-notes">
-                <h3>What’s new</h3>
+                <h3>{t('update.whatsNew')}</h3>
                 {notesHtml ? (
                   <div className="uc-notes-content" onClick={openExternalLink} dangerouslySetInnerHTML={{ __html: notesHtml }} />
                 ) : (
-                  <p className="uc-notes-empty">Performance improvements and launcher updates.</p>
+                  <p className="uc-notes-empty">{t('update.defaultNotes')}</p>
                 )}
               </div>
             </>
@@ -107,52 +109,52 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
           {status.type === 'error' && (
             <div className="uc-error-box">
               <AlertTriangle size={16} />
-              <span>{status.message || 'The update could not be completed.'}</span>
+              <span>{status.message || t('update.couldNotComplete')}</span>
             </div>
           )}
         </div>
 
         <footer className="uc-footer">
-          <span className="uc-footer-version">Current version {status.currentVersion ?? window.native?.version ?? '—'}</span>
+          <span className="uc-footer-version">{t('update.currentVersion', { version: status.currentVersion ?? window.native?.version ?? '—' })}</span>
           <div className="uc-actions">
             {status.type === 'available' && (
               <>
-                <button className="uc-btn uc-btn--ghost" onClick={onClose}>Later</button>
+                <button className="uc-btn uc-btn--ghost" onClick={onClose}>{t('update.later')}</button>
                 <button className="uc-btn uc-btn--primary" onClick={onDownload}>
-                  <DownloadCloud size={15} /> Download update
+                  <DownloadCloud size={15} /> {t('update.download')}
                 </button>
               </>
             )}
             {status.type === 'downloaded' && (
               <>
-                <button className="uc-btn uc-btn--ghost" onClick={onClose}>Restart later</button>
+                <button className="uc-btn uc-btn--ghost" onClick={onClose}>{t('update.restartLater')}</button>
                 <button className="uc-btn uc-btn--primary" onClick={onInstall}>
-                  <RefreshCw size={15} /> Restart &amp; install
+                  <RefreshCw size={15} /> {t('update.restartInstall')}
                 </button>
               </>
             )}
             {status.type === 'error' && (
               <>
-                <button className="uc-btn uc-btn--ghost" onClick={onClose}>Close</button>
+                <button className="uc-btn uc-btn--ghost" onClick={onClose}>{t('common.close')}</button>
                 <button className="uc-btn uc-btn--primary" onClick={status.operation === 'download' ? onDownload : onCheck}>
-                  <RefreshCw size={15} /> Retry
+                  <RefreshCw size={15} /> {t('common.retry')}
                 </button>
               </>
             )}
             {['preparing', 'downloading'].includes(status.type) && (
               <button className="uc-btn uc-btn--ghost" onClick={onCancel}>
-                <X size={15} /> Cancel download
+                <X size={15} /> {t('update.cancelDownload')}
               </button>
             )}
             {status.type === 'installing' && (
               <button className="uc-btn uc-btn--primary" disabled>
-                <Loader2 size={15} className="spin" /> Applying update…
+                <Loader2 size={15} className="spin" /> {t('update.applying')}
               </button>
             )}
             {['idle', 'checking', 'not-available', 'disabled'].includes(status.type) && (
               <button className="uc-btn uc-btn--primary" onClick={onCheck} disabled={busy || status.type === 'disabled'}>
                 {checking ? <Loader2 size={15} className="spin" /> : <RefreshCw size={15} />}
-                {checking ? 'Checking…' : 'Check for updates'}
+                {checking ? t('update.checking') : t('update.check')}
               </button>
             )}
           </div>
@@ -162,18 +164,18 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
   );
 }
 
-function StatusHero({ status, percent }) {
+function StatusHero({ status, percent, t }) {
   const states = {
-    idle: { icon: <ShieldCheck />, title: 'Updates handled automatically', text: 'Native checks quietly and lets you choose when to install.' },
-    disabled: { icon: <ShieldCheck />, title: 'Desktop updates', text: status.message || 'Update checks are available in packaged builds.' },
-    checking: { icon: <Loader2 className="spin" />, title: 'Checking for updates', text: 'Looking for the newest stable release…' },
-    'not-available': { icon: <CheckCircle2 />, title: 'You’re up to date', text: `Native ${status.currentVersion ?? ''} is the newest version.` },
-    available: { icon: <Sparkles />, title: `Native ${status.version} is ready`, text: 'Review what changed, then update when you’re ready.' },
-    preparing: { icon: <Loader2 className="spin" />, title: 'Preparing smart download', text: 'Comparing this release with the files already installed…' },
-    downloading: { icon: <DownloadCloud />, title: `Downloading ${percent}%`, text: status.optimized ? 'Only changed parts are being downloaded.' : 'Downloading and verifying the update package.' },
-    downloaded: { icon: <CheckCircle2 />, title: 'Update ready to install', text: `Native ${status.version} is verified. Restart to apply it.` },
-    installing: { icon: <Loader2 className="spin" />, title: 'Restarting Native', text: 'The update will be applied in a moment…' },
-    error: { icon: <AlertTriangle />, title: 'Update interrupted', text: 'Nothing was installed. Check your connection and try again.' }
+    idle: { icon: <ShieldCheck />, title: t('update.autoTitle'), text: t('update.autoText') },
+    disabled: { icon: <ShieldCheck />, title: t('update.desktopTitle'), text: status.message || t('update.desktopText') },
+    checking: { icon: <Loader2 className="spin" />, title: t('update.checkingTitle'), text: t('update.checkingText') },
+    'not-available': { icon: <CheckCircle2 />, title: t('update.upToDate'), text: t('update.newestVersion', { version: status.currentVersion ?? '' }) },
+    available: { icon: <Sparkles />, title: t('update.readyTitle', { version: status.version }), text: t('update.readyText') },
+    preparing: { icon: <Loader2 className="spin" />, title: t('update.preparingTitle'), text: t('update.preparingText') },
+    downloading: { icon: <DownloadCloud />, title: t('update.downloadingPercent', { percent }), text: status.optimized ? t('update.changedOnly') : t('update.downloadingText') },
+    downloaded: { icon: <CheckCircle2 />, title: t('update.installReady'), text: t('update.verifiedRestart', { version: status.version }) },
+    installing: { icon: <Loader2 className="spin" />, title: t('update.restarting'), text: t('update.applyingMoment') },
+    error: { icon: <AlertTriangle />, title: t('update.interrupted'), text: t('update.interruptedText') }
   };
   const content = states[status.type] ?? states.idle;
   return (
@@ -214,12 +216,12 @@ function formatBytes(value) {
 }
 
 function formatSpeed(value) {
-  return value > 0 ? `${formatBytes(value)}/s` : 'Calculating speed…';
+  return value > 0 ? `${formatBytes(value)}/s` : '—';
 }
 
-function getEta(total, transferred, speed) {
-  if (!total || !speed) return 'Estimating time…';
+function getEta(total, transferred, speed, t) {
+  if (!total || !speed) return t('update.estimating');
   const seconds = Math.max(0, Math.ceil((total - transferred) / speed));
-  if (seconds < 60) return `${seconds}s remaining`;
-  return `${Math.ceil(seconds / 60)}m remaining`;
+  if (seconds < 60) return t('update.secondsRemaining', { count: seconds });
+  return t('update.minutesRemaining', { count: Math.ceil(seconds / 60) });
 }

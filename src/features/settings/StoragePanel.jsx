@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
-import { formatDuration } from '../../data/versionsData.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './SettingsPanels.css';
 
 const CACHE_KEYS = [
-  { key: 'native.versionManifest', label: 'Version manifest' },
-  { key: 'native.patchNotes', label: 'Version artwork' },
-  { key: 'native.instances', label: 'Instance library' },
-  { key: 'native.preferences', label: 'Preferences' },
-  { key: 'native.appearance', label: 'Appearance' }
+  { key: 'native.versionManifest', labelKey: 'storage.versionManifest' },
+  { key: 'native.patchNotes', labelKey: 'storage.versionArtwork' },
+  { key: 'native.instances', labelKey: 'storage.instanceLibrary' },
+  { key: 'native.preferences', labelKey: 'storage.preferences' },
+  { key: 'native.appearance', labelKey: 'settings.appearance' }
 ];
 
-function formatBytes(bytes) {
+function formatBytes(bytes, formatNumber) {
   if (!bytes || bytes < 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let value = bytes;
@@ -20,7 +20,7 @@ function formatBytes(bytes) {
     value /= 1024;
     unit += 1;
   }
-  return (value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)) + ' ' + units[unit];
+  return formatNumber(value < 10 && unit > 0 ? value : Math.round(value), { maximumFractionDigits: 1 }) + ' ' + units[unit];
 }
 
 function localBytes(key) {
@@ -43,6 +43,7 @@ function countEntries(result) {
 }
 
 export default function StoragePanel({ instances = [] }) {
+  const { t, formatDate, formatDuration, formatNumber } = useI18n();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
@@ -145,47 +146,47 @@ export default function StoragePanel({ instances = [] }) {
     <div className="sp-panel">
       <div className="sp-metric-grid">
         <div className="sp-metric">
-          <span className="sp-metric-label">Instances</span>
-          <span className="sp-metric-value">{totals.instances}</span>
-          <span className="sp-metric-sub">{totals.installed} fully installed</span>
+          <span className="sp-metric-label">{t('nav.instances')}</span>
+          <span className="sp-metric-value">{formatNumber(totals.instances)}</span>
+          <span className="sp-metric-sub">{t('storage.fullyInstalled', { count: formatNumber(totals.installed) })}</span>
         </div>
         <div className="sp-metric">
-          <span className="sp-metric-label">Mods</span>
-          <span className="sp-metric-value">{totals.mods}</span>
-          <span className="sp-metric-sub">tracked by Native</span>
+          <span className="sp-metric-label">{t('detail.mods')}</span>
+          <span className="sp-metric-value">{formatNumber(totals.mods)}</span>
+          <span className="sp-metric-sub">{t('storage.tracked')}</span>
         </div>
         <div className="sp-metric">
-          <span className="sp-metric-label">Worlds</span>
-          <span className="sp-metric-value">{totals.worlds}</span>
-          <span className="sp-metric-sub">across every instance</span>
+          <span className="sp-metric-label">{t('storage.worlds')}</span>
+          <span className="sp-metric-value">{formatNumber(totals.worlds)}</span>
+          <span className="sp-metric-sub">{t('storage.acrossInstances')}</span>
         </div>
         <div className="sp-metric">
-          <span className="sp-metric-label">Packs</span>
-          <span className="sp-metric-value">{totals.packs}</span>
-          <span className="sp-metric-sub">resource and shader packs</span>
+          <span className="sp-metric-label">{t('storage.packs')}</span>
+          <span className="sp-metric-value">{formatNumber(totals.packs)}</span>
+          <span className="sp-metric-sub">{t('storage.packsDesc')}</span>
         </div>
         <div className="sp-metric">
-          <span className="sp-metric-label">Playtime</span>
+          <span className="sp-metric-label">{t('stats.playtime')}</span>
           <span className="sp-metric-value">{formatDuration(totals.playtime)}</span>
-          <span className="sp-metric-sub">recorded by the launcher</span>
+          <span className="sp-metric-sub">{t('storage.recorded')}</span>
         </div>
         <div className="sp-metric">
-          <span className="sp-metric-label">Local cache</span>
-          <span className="sp-metric-value">{formatBytes(totals.cacheBytes)}</span>
-          <span className="sp-metric-sub">manifest, artwork, settings</span>
+          <span className="sp-metric-label">{t('storage.localCache')}</span>
+          <span className="sp-metric-value">{formatBytes(totals.cacheBytes, formatNumber)}</span>
+          <span className="sp-metric-sub">{t('storage.cacheDesc')}</span>
         </div>
       </div>
 
       <div className="sp-section-head">
-        <h3 className="sp-section-title">Per instance</h3>
+        <h3 className="sp-section-title">{t('storage.perInstance')}</h3>
         <button type="button" className="sp-ghost-btn" onClick={scan} disabled={loading}>
           <NativeIcon name="refresh" size={13} className={loading ? 'is-spinning' : ''} />
-          <span>{loading ? 'Scanning' : 'Rescan'}</span>
+          <span>{t(loading ? 'storage.scanning' : 'storage.rescan')}</span>
         </button>
       </div>
 
       {rows.length === 0 ? (
-        <p className="sp-empty">No instances yet, so nothing is using disk space.</p>
+        <p className="sp-empty">{t('storage.empty')}</p>
       ) : (
         <div className="sp-rows">
           {rows.map((row) => {
@@ -202,38 +203,38 @@ export default function StoragePanel({ instances = [] }) {
                   <span className="sp-row-chip mono">{row.version}</span>
                   <span className="sp-row-chip">{row.loader}</span>
                   <span className="sp-row-spacer" />
-                  {row.installed === false && <span className="sp-row-warn">Not downloaded</span>}
-                  <span className="sp-row-count">{row.mods} mods</span>
-                  <span className="sp-row-count">{row.worlds} worlds</span>
+                  {row.installed === false && <span className="sp-row-warn">{t('storage.notDownloaded')}</span>}
+                  <span className="sp-row-count">{t('storage.modCount', { count: formatNumber(row.mods) })}</span>
+                  <span className="sp-row-count">{t('storage.worldCount', { count: formatNumber(row.worlds) })}</span>
                 </button>
 
                 {open && (
                   <div className="sp-row-body">
                     <div className="sp-detail-grid">
                       <div className="sp-detail">
-                        <span>Mods</span>
+                        <span>{t('detail.mods')}</span>
                         <strong>{row.mods}</strong>
                       </div>
                       <div className="sp-detail">
-                        <span>Worlds</span>
+                        <span>{t('storage.worlds')}</span>
                         <strong>{row.worlds}</strong>
                       </div>
                       <div className="sp-detail">
-                        <span>Resource packs</span>
+                        <span>{t('storage.resourcePacks')}</span>
                         <strong>{row.resourcepacks}</strong>
                       </div>
                       <div className="sp-detail">
-                        <span>Shader packs</span>
+                        <span>{t('storage.shaderPacks')}</span>
                         <strong>{row.shaderpacks}</strong>
                       </div>
                       <div className="sp-detail">
-                        <span>Playtime</span>
+                        <span>{t('stats.playtime')}</span>
                         <strong>{formatDuration(row.playtime)}</strong>
                       </div>
                       <div className="sp-detail">
-                        <span>Last played</span>
+                        <span>{t('storage.lastPlayed')}</span>
                         <strong>
-                          {row.lastPlayed ? new Date(row.lastPlayed).toLocaleDateString() : 'Never'}
+                          {row.lastPlayed ? formatDate(new Date(row.lastPlayed)) : t('storage.never')}
                         </strong>
                       </div>
                     </div>
@@ -241,7 +242,7 @@ export default function StoragePanel({ instances = [] }) {
                     <div className="sp-row-actions">
                       <button type="button" className="sp-ghost-btn" onClick={() => openFolder(row.id, '')}>
                         <NativeIcon name="folder" size={13} />
-                        <span>Instance folder</span>
+                        <span>{t('storage.instanceFolder')}</span>
                       </button>
                       <button
                         type="button"
@@ -249,7 +250,7 @@ export default function StoragePanel({ instances = [] }) {
                         onClick={() => openFolder(row.id, 'mods')}
                       >
                         <NativeIcon name="package" size={13} />
-                        <span>Mods</span>
+                        <span>{t('detail.mods')}</span>
                       </button>
                       <button
                         type="button"
@@ -257,7 +258,7 @@ export default function StoragePanel({ instances = [] }) {
                         onClick={() => openFolder(row.id, 'saves')}
                       >
                         <NativeIcon name="globe" size={13} />
-                        <span>Worlds</span>
+                        <span>{t('storage.worlds')}</span>
                       </button>
                     </div>
                   </div>
@@ -269,10 +270,10 @@ export default function StoragePanel({ instances = [] }) {
       )}
 
       <div className="sp-section-head">
-        <h3 className="sp-section-title">Cached data</h3>
+        <h3 className="sp-section-title">{t('storage.cachedData')}</h3>
         <button type="button" className="sp-ghost-btn danger" onClick={clearCaches}>
           <NativeIcon name="trash" size={13} />
-          <span>Clear download caches</span>
+          <span>{t('storage.clearCaches')}</span>
         </button>
       </div>
 
@@ -281,9 +282,9 @@ export default function StoragePanel({ instances = [] }) {
           const bytes = localBytes(entry.key);
           return (
             <div key={entry.key} className="sp-cache-row">
-              <span className="sp-cache-label">{entry.label}</span>
+              <span className="sp-cache-label">{t(entry.labelKey)}</span>
               <span className="sp-cache-key mono">{entry.key}</span>
-              <span className="sp-cache-size">{bytes ? formatBytes(bytes) : 'empty'}</span>
+              <span className="sp-cache-size">{bytes ? formatBytes(bytes, formatNumber) : t('storage.cacheEmpty')}</span>
             </div>
           );
         })}

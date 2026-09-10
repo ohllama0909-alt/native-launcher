@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './BrowseView.css';
 
 const MODRINTH_API = 'https://api.modrinth.com/v2';
@@ -18,25 +19,25 @@ function endpoint(path, params) {
  * dedicated .mrpack installer instead of a plain file download.
  */
 const CONTENT_TYPES = [
-  { id: 'mod', label: 'Mods', projectType: 'mod', folder: 'mods', icon: 'package' },
-  { id: 'modpack', label: 'Modpacks', projectType: 'modpack', folder: null, icon: 'layers' },
-  { id: 'shader', label: 'Shaderpacks', projectType: 'shader', folder: 'shaderpacks', icon: 'sparkles' },
+  { id: 'mod', labelKey: 'browse.mods', projectType: 'mod', folder: 'mods', icon: 'package' },
+  { id: 'modpack', labelKey: 'browse.modpacks', projectType: 'modpack', folder: null, icon: 'layers' },
+  { id: 'shader', labelKey: 'browse.shaderpacks', projectType: 'shader', folder: 'shaderpacks', icon: 'sparkles' },
   {
     id: 'resourcepack',
-    label: 'Resourcepacks',
+    labelKey: 'browse.resourcepacks',
     projectType: 'resourcepack',
     folder: 'resourcepacks',
     icon: 'image'
   },
-  { id: 'datapack', label: 'Datapacks', projectType: 'datapack', folder: 'datapacks', icon: 'file' }
+  { id: 'datapack', labelKey: 'browse.datapacks', projectType: 'datapack', folder: 'datapacks', icon: 'file' }
 ];
 
 const SORTS = [
-  { id: 'relevance', label: 'Relevance' },
-  { id: 'downloads', label: 'Downloads' },
-  { id: 'follows', label: 'Followers' },
-  { id: 'newest', label: 'Newest' },
-  { id: 'updated', label: 'Updated' }
+  { id: 'relevance', key: 'browse.relevance' },
+  { id: 'downloads', key: 'browse.downloads' },
+  { id: 'follows', key: 'browse.followers' },
+  { id: 'newest', key: 'browse.newest' },
+  { id: 'updated', key: 'browse.updated' }
 ];
 
 const LOADER_FACETS = new Set(['fabric', 'forge', 'neoforge', 'quilt']);
@@ -65,6 +66,7 @@ export default function BrowseView({
   onOpenCluster,
   onNotify
 }) {
+  const { t, formatNumber } = useI18n();
   const [contentType, setContentType] = useState('mod');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -214,7 +216,7 @@ export default function BrowseView({
         if (cancelled || err.name === 'AbortError') return;
         setResults([]);
         setTotalHits(0);
-        setError('Could not reach Modrinth. Check your connection and try again.');
+        setError(t('browse.connectionError'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -232,7 +234,8 @@ export default function BrowseView({
     page,
     filterToInstance,
     targetVersion,
-    loaderFacet
+    loaderFacet,
+    t
   ]);
 
   /* ------------------------------------------------------------ install */
@@ -253,10 +256,10 @@ export default function BrowseView({
       const created = await window.native.modpacks.install(id);
       if (created) {
         onAddInstance?.(created);
-        onNotify?.('Modpack installed', `${project.title} is ready to play.`);
+        onNotify?.(t('browse.modpackInstalled'), t('browse.readyToPlay', { name: project.title }));
       }
     } catch (err) {
-      onNotify?.('Install failed', err?.message || `Could not install ${project.title}.`);
+      onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
     } finally {
       markBusy(id, false);
       setPackProgress(null);
@@ -265,7 +268,7 @@ export default function BrowseView({
 
   const installContent = async (project) => {
     if (!target?.id) {
-      onNotify?.('No instance selected', 'Create an instance before installing content.');
+      onNotify?.(t('browse.noInstanceSelected'), t('browse.createBeforeInstall'));
       return;
     }
 
@@ -290,20 +293,20 @@ export default function BrowseView({
         response = await fetch(endpoint('/project/' + id + '/version'));
         versions = response.ok ? await response.json() : [];
         if (!Array.isArray(versions) || versions.length === 0) {
-          throw new Error('No downloadable versions were published for this project.');
+          throw new Error(t('browse.noDownloads'));
         }
         const label = [targetVersion, activeType.id === 'mod' ? targetLoader : null]
           .filter(Boolean)
           .join(' ');
         onNotify?.(
-          'No exact match',
-          `${project.title} has no build for ${label || 'this instance'}. Installing the latest release instead.`
+          t('browse.noExactMatch'),
+          t('browse.installingLatest', { name: project.title, target: label || t('browse.thisInstance') })
         );
       }
 
       const version = versions[0];
       const file = (version.files || []).find((entry) => entry.primary) || version.files?.[0];
-      if (!file?.url) throw new Error('That version has no downloadable file.');
+      if (!file?.url) throw new Error(t('browse.noFile'));
 
       await window.native.mods.install({
         instanceId: target.id,
@@ -322,9 +325,9 @@ export default function BrowseView({
       });
 
       await refreshInstalled();
-      onNotify?.('Installed', `${project.title} was added to ${target.name}.`);
+      onNotify?.(t('browse.installed'), t('browse.addedTo', { name: project.title, instance: target.name }));
     } catch (err) {
-      onNotify?.('Install failed', err?.message || `Could not install ${project.title}.`);
+      onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
     } finally {
       markBusy(id, false);
     }
@@ -343,7 +346,7 @@ export default function BrowseView({
       await window.native.mods.remove({ instanceId: target.id, projectId: id });
       await refreshInstalled();
     } catch (err) {
-      onNotify?.('Could not remove', err?.message || 'Removing that content failed.');
+      onNotify?.(t('browse.couldNotRemove'), err?.message || t('browse.removeFailed'));
     } finally {
       markBusy(id, false);
     }
@@ -402,15 +405,15 @@ export default function BrowseView({
           {onBack && (
             <button type="button" className="browse-back-link" onClick={onBack}>
               <NativeIcon name="arrow-left" size={15} />
-              <span>Back</span>
+              <span>{t('common.back')}</span>
             </button>
           )}
-          <h1 className="browse-title">Browse</h1>
-          <p className="browse-subtitle">Content from Modrinth, installed straight into an instance.</p>
+          <h1 className="browse-title">{t('nav.browse')}</h1>
+          <p className="browse-subtitle">{t('browse.subtitle')}</p>
         </div>
 
         <div className="browse-instance-picker">
-          <span className="browse-picker-label">Installing to</span>
+          <span className="browse-picker-label">{t('browse.installingTo')}</span>
           <div className="browse-picker-wrap">
             <button
               type="button"
@@ -419,7 +422,7 @@ export default function BrowseView({
               disabled={instances.length === 0}
             >
               <NativeIcon name="cube" size={15} />
-              <span>{target ? target.name : 'No instances'}</span>
+              <span>{target ? target.name : t('browse.noInstances')}</span>
               <NativeIcon name="chevron-down" size={13} />
             </button>
 
@@ -456,7 +459,7 @@ export default function BrowseView({
             onClick={() => setContentType(type.id)}
           >
             <NativeIcon name={type.icon} size={15} />
-            <span>{type.label}</span>
+            <span>{t(type.labelKey)}</span>
           </button>
         ))}
       </nav>
@@ -467,7 +470,7 @@ export default function BrowseView({
           <input
             type="text"
             value={query}
-            placeholder={`Search ${activeType.label.toLowerCase()}`}
+            placeholder={t('browse.searchType', { type: t(activeType.labelKey).toLocaleLowerCase() })}
             onChange={(event) => setQuery(event.target.value)}
           />
           {query && (
@@ -485,7 +488,7 @@ export default function BrowseView({
               className={`browse-sort-btn ${sort === entry.id ? 'active' : ''}`}
               onClick={() => setSort(entry.id)}
             >
-              {entry.label}
+              {t(entry.key)}
             </button>
           ))}
         </div>
@@ -495,13 +498,11 @@ export default function BrowseView({
             type="button"
             className={`browse-compat-toggle ${filterToInstance ? 'active' : ''}`}
             onClick={() => setFilterToInstance((value) => !value)}
-            title="Only show content compatible with the selected instance"
+            title={t('browse.compatibleOnly')}
           >
             <NativeIcon name={filterToInstance ? 'check-circle' : 'circle'} size={15} />
             <span>
-              {`Compatible with ${targetVersion}${
-                activeType.id === 'mod' && loaderFacet ? ' ' + targetLoader : ''
-              }`}
+              {t('browse.compatibleWith', { version: `${targetVersion}${activeType.id === 'mod' && loaderFacet ? ' ' + targetLoader : ''}` })}
             </span>
           </button>
         )}
@@ -509,10 +510,10 @@ export default function BrowseView({
 
       <div className="browse-body-row">
         <aside className="browse-categories">
-          <h2 className="browse-categories-heading">Categories</h2>
+          <h2 className="browse-categories-heading">{t('browse.categories')}</h2>
 
           {categories.length === 0 ? (
-            <p className="browse-categories-empty">No categories for this type.</p>
+            <p className="browse-categories-empty">{t('browse.noCategories')}</p>
           ) : (
             <div className="browse-categories-list">
               {categories.map((name) => {
@@ -544,7 +545,7 @@ export default function BrowseView({
               className="browse-clear-categories"
               onClick={() => setSelectedCategories([])}
             >
-              Clear filters
+              {t('browse.clearFilters')}
             </button>
           )}
         </aside>
@@ -554,10 +555,10 @@ export default function BrowseView({
             {loading ? (
               <span className="browse-loading-text">
                 <NativeIcon name="refresh" size={13} className="is-spinning" />
-                Searching...
+                {t('browse.searching')}
               </span>
             ) : (
-              <span>{`${totalHits.toLocaleString()} results`}</span>
+              <span>{t('browse.resultCount', { count: formatNumber(totalHits) })}</span>
             )}
           </div>
 
@@ -567,7 +568,7 @@ export default function BrowseView({
                 <span style={{ width: `${Math.min(100, Number(packProgress.percent) || 0)}%` }} />
               </div>
               <span className="browse-pack-detail">
-                {packProgress.detail || 'Installing modpack...'}
+                {packProgress.detail || t('browse.installingModpack')}
               </span>
             </div>
           )}
@@ -583,8 +584,7 @@ export default function BrowseView({
             <div className="browse-error">
               <NativeIcon name="search" size={18} />
               <p>
-                Nothing found. Try clearing the category filters or turning off the compatibility
-                filter.
+                {t('browse.nothingFound')}
               </p>
             </div>
           )}
@@ -616,7 +616,7 @@ export default function BrowseView({
                         {isInstalled && (
                           <span className="content-card-badge">
                             <NativeIcon name="check" size={10} />
-                            Installed
+                            {t('browse.installed')}
                           </span>
                         )}
                       </span>
@@ -624,11 +624,11 @@ export default function BrowseView({
                       <span className="content-card-stats">
                         <span>
                           <NativeIcon name="download" size={11} />
-                          {formatDownloads(project.downloads)}
+                          {formatNumber(project.downloads, { notation: 'compact', maximumFractionDigits: 1 })}
                         </span>
                         <span>
                           <NativeIcon name="star" size={11} />
-                          {formatDownloads(project.follows)}
+                          {formatNumber(project.follows, { notation: 'compact', maximumFractionDigits: 1 })}
                         </span>
                         {project.author && <span>{project.author}</span>}
                       </span>
@@ -643,7 +643,7 @@ export default function BrowseView({
                         onClick={() => handleRemove(project)}
                         disabled={isBusy}
                       >
-                        {isBusy ? '...' : 'Remove'}
+                        {isBusy ? '…' : t('common.remove')}
                       </button>
                     ) : (
                       <button
@@ -657,7 +657,7 @@ export default function BrowseView({
                         ) : (
                           <NativeIcon name="download" size={14} />
                         )}
-                        <span>{activeType.id === 'modpack' ? 'Install pack' : 'Install'}</span>
+                        <span>{activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</span>
                       </button>
                     )}
                   </div>
@@ -728,7 +728,7 @@ export default function BrowseView({
                 type="button"
                 className="content-modal-close"
                 onClick={() => setDetail(null)}
-                title="Close"
+                title={t('common.close')}
               >
                 <NativeIcon name="close" size={16} />
               </button>
@@ -737,20 +737,20 @@ export default function BrowseView({
             <div className="content-modal-body">
               <div className="content-modal-stats">
                 <div>
-                  <span>Downloads</span>
-                  <strong>{formatDownloads(detail.downloads)}</strong>
+                  <span>{t('browse.downloads')}</span>
+                  <strong>{formatNumber(detail.downloads, { notation: 'compact', maximumFractionDigits: 1 })}</strong>
                 </div>
                 <div>
-                  <span>Followers</span>
-                  <strong>{formatDownloads(detail.follows)}</strong>
+                  <span>{t('browse.followers')}</span>
+                  <strong>{formatNumber(detail.follows, { notation: 'compact', maximumFractionDigits: 1 })}</strong>
                 </div>
                 <div>
-                  <span>Licence</span>
-                  <strong>{detailData?.license?.id || detail.license || 'Unknown'}</strong>
+                  <span>{t('browse.licence')}</span>
+                  <strong>{detailData?.license?.id || detail.license || t('browse.unknown')}</strong>
                 </div>
                 <div>
-                  <span>Author</span>
-                  <strong>{detail.author || 'Unknown'}</strong>
+                  <span>{t('browse.author')}</span>
+                  <strong>{detail.author || t('browse.unknown')}</strong>
                 </div>
               </div>
 
@@ -763,9 +763,9 @@ export default function BrowseView({
               )}
 
               <section className="content-modal-section">
-                <h3>Versions</h3>
+                <h3>{t('nav.versions')}</h3>
                 {detailVersions.length === 0 ? (
-                  <p className="content-modal-muted">Loading version list...</p>
+                  <p className="content-modal-muted">{t('browse.loadingVersions')}</p>
                 ) : (
                   <div className="content-version-table">
                     {detailVersions.map((version) => (
@@ -796,7 +796,7 @@ export default function BrowseView({
                 }
               >
                 <NativeIcon name="external-link" size={14} />
-                <span>View on Modrinth</span>
+                <span>{t('browse.viewOnModrinth')}</span>
               </button>
 
               <button
@@ -809,7 +809,7 @@ export default function BrowseView({
                 disabled={activeType.id !== 'modpack' && !target}
               >
                 <NativeIcon name="download" size={14} />
-                <span>{activeType.id === 'modpack' ? 'Install pack' : 'Install'}</span>
+                <span>{activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</span>
               </button>
             </footer>
           </div>

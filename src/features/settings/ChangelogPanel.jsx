@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './SettingsPanels.css';
 
 const RELEASES_API =
@@ -48,6 +49,7 @@ function renderBody(body) {
 }
 
 export default function ChangelogPanel({ onOpenUpdater }) {
+  const { t, formatDate } = useI18n();
   const [releases, setReleases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,7 +84,7 @@ export default function ChangelogPanel({ onOpenUpdater }) {
         setOpenId(mapped[0]?.id ?? null);
       })
       .catch(() => {
-        if (!cancelled) setError('Could not reach GitHub. Connect to the internet to load release notes.');
+        if (!cancelled) setError(t('changelog.error'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -113,15 +115,15 @@ export default function ChangelogPanel({ onOpenUpdater }) {
         <div className="cl-status-text">
           <span className="cl-status-title">
             {loading
-              ? 'Checking releases'
+              ? t('changelog.checking')
               : upToDate
-                ? 'Native is up to date'
+                ? t('changelog.upToDate')
                 : latest
-                  ? 'Version ' + latest.version + ' is available'
-                  : 'Release notes'}
+                  ? t('changelog.available', { version: latest.version })
+                  : t('changelog.notes')}
           </span>
           <span className="cl-status-sub">
-            {currentVersion ? 'You are running ' + currentVersion : 'Local build'}
+            {currentVersion ? t('changelog.running', { version: currentVersion }) : t('changelog.localBuild')}
           </span>
         </div>
 
@@ -129,7 +131,7 @@ export default function ChangelogPanel({ onOpenUpdater }) {
           {onOpenUpdater && (
             <button type="button" className="sp-ghost-btn" onClick={onOpenUpdater}>
               <NativeIcon name="refresh" size={13} />
-              <span>Check for updates</span>
+              <span>{t('settings.checkUpdates')}</span>
             </button>
           )}
           <button
@@ -138,15 +140,15 @@ export default function ChangelogPanel({ onOpenUpdater }) {
             onClick={() => openExternal(RELEASES_PAGE)}
           >
             <NativeIcon name="external-link" size={13} />
-            <span>All releases</span>
+            <span>{t('changelog.allReleases')}</span>
           </button>
         </div>
       </div>
 
-      {loading && <p className="sp-empty">Loading release notes...</p>}
+      {loading && <p className="sp-empty">{t('changelog.loading')}</p>}
       {!loading && error && <p className="sp-empty">{error}</p>}
       {!loading && !error && releases.length === 0 && (
-        <p className="sp-empty">No published releases yet.</p>
+        <p className="sp-empty">{t('changelog.noReleases')}</p>
       )}
 
       <div className="cl-timeline">
@@ -164,14 +166,14 @@ export default function ChangelogPanel({ onOpenUpdater }) {
                 <span className="cl-dot" />
                 <span className="cl-entry-version">{release.version}</span>
 
-                {release.prerelease && <span className="cl-tag beta">Beta</span>}
-                {isCurrent && <span className="cl-tag current">Installed</span>}
-                {release === latest && !isCurrent && <span className="cl-tag new">Latest</span>}
+                {release.prerelease && <span className="cl-tag beta">{t('changelog.beta')}</span>}
+                {isCurrent && <span className="cl-tag current">{t('changelog.installed')}</span>}
+                {release === latest && !isCurrent && <span className="cl-tag new">{t('changelog.latest')}</span>}
 
                 <span className="cl-entry-title">{release.name}</span>
                 <span className="sp-row-spacer" />
                 <span className="cl-entry-date">
-                  {release.date ? new Date(release.date).toLocaleDateString() : ''}
+                  {release.date ? formatDate(new Date(release.date)) : ''}
                 </span>
                 <NativeIcon name={open ? 'chevron-down' : 'chevron-right'} size={14} />
               </button>
@@ -179,7 +181,7 @@ export default function ChangelogPanel({ onOpenUpdater }) {
               {open && (
                 <div className="cl-entry-body">
                   {release.body ? renderBody(release.body) : (
-                    <p className="cl-body-text">No notes were written for this release.</p>
+                    <p className="cl-body-text">{t('changelog.noNotes')}</p>
                   )}
 
                   <button
@@ -188,7 +190,7 @@ export default function ChangelogPanel({ onOpenUpdater }) {
                     onClick={() => openExternal(release.url)}
                   >
                     <NativeIcon name="external-link" size={13} />
-                    <span>Open on GitHub</span>
+                    <span>{t('changelog.openGitHub')}</span>
                   </button>
                 </div>
               )}

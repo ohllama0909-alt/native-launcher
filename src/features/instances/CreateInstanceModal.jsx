@@ -3,12 +3,12 @@ import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { RELEASE_LINES, getClusterArt } from '../../data/versionsData.js';
 import {
   LOADERS,
-  formatReleaseDate,
   getFabricGameVersions,
   getVersionManifest,
   loaderAvailability,
   versionLine
 } from '../../lib/mojang.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './CreateInstanceModal.css';
 
 const MAX_VERSION_ROWS = 90;
@@ -32,6 +32,7 @@ function artFor(versionId) {
 }
 
 export default function CreateInstanceModal({ open, instances = [], onClose, onCreate }) {
+  const { t, formatDate } = useI18n();
   const [manifest, setManifest] = useState(null);
   const [fabricSet, setFabricSet] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -142,16 +143,16 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
       >
         <header className="create-instance-header">
           <div>
-            <h2 className="create-instance-title">New instance</h2>
+            <h2 className="create-instance-title">{t('instances.new')}</h2>
             <p className="create-instance-sub">
-              Pick a version and a mod loader. Everything else can be changed later.
+              {t('create.subtitle')}
             </p>
           </div>
           <button
             type="button"
             className="create-instance-close"
             onClick={onClose}
-            title="Close"
+            title={t('common.close')}
           >
             <NativeIcon name="close" size={16} />
           </button>
@@ -161,7 +162,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
           <div className="create-instance-form">
             <div className="ci-field">
               <label className="ci-label" htmlFor="ci-name">
-                Instance name
+                {t('onboarding.instanceName')}
               </label>
               <input
                 id="ci-name"
@@ -170,7 +171,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
                 value={name}
                 maxLength={60}
                 autoFocus
-                placeholder="My survival world"
+                placeholder={t('create.namePlaceholder')}
                 onChange={(event) => {
                   setName(event.target.value);
                   setNameTouched(true);
@@ -179,14 +180,14 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
               {duplicateName && (
                 <p className="ci-hint warn">
                   <NativeIcon name="alert" size={13} />
-                  You already have an instance with this name.
+                  {t('create.duplicateName')}
                 </p>
               )}
             </div>
 
             <div className="ci-field">
               <div className="ci-label-row">
-                <span className="ci-label">Minecraft version</span>
+                <span className="ci-label">{t('onboarding.minecraftVersion')}</span>
                 <button
                   type="button"
                   className={`ci-toggle ${showSnapshots ? 'active' : ''}`}
@@ -195,7 +196,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
                   <span className="ci-toggle-track">
                     <span className="ci-toggle-knob" />
                   </span>
-                  Show snapshots
+                  {t('create.showSnapshots')}
                 </button>
               </div>
 
@@ -204,7 +205,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
                 <input
                   type="text"
                   value={search}
-                  placeholder="Search versions"
+                  placeholder={t('create.searchVersions')}
                   onChange={(event) => setSearch(event.target.value)}
                 />
               </label>
@@ -213,13 +214,13 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
                 {loading && !manifest && (
                   <div className="ci-version-empty">
                     <NativeIcon name="refresh" size={16} className="is-spinning" />
-                    <span>Loading versions...</span>
+                    <span>{t('onboarding.loadingVersions')}</span>
                   </div>
                 )}
 
                 {!loading && versions.length === 0 && (
                   <div className="ci-version-empty">
-                    <span>No versions match that search.</span>
+                    <span>{t('create.noVersionsMatch')}</span>
                   </div>
                 )}
 
@@ -235,7 +236,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
                       {entry.type !== 'release' && (
                         <span className="ci-version-tag">{entry.type.replace('old_', '')}</span>
                       )}
-                      {formatReleaseDate(entry.releaseTime) || ''}
+                      {entry.releaseTime ? formatDate(new Date(entry.releaseTime), { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
                     </span>
                     {version === entry.id && <NativeIcon name="check" size={14} />}
                   </button>
@@ -245,13 +246,13 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
               {manifest?.offline && (
                 <p className="ci-hint warn">
                   <NativeIcon name="alert" size={13} />
-                  Offline: showing the last version list Native cached.
+                  {t('create.offlineCache')}
                 </p>
               )}
             </div>
 
             <div className="ci-field">
-              <span className="ci-label">Mod loader</span>
+              <span className="ci-label">{t('onboarding.modLoader')}</span>
               <div className="ci-loader-row">
                 {LOADERS.map((option) => {
                   const state = version
@@ -265,7 +266,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
                         state.available ? '' : 'unavailable'
                       }`}
                       onClick={() => setLoader(option)}
-                      title={state.available ? option : state.reason}
+                      title={state.available ? option : state.reasonKey ? t(state.reasonKey, state.reasonVars) : state.reason}
                     >
                       {option}
                     </button>
@@ -275,14 +276,14 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
               {!availability.available && (
                 <p className="ci-hint warn">
                   <NativeIcon name="alert" size={13} />
-                  {availability.reason}
+                  {availability.reasonKey ? t(availability.reasonKey, availability.reasonVars) : availability.reason}
                 </p>
               )}
             </div>
 
             <div className="ci-field">
               <div className="ci-label-row">
-                <span className="ci-label">Memory</span>
+                <span className="ci-label">{t('onboarding.memory')}</span>
                 <span className="ci-ram-value">{`${(memoryMb / 1024).toFixed(1)} GB`}</span>
               </div>
               <input
@@ -302,7 +303,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
           </div>
 
           <aside className="create-instance-preview">
-            <span className="ci-preview-label">Preview</span>
+            <span className="ci-preview-label">{t('create.preview')}</span>
 
             <div className="ci-preview-card">
               <div className="ci-preview-art">
@@ -310,7 +311,7 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
                 <div className="ci-preview-fade" />
               </div>
               <div className="ci-preview-body">
-                <h3>{trimmedName || 'Untitled instance'}</h3>
+                <h3>{trimmedName || t('create.untitled')}</h3>
                 <div className="ci-preview-chips">
                   <span className="ci-preview-chip mono">{version || '--'}</span>
                   <span className="ci-preview-chip brand">{loader}</span>
@@ -320,20 +321,20 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
 
             <dl className="ci-preview-specs">
               <div>
-                <dt>Version</dt>
-                <dd>{version || 'Not selected'}</dd>
+                <dt>{t('create.version')}</dt>
+                <dd>{version || t('create.notSelected')}</dd>
               </div>
               <div>
-                <dt>Loader</dt>
+                <dt>{t('create.loader')}</dt>
                 <dd>{loader}</dd>
               </div>
               <div>
-                <dt>Memory</dt>
+                <dt>{t('onboarding.memory')}</dt>
                 <dd>{`${memoryMb} MB`}</dd>
               </div>
               <div>
-                <dt>Edition</dt>
-                <dd>{lineFor(version)?.name || 'Java Edition'}</dd>
+                <dt>{t('create.edition')}</dt>
+                <dd>{lineFor(version)?.name || t('create.javaEdition')}</dd>
               </div>
             </dl>
           </aside>
@@ -341,11 +342,11 @@ export default function CreateInstanceModal({ open, instances = [], onClose, onC
 
         <footer className="create-instance-footer">
           <button type="button" className="ci-ghost-btn" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="button" className="ci-brand-btn" onClick={submit} disabled={!canSubmit}>
             <NativeIcon name="plus" size={15} />
-            <span>Create instance</span>
+            <span>{t('onboarding.finish')}</span>
           </button>
         </footer>
       </div>

@@ -3,6 +3,7 @@ import Icon from '../../components/ui/Icon.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import ContextMenu from '../../components/ui/ContextMenu.jsx';
 import { getClusterArt } from '../../data/versionsData.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './HomeView.css';
 
 export default function HomeView({
@@ -15,6 +16,7 @@ export default function HomeView({
   onLaunch,
   onKill
 }) {
+  const { t } = useI18n();
   const [contextMenu, setContextMenu] = useState(null);
   const railRef = useRef(null);
   const cardRefs = useRef({});
@@ -32,14 +34,14 @@ export default function HomeView({
   );
 
   const getLaunchButtonLabel = () => {
-    if (isRunning) return 'Kill';
+    if (isRunning) return t('home.kill');
     if (isDownloading) {
       return launcherState?.percent
-        ? `Downloading ${Math.round(launcherState.percent)}%`
-        : 'Downloading...';
+        ? t('home.downloading', { percent: Math.round(launcherState.percent) })
+        : t('home.downloadingPlain');
     }
-    if (launcherState?.status === 'preparing') return 'Preparing...';
-    return 'Launch';
+    if (launcherState?.status === 'preparing') return t('home.preparing');
+    return t('home.launch');
   };
 
   // ---- switching -------------------------------------------------
@@ -104,13 +106,13 @@ export default function HomeView({
       y: e.clientY,
       title: `${targetCluster.mc_version || targetCluster.version} ${targetCluster.mc_loader || targetCluster.loader}`,
       items: [
-        { label: 'Overview', icon: 'info-circle', action: () => onOpenCluster(targetCluster, 'overview') },
-        { label: 'Logs', icon: 'terminal', action: () => onOpenCluster(targetCluster, 'logs') },
-        { label: 'Screenshots', icon: 'eye', action: () => onOpenCluster(targetCluster, 'screenshots') },
-        { label: 'Mods', icon: 'code-snippet-02', action: () => onOpenCluster(targetCluster, 'mods') },
-        { label: 'Shaders', icon: 'paint-pour', action: () => onOpenCluster(targetCluster, 'shaders') },
-        { label: 'Textures', icon: 'colors', action: () => onOpenCluster(targetCluster, 'textures') },
-        { label: 'Settings', icon: 'settings-02', action: () => onOpenCluster(targetCluster, 'settings') }
+        { label: t('detail.overview'), icon: 'info-circle', action: () => onOpenCluster(targetCluster, 'overview') },
+        { label: t('detail.logs'), icon: 'terminal', action: () => onOpenCluster(targetCluster, 'logs') },
+        { label: t('detail.screenshots'), icon: 'eye', action: () => onOpenCluster(targetCluster, 'screenshots') },
+        { label: t('detail.mods'), icon: 'code-snippet-02', action: () => onOpenCluster(targetCluster, 'mods') },
+        { label: t('detail.shaders'), icon: 'paint-pour', action: () => onOpenCluster(targetCluster, 'shaders') },
+        { label: t('detail.textures'), icon: 'colors', action: () => onOpenCluster(targetCluster, 'textures') },
+        { label: t('common.settings'), icon: 'settings-02', action: () => onOpenCluster(targetCluster, 'settings') }
       ]
     });
   };
@@ -149,14 +151,14 @@ export default function HomeView({
               <button
                 className="cluster-settings-btn"
                 onClick={() => onOpenCluster(cluster, 'overview')}
-                title="Instance options"
+                title={t('home.options')}
               >
                 <Icon name="settings-04" size={20} />
               </button>
             </div>
           </>
         ) : (
-          <h2 className="home-cluster-title" style={{ fontSize: 32 }}>No instances yet</h2>
+          <h2 className="home-cluster-title" style={{ fontSize: 32 }}>{t('home.empty')}</h2>
         )}
       </div>
 
@@ -164,8 +166,8 @@ export default function HomeView({
       <div className="home-recents-container">
         {instances.length > 0 && (
           <div className="recents-head">
-            <span className="recents-title">Your instances</span>
-            <span className="recents-hint">Scroll the row or press the arrow keys to switch</span>
+            <span className="recents-title">{t('home.yours')}</span>
+            <span className="recents-hint">{t('home.switchHint')}</span>
             {activeIndex >= 0 && (
               <span className="recents-counter">
                 {activeIndex + 1} / {instances.length}
@@ -181,7 +183,7 @@ export default function HomeView({
               className="recents-rail-btn"
               onClick={() => selectByOffset(-1)}
               disabled={activeIndex <= 0}
-              title="Previous instance"
+              title={t('home.previous')}
             >
               <NativeIcon name="chevron-left" size={18} />
             </button>
@@ -221,13 +223,13 @@ export default function HomeView({
               className="recents-rail-btn"
               onClick={() => selectByOffset(1)}
               disabled={activeIndex >= instances.length - 1}
-              title="Next instance"
+              title={t('home.next')}
             >
               <NativeIcon name="chevron-right" size={18} />
             </button>
           )}
 
-          <button className="other-versions-tile" onClick={onOpenVersions} title="All versions">
+          <button className="other-versions-tile" onClick={onOpenVersions} title={t('home.allVersions')}>
             <Icon name="dots-grid" size={40} />
           </button>
         </div>

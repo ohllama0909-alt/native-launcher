@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
-import { formatDuration } from '../../data/versionsData.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 export default function OverviewTab({ cluster }) {
+  const { t, formatDuration } = useI18n();
   const [whenMode, setWhenMode] = useState('day'); // 'day' | 'hour'
   const [dailyRange, setDailyRange] = useState('2W'); // '2W' | '1M' | '3M'
 
@@ -14,13 +15,13 @@ export default function OverviewTab({ cluster }) {
 
   // Day data for "When you play"
   const dayData = [
-    { label: 'Mon', minutes: 0 },
-    { label: 'Tue', minutes: 2 },
-    { label: 'Wed', minutes: 2 },
-    { label: 'Thu', minutes: 23, peak: true },
-    { label: 'Fri', minutes: 0 },
-    { label: 'Sat', minutes: 0 },
-    { label: 'Sun', minutes: 0 }
+    { label: t('day.mon'), minutes: 0 },
+    { label: t('day.tue'), minutes: 2 },
+    { label: t('day.wed'), minutes: 2 },
+    { label: t('day.thu'), minutes: 23, peak: true },
+    { label: t('day.fri'), minutes: 0 },
+    { label: t('day.sat'), minutes: 0 },
+    { label: t('day.sun'), minutes: 0 }
   ];
 
   // Hour data for "When you play"
@@ -51,9 +52,9 @@ export default function OverviewTab({ cluster }) {
   return (
     <div className="overview-tab-content">
       <div className="overview-section-header">
-        <h2 className="overview-section-title">Overview</h2>
+        <h2 className="overview-section-title">{t('cluster.overview')}</h2>
         <p className="overview-section-sub">
-          Play history & servers for {cluster?.mc_version || cluster?.version} {cluster?.mc_loader || cluster?.loader}
+          {t('overview.subtitle', { version: cluster?.mc_version || cluster?.version, loader: cluster?.mc_loader || cluster?.loader })}
         </p>
       </div>
 
@@ -62,7 +63,7 @@ export default function OverviewTab({ cluster }) {
         <div className="metric-card">
           <div className="metric-card-header">
             <Icon name="clock-rewind" size={16} />
-            <span>Total playtime</span>
+            <span>{t('overview.totalPlaytime')}</span>
           </div>
           <div className="metric-card-value">{formatDuration(totalPlaytime)}</div>
         </div>
@@ -70,7 +71,7 @@ export default function OverviewTab({ cluster }) {
         <div className="metric-card">
           <div className="metric-card-header">
             <Icon name="play" size={16} />
-            <span>Sessions</span>
+            <span>{t('overview.sessions')}</span>
           </div>
           <div className="metric-card-value">{sessions}</div>
         </div>
@@ -78,7 +79,7 @@ export default function OverviewTab({ cluster }) {
         <div className="metric-card">
           <div className="metric-card-header">
             <Icon name="calendar" size={16} />
-            <span>Avg / session</span>
+            <span>{t('overview.average')}</span>
           </div>
           <div className="metric-card-value">{formatDuration(avgSession)}</div>
         </div>
@@ -86,7 +87,7 @@ export default function OverviewTab({ cluster }) {
         <div className="metric-card">
           <div className="metric-card-header">
             <Icon name="rocket-02" size={16} />
-            <span>Active days</span>
+            <span>{t('overview.activeDays')}</span>
           </div>
           <div className="metric-card-value">{activeDays}</div>
         </div>
@@ -94,7 +95,7 @@ export default function OverviewTab({ cluster }) {
         <div className="metric-card">
           <div className="metric-card-header">
             <Icon name="globe-01" size={16} />
-            <span>Server joins</span>
+            <span>{t('overview.serverJoins')}</span>
           </div>
           <div className="metric-card-value">{serverJoins}</div>
         </div>
@@ -106,9 +107,9 @@ export default function OverviewTab({ cluster }) {
         <div className="chart-card">
           <div className="chart-header">
             <div className="chart-title-group">
-              <h3 className="chart-title">When you play</h3>
+              <h3 className="chart-title">{t('overview.whenYouPlay')}</h3>
               <p className="chart-subtitle">
-                {whenMode === 'day' ? 'Most active on Thu' : 'Peak around 4 PM'}
+                {whenMode === 'day' ? t('overview.mostActive', { day: t('day.thu') }) : t('overview.peakTime')}
               </p>
             </div>
 
@@ -117,32 +118,32 @@ export default function OverviewTab({ cluster }) {
                 className={`pill-btn ${whenMode === 'day' ? 'active' : ''}`}
                 onClick={() => setWhenMode('day')}
               >
-                Day
+                {t('overview.day')}
               </button>
               <button
                 className={`pill-btn ${whenMode === 'hour' ? 'active' : ''}`}
                 onClick={() => setWhenMode('hour')}
               >
-                Hour
+                {t('overview.hour')}
               </button>
             </div>
           </div>
 
           <div className="chart-legend-row">
             <span className="legend-indicator peak" />
-            <span className="legend-text">Thu <strong>23m</strong></span>
+            <span className="legend-text">{t('day.thu')} <strong>23{t('unit.minuteShort')}</strong></span>
           </div>
 
           <div className="chart-canvas">
             {/* Gridlines */}
             <div className="grid-line" style={{ bottom: '90%' }}>
-              <span className="grid-label">23m</span>
+              <span className="grid-label">23{t('unit.minuteShort')}</span>
             </div>
             <div className="grid-line" style={{ bottom: '48%' }}>
-              <span className="grid-label">11m</span>
+              <span className="grid-label">11{t('unit.minuteShort')}</span>
             </div>
             <div className="grid-line" style={{ bottom: '4%' }}>
-              <span className="grid-label">0m</span>
+              <span className="grid-label">0{t('unit.minuteShort')}</span>
             </div>
 
             {/* Bars */}
@@ -154,7 +155,7 @@ export default function OverviewTab({ cluster }) {
                     <div
                       className={`bar-fill ${d.peak ? 'highlight' : ''}`}
                       style={{ height: `${heightPercent}%` }}
-                      title={`${d.label}: ${d.minutes}m`}
+                      title={`${d.label}: ${d.minutes}${t('unit.minuteShort')}`}
                     />
                     <span className="bar-axis-label">{d.label}</span>
                   </div>
@@ -168,15 +169,15 @@ export default function OverviewTab({ cluster }) {
         <div className="chart-card">
           <div className="chart-header">
             <div className="chart-title-group">
-              <h3 className="chart-title">Daily playtime</h3>
-              <p className="chart-subtitle">27m · Jul 22 – Jul 30</p>
+              <h3 className="chart-title">{t('overview.dailyPlaytime')}</h3>
+              <p className="chart-subtitle">{t('overview.samplePeriod')}</p>
             </div>
 
             <div className="pill-controls-row">
-              <button className="pill-nav-btn" title="Previous">
+              <button className="pill-nav-btn" title={t('common.previous')}>
                 <Icon name="chevrons-left" size={14} />
               </button>
-              <button className="pill-nav-btn" title="Next">
+              <button className="pill-nav-btn" title={t('common.next')}>
                 <Icon name="chevrons-right" size={14} />
               </button>
               <div className="pill-toggle-group">
@@ -204,19 +205,19 @@ export default function OverviewTab({ cluster }) {
 
           <div className="chart-legend-row">
             <span className="legend-indicator peak" />
-            <span className="legend-text">Total <strong>27m</strong></span>
+            <span className="legend-text">{t('overview.total')} <strong>27{t('unit.minuteShort')}</strong></span>
           </div>
 
           <div className="chart-canvas">
             {/* Gridlines */}
             <div className="grid-line" style={{ bottom: '90%' }}>
-              <span className="grid-label">23m</span>
+              <span className="grid-label">23{t('unit.minuteShort')}</span>
             </div>
             <div className="grid-line" style={{ bottom: '48%' }}>
-              <span className="grid-label">11m</span>
+              <span className="grid-label">11{t('unit.minuteShort')}</span>
             </div>
             <div className="grid-line" style={{ bottom: '4%' }}>
-              <span className="grid-label">0m</span>
+              <span className="grid-label">0{t('unit.minuteShort')}</span>
             </div>
 
             {/* Bars */}
@@ -228,7 +229,7 @@ export default function OverviewTab({ cluster }) {
                     <div
                       className={`bar-fill ${d.peak ? 'highlight' : ''}`}
                       style={{ height: `${heightPercent}%` }}
-                      title={`${d.date}: ${d.minutes}m`}
+                      title={`${d.date}: ${d.minutes}${t('unit.minuteShort')}`}
                     />
                     <span className="bar-axis-label">{d.date}</span>
                   </div>

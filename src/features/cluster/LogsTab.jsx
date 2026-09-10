@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 export default function LogsTab({ cluster }) {
+  const { locale, t } = useI18n();
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
@@ -23,13 +25,13 @@ export default function LogsTab({ cluster }) {
 
     // Subscribe to live log streaming from launcher
     const offLog = window.native?.launcher?.onLog?.((line) => {
-      setLogs((prev) => [...prev.slice(-3000), { id: Date.now() + Math.random(), text: line, time: new Date().toLocaleTimeString() }]);
+      setLogs((prev) => [...prev.slice(-3000), { id: Date.now() + Math.random(), text: line, time: new Date().toLocaleTimeString(locale) }]);
     });
 
     return () => {
       if (offLog) offLog();
     };
-  }, [cluster?.id]);
+  }, [cluster?.id, locale]);
 
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
@@ -81,7 +83,7 @@ export default function LogsTab({ cluster }) {
           <Icon name="search-md" size={14} />
           <input
             type="text"
-            placeholder="Filter logs..."
+            placeholder={t('logs.filter')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -94,17 +96,17 @@ export default function LogsTab({ cluster }) {
               checked={autoScroll}
               onChange={(e) => setAutoScroll(e.target.checked)}
             />
-            <span>Auto-scroll</span>
+            <span>{t('logs.autoScroll')}</span>
           </label>
 
           <button className="sub-btn" onClick={handleCopy}>
             <Icon name="code-snippet-02" size={14} />
-            <span>{copied ? 'Copied!' : 'Copy'}</span>
+            <span>{copied ? t('logs.copied') : t('logs.copy')}</span>
           </button>
 
           <button className="sub-btn" onClick={handleClear}>
             <Icon name="trash-01" size={14} />
-            <span>Clear</span>
+            <span>{t('common.clear')}</span>
           </button>
 
           <button
@@ -113,7 +115,7 @@ export default function LogsTab({ cluster }) {
             disabled={uploading || logs.length === 0}
           >
             <Icon name="link-external" size={14} />
-            <span>{uploading ? 'Uploading...' : uploadedUrl ? 'Copied Link!' : 'Upload to mclo.gs'}</span>
+            <span>{uploading ? t('logs.uploading') : uploadedUrl ? t('logs.linkCopied') : t('logs.upload')}</span>
           </button>
         </div>
       </div>
@@ -122,8 +124,8 @@ export default function LogsTab({ cluster }) {
         {filteredLogs.length === 0 ? (
           <div className="log-empty-note">
             {logs.length === 0
-              ? 'No log entries yet. Launch this version to see live console output.'
-              : 'No logs match your filter.'}
+              ? t('logs.empty')
+              : t('logs.noMatch')}
           </div>
         ) : (
           filteredLogs.map((l) => (

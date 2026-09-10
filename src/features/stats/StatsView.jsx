@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
-import { formatDuration } from '../../data/versionsData.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './StatsView.css';
 
 const playSeconds = (instance) =>
@@ -11,20 +11,19 @@ const sessionCount = (instance) =>
 
 const loaderOf = (instance) => instance?.mc_loader || instance?.loader || 'Vanilla';
 
-function relativeDay(value) {
-  if (!value) return 'never';
+function relativeDay(value, formatRelativeTime) {
+  if (!value) return formatRelativeTime(0, 'day');
   const time = new Date(value).getTime();
-  if (Number.isNaN(time)) return 'never';
+  if (Number.isNaN(time)) return formatRelativeTime(0, 'day');
 
   const days = Math.floor((Date.now() - time) / 86400000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 30) return days + ' days ago';
+  if (days < 30) return formatRelativeTime(-days, 'day');
   const months = Math.floor(days / 30);
-  return months === 1 ? 'a month ago' : months + ' months ago';
+  return formatRelativeTime(-months, 'month');
 }
 
 export default function StatsView({ instances = [] }) {
+  const { t, formatDuration, formatNumber, formatRelativeTime } = useI18n();
   const [servers, setServers] = useState([]);
   const [serversReady, setServersReady] = useState(false);
 
@@ -85,34 +84,38 @@ export default function StatsView({ instances = [] }) {
     {
       key: 'playtime',
       icon: 'clock',
-      label: 'Total playtime',
+      label: t('stats.playtime'),
       value: summary.totalSeconds ? formatDuration(summary.totalSeconds) : '0m',
-      note: summary.lastPlayed ? 'Last played ' + relativeDay(summary.lastPlayed) : 'No sessions recorded yet'
+      note: summary.lastPlayed
+        ? t('stats.lastPlayed', { time: relativeDay(summary.lastPlayed, formatRelativeTime) })
+        : t('stats.noSessions')
     },
     {
       key: 'sessions',
       icon: 'play',
-      label: 'Sessions',
-      value: String(summary.totalSessions),
+      label: t('stats.sessions'),
+      value: formatNumber(summary.totalSessions),
       note: summary.averageSession
-        ? formatDuration(summary.averageSession) + ' average'
-        : 'Launch an instance to start tracking'
+        ? t('stats.average', { duration: formatDuration(summary.averageSession) })
+        : t('stats.startTracking')
     },
     {
       key: 'instances',
       icon: 'cube',
-      label: 'Instances',
-      value: String(instances.length),
-      note: summary.busiest ? 'Most played: ' + (summary.busiest.name || summary.busiest.version) : 'Nothing installed yet'
+      label: t('stats.instances'),
+      value: formatNumber(instances.length),
+      note: summary.busiest
+        ? t('stats.mostPlayed', { name: summary.busiest.name || summary.busiest.version })
+        : t('stats.nothingInstalled')
     },
     {
       key: 'modded',
       icon: 'package',
-      label: 'Modded',
-      value: String(summary.modded),
+      label: t('stats.modded'),
+      value: formatNumber(summary.modded),
       note: instances.length
-        ? Math.round((summary.modded / instances.length) * 100) + '% of your instances'
-        : 'No loaders configured'
+        ? t('stats.percentModded', { percent: formatNumber(Math.round((summary.modded / instances.length) * 100)) })
+        : t('stats.noLoaders')
     }
   ];
 
@@ -120,8 +123,8 @@ export default function StatsView({ instances = [] }) {
     <div className="stats-view">
       <header className="stats-header">
         <div>
-          <h1 className="stats-title">Statistics</h1>
-          <p className="stats-subtitle">Everything here is measured from your own instances.</p>
+          <h1 className="stats-title">{t('stats.title')}</h1>
+          <p className="stats-subtitle">{t('stats.subtitle')}</p>
         </div>
       </header>
 
@@ -142,8 +145,8 @@ export default function StatsView({ instances = [] }) {
         <section className="stats-panel-grid">
           <article className="stats-panel">
             <header className="stats-panel-head">
-              <h2 className="stats-panel-title">Playtime by instance</h2>
-              <span className="stats-panel-hint">Top {summary.ranked.length || 0}</span>
+              <h2 className="stats-panel-title">{t('stats.byInstance')}</h2>
+              <span className="stats-panel-hint">{t('stats.top', { count: formatNumber(summary.ranked.length || 0) })}</span>
             </header>
 
             {summary.ranked.length && maxPlay > 0 ? (
@@ -167,15 +170,15 @@ export default function StatsView({ instances = [] }) {
             ) : (
               <div className="stats-empty">
                 <NativeIcon name="clock" size={20} />
-                <p>No playtime recorded yet. Launch an instance and it will show up here.</p>
+                <p>{t('stats.noPlaytime')}</p>
               </div>
             )}
           </article>
 
           <article className="stats-panel">
             <header className="stats-panel-head">
-              <h2 className="stats-panel-title">Loaders</h2>
-              <span className="stats-panel-hint">{instances.length} total</span>
+              <h2 className="stats-panel-title">{t('stats.loaders')}</h2>
+              <span className="stats-panel-hint">{t('stats.total', { count: formatNumber(instances.length) })}</span>
             </header>
 
             {summary.loaders.length ? (
@@ -203,7 +206,7 @@ export default function StatsView({ instances = [] }) {
             ) : (
               <div className="stats-empty">
                 <NativeIcon name="layers" size={20} />
-                <p>Create an instance to see how your loaders break down.</p>
+                <p>{t('stats.noBreakdown')}</p>
               </div>
             )}
           </article>
@@ -211,8 +214,8 @@ export default function StatsView({ instances = [] }) {
 
         <section className="stats-panel">
           <header className="stats-panel-head">
-            <h2 className="stats-panel-title">Recent servers</h2>
-            <span className="stats-panel-hint">From your instance server lists</span>
+            <h2 className="stats-panel-title">{t('stats.recentServers')}</h2>
+            <span className="stats-panel-hint">{t('stats.serverSource')}</span>
           </header>
 
           {servers.length ? (
@@ -224,7 +227,7 @@ export default function StatsView({ instances = [] }) {
                   </span>
                   <span className="stats-server-text">
                     <span className="stats-server-name">{server.name || server.address || server.ip}</span>
-                    <span className="stats-server-addr">{server.address || server.ip || 'unknown host'}</span>
+                    <span className="stats-server-addr">{server.address || server.ip || t('stats.unknownHost')}</span>
                   </span>
                   {server.instance && <span className="stats-server-tag">{server.instance}</span>}
                 </li>
@@ -233,7 +236,7 @@ export default function StatsView({ instances = [] }) {
           ) : (
             <div className="stats-empty">
               <NativeIcon name="globe" size={20} />
-              <p>{serversReady ? 'No servers found in your instances yet.' : 'Reading your server lists...'}</p>
+              <p>{serversReady ? t('stats.noServers') : t('stats.readingServers')}</p>
             </div>
           )}
         </section>

@@ -2,14 +2,15 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './AppNavbar.css';
 
 export const NAV_TABS = [
-  { id: 'home', label: 'Home' },
-  { id: 'instances', label: 'Instances' },
-  { id: 'versions', label: 'Versions' },
-  { id: 'browse', label: 'Browse' },
-  { id: 'stats', label: 'Stats' }
+  { id: 'home', labelKey: 'nav.home' },
+  { id: 'instances', labelKey: 'nav.instances' },
+  { id: 'versions', labelKey: 'nav.versions' },
+  { id: 'browse', labelKey: 'nav.browse' },
+  { id: 'stats', labelKey: 'nav.stats' }
 ];
 
 export default function AppNavbar({
@@ -25,6 +26,7 @@ export default function AppNavbar({
   onMaximize,
   onClose
 }) {
+  const { t } = useI18n();
   const navRef = useRef(null);
   const itemRefs = useRef({});
   const [underline, setUnderline] = useState({ left: 0, width: 0, ready: false });
@@ -65,7 +67,9 @@ export default function AppNavbar({
     };
   }, [currentTab]);
 
-  const accountTitle = account?.name ? 'Account: ' + account.name : 'Accounts';
+  const accountTitle = account?.name
+    ? t('account.named', { name: account.name })
+    : t('account.accounts');
 
   return (
     <header className="app-navbar">
@@ -82,7 +86,7 @@ export default function AppNavbar({
       </div>
 
       {/* Primary navigation */}
-      <nav className="navbar-center" ref={navRef} aria-label="Primary">
+      <nav className="navbar-center" ref={navRef} aria-label={t('nav.primary')}>
         {NAV_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -94,7 +98,7 @@ export default function AppNavbar({
             onClick={() => onSelectTab(tab.id)}
             aria-current={currentTab === tab.id ? 'page' : undefined}
           >
-            <span className="nav-link-label">{tab.label}</span>
+            <span className="nav-link-label">{t(tab.labelKey)}</span>
           </button>
         ))}
         <span
@@ -110,8 +114,8 @@ export default function AppNavbar({
           type="button"
           className="nav-icon-btn"
           onClick={onOpenNotifications}
-          title="Notifications"
-          aria-label="Notifications"
+          title={t('window.notifications')}
+          aria-label={t('window.notifications')}
         >
           <NativeIcon name="bell" size={17} strokeWidth={1.7} />
           {unreadCount > 0 && (
@@ -123,8 +127,8 @@ export default function AppNavbar({
           type="button"
           className="nav-icon-btn"
           onClick={onOpenSettings}
-          title="Settings"
-          aria-label="Settings"
+          title={t('common.settings')}
+          aria-label={t('common.settings')}
         >
           <NativeIcon name="settings" size={17} strokeWidth={1.7} />
         </button>
@@ -144,8 +148,8 @@ export default function AppNavbar({
             type="button"
             className="window-ctrl-btn"
             onClick={onMinimize}
-            title="Minimize"
-            aria-label="Minimize"
+            title={t('window.minimize')}
+            aria-label={t('window.minimize')}
           >
             <NativeIcon name="minimize" size={14} strokeWidth={1.6} />
           </button>
@@ -154,8 +158,8 @@ export default function AppNavbar({
             type="button"
             className="window-ctrl-btn"
             onClick={onMaximize}
-            title={isMaximized ? 'Restore down' : 'Maximize'}
-            aria-label={isMaximized ? 'Restore down' : 'Maximize'}
+            title={t(isMaximized ? 'window.restore' : 'window.maximize')}
+            aria-label={t(isMaximized ? 'window.restore' : 'window.maximize')}
           >
             <NativeIcon name={isMaximized ? 'restore' : 'maximize'} size={13} strokeWidth={1.6} />
           </button>
@@ -164,8 +168,8 @@ export default function AppNavbar({
             type="button"
             className="window-ctrl-btn close"
             onClick={onClose}
-            title="Close"
-            aria-label="Close"
+            title={t('common.close')}
+            aria-label={t('common.close')}
           >
             <NativeIcon name="close" size={14} strokeWidth={1.6} />
           </button>

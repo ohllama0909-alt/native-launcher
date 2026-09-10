@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import { preloadAccountAvatars } from '../../lib/skins.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './AccountSwitcherModal.css';
 
 const OFFLINE_NAME = /^[A-Za-z0-9_]{3,16}$/;
@@ -16,6 +17,7 @@ export default function AccountSwitcherModal({
   onAddOffline,
   onRemoveAccount
 }) {
+  const { t } = useI18n();
   const [offlineName, setOfflineName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -53,7 +55,7 @@ export default function AccountSwitcherModal({
     try {
       await onAddMicrosoft?.();
     } catch (err) {
-      setError(err?.message || 'Microsoft sign-in failed.');
+      setError(err?.message || t('error.microsoftLogin'));
     } finally {
       setBusy(false);
     }
@@ -63,7 +65,7 @@ export default function AccountSwitcherModal({
     const name = offlineName.trim();
 
     if (!OFFLINE_NAME.test(name)) {
-      setError('Use 3-16 letters, numbers or underscores.');
+      setError(t('error.offlineName'));
       return;
     }
 
@@ -73,7 +75,7 @@ export default function AccountSwitcherModal({
       await onAddOffline?.(name);
       setOfflineName('');
     } catch (err) {
-      setError(err?.message || 'Could not add that account.');
+      setError(err?.message || t('error.offlineAccount'));
     } finally {
       setBusy(false);
     }
@@ -86,10 +88,10 @@ export default function AccountSwitcherModal({
         if (event.target === event.currentTarget) onClose?.();
       }}
     >
-      <div className="account-switcher-box" role="dialog" aria-label="Accounts">
+      <div className="account-switcher-box" role="dialog" aria-label={t('account.accounts')}>
         <header className="account-switcher-header">
-          <h2 className="account-switcher-title">Accounts</h2>
-          <button type="button" className="account-switcher-close" onClick={onClose} title="Close">
+          <h2 className="account-switcher-title">{t('account.accounts')}</h2>
+          <button type="button" className="account-switcher-close" onClick={onClose} title={t('common.close')}>
             <NativeIcon name="close" size={16} />
           </button>
         </header>
@@ -99,11 +101,11 @@ export default function AccountSwitcherModal({
             <div className="account-hero">
               <PlayerAvatar account={active} kind="avatar" size={64} className="account-hero-avatar" />
               <div className="account-hero-info">
-                <span className="account-hero-label">Signed in as</span>
+                <span className="account-hero-label">{t('account.signedInAs')}</span>
                 <span className="account-hero-name">{active.name}</span>
                 <div className="account-hero-tags">
                   <span className={'account-type-tag ' + (active.type === 'offline' ? 'offline' : '')}>
-                    {active.type === 'offline' ? 'Offline' : 'Microsoft'}
+                    {t(active.type === 'offline' ? 'account.offline' : 'account.microsoft')}
                   </span>
                   {active.uuid && <span className="account-hero-uuid">{String(active.uuid).slice(0, 8)}</span>}
                 </div>
@@ -112,13 +114,13 @@ export default function AccountSwitcherModal({
           ) : (
             <div className="account-empty">
               <NativeIcon name="user" size={22} />
-              <p>No accounts yet. Add one below to start playing.</p>
+              <p>{t('account.empty')}</p>
             </div>
           )}
 
           {accounts.length > 0 && (
             <>
-              <span className="account-section-label">Switch account</span>
+              <span className="account-section-label">{t('account.switch')}</span>
 
               <div className="account-list">
                 {accounts.map((account) => {
@@ -141,7 +143,7 @@ export default function AccountSwitcherModal({
                         <div className="account-card-text">
                           <span className="account-name-text">{account.name}</span>
                           <span className={'account-type-tag ' + (account.type === 'offline' ? 'offline' : '')}>
-                            {account.type === 'offline' ? 'Offline' : 'Microsoft'}
+                            {t(account.type === 'offline' ? 'account.offline' : 'account.microsoft')}
                           </span>
                         </div>
                       </div>
@@ -151,7 +153,7 @@ export default function AccountSwitcherModal({
                         <button
                           type="button"
                           className="account-remove-btn"
-                          title="Remove account"
+                          title={t('account.remove')}
                           onClick={(event) => {
                             event.stopPropagation();
                             onRemoveAccount?.(account.id);
@@ -169,19 +171,19 @@ export default function AccountSwitcherModal({
 
           <div className="account-add-divider" />
 
-          <span className="account-section-label">Add an account</span>
+          <span className="account-section-label">{t('account.add')}</span>
 
           <div className="account-add-row">
             <button type="button" className="account-ms-btn" onClick={handleAddMicrosoft} disabled={busy}>
               <NativeIcon name="shield" size={15} />
-              <span>Sign in with Microsoft</span>
+              <span>{t('account.signInMicrosoft')}</span>
             </button>
           </div>
 
           <div className="offline-input-row">
             <input
               className="offline-input"
-              placeholder="Offline username"
+              placeholder={t('account.offlineUsername')}
               value={offlineName}
               maxLength={16}
               onChange={(event) => {
@@ -199,7 +201,7 @@ export default function AccountSwitcherModal({
               disabled={busy || !offlineName.trim()}
             >
               <NativeIcon name="plus" size={15} />
-              <span>Add</span>
+              <span>{t('account.addButton')}</span>
             </button>
           </div>
 
@@ -207,7 +209,7 @@ export default function AccountSwitcherModal({
             <p className="account-hint danger">{error}</p>
           ) : (
             <p className="account-hint muted">
-              Offline accounts can only join servers that allow them.
+              {t('account.offlineHint')}
             </p>
           )}
         </div>

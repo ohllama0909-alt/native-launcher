@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 export default function ScreenshotsTab({ cluster }) {
+  const { t } = useI18n();
   const [screenshots, setScreenshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedShot, setSelectedShot] = useState(null);
@@ -34,21 +36,21 @@ export default function ScreenshotsTab({ cluster }) {
     <div className="cluster-tab-pane screenshots-tab">
       <div className="tab-pane-toolbar">
         <span className="toolbar-info">
-          {screenshots.length} {screenshots.length === 1 ? 'screenshot' : 'screenshots'}
+          {t('screenshots.count', { count: screenshots.length })}
         </span>
         <button className="sub-btn" onClick={handleOpenFolder}>
           <Icon name="folder" size={14} />
-          <span>Open Folder</span>
+          <span>{t('common.openFolder')}</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="tab-empty-placeholder">Loading screenshots...</div>
+        <div className="tab-empty-placeholder">{t('screenshots.loading')}</div>
       ) : screenshots.length === 0 ? (
         <div className="tab-empty-placeholder">
           <Icon name="eye" size={32} />
-          <p>No screenshots taken in this version yet.</p>
-          <span>Press F2 while playing Minecraft to take a screenshot!</span>
+          <p>{t('screenshots.empty')}</p>
+          <span>{t('screenshots.tip')}</span>
         </div>
       ) : (
         <div className="screenshots-grid">

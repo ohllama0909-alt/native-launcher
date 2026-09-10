@@ -13,6 +13,7 @@ import {
   versionLine
 } from '../../lib/mojang.js';
 import './ClustersView.css';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 const SNAPSHOT_LINE = 'snapshots';
 
@@ -20,25 +21,17 @@ function lineMeta(lineId) {
   return RELEASE_LINES.find((line) => '1.' + line.major === lineId) || null;
 }
 
-function describeLine(lineId, count) {
-  const known = lineMeta(lineId);
-  if (known?.description) return known.description;
+function describeLine(lineId, count, t) {
   if (lineId === SNAPSHOT_LINE) {
-    return 'Development builds straight from Mojang. Great for testing what is coming next, but expect things to break.';
+    return t('versions.snapshotDescription');
   }
-  return (
-    'Every Minecraft ' +
-    lineId +
-    ' release, pulled live from the official version manifest. ' +
-    count +
-    ' builds available to install.'
-  );
+  return t('versions.lineDescription', { version: lineId, count });
 }
 
-function tagsForLine(lineId) {
+function tagsForLine(lineId, t) {
   const known = lineMeta(lineId);
   if (known?.tags?.length) return known.tags;
-  return lineId === SNAPSHOT_LINE ? ['Snapshot', 'Experimental'] : ['Release'];
+  return lineId === SNAPSHOT_LINE ? [t('versions.snapshot'), t('versions.experimental')] : [t('versions.release')];
 }
 
 /** Image that fades in once decoded and quietly falls back to bundled art. */
@@ -77,6 +70,7 @@ export default function ClustersView({
   onCreateInstance,
   onNotify
 }) {
+  const { locale, t } = useI18n();
   const [manifest, setManifest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fabricSet, setFabricSet] = useState(null);
@@ -148,13 +142,13 @@ export default function ClustersView({
 
       return {
         ...bucket,
-        name: bucket.id === SNAPSHOT_LINE ? 'Snapshots' : 'Minecraft ' + bucket.id,
+        name: bucket.id === SNAPSHOT_LINE ? t('versions.snapshots') : 'Minecraft ' + bucket.id,
         art: banner?.image || known?.art || ART_ASSETS.default,
-        tags: tagsForLine(bucket.id),
-        description: banner?.shortText || describeLine(bucket.id, bucket.versions.length)
+        tags: tagsForLine(bucket.id, t),
+        description: banner?.shortText || describeLine(bucket.id, bucket.versions.length, t)
       };
     });
-  }, [manifest, includeSnapshots, banners]);
+  }, [manifest, includeSnapshots, banners, t]);
 
   useEffect(() => {
     if (!lines.length) return;
@@ -217,10 +211,10 @@ export default function ClustersView({
         return {
           value: option,
           label: option,
-          hint: check?.available === false ? 'unavailable' : ''
+          hint: check?.available === false ? t('versions.unavailable') : ''
         };
       }),
-    [selectedVersion, fabricSet]
+    [selectedVersion, fabricSet, t]
   );
 
   const buildPayload = () => ({
@@ -244,7 +238,7 @@ export default function ClustersView({
     try {
       const created = await onCreateInstance(buildPayload(), { open: false });
       if (created?.id) onSelectCluster?.(created.id);
-      onNotify?.('Instance created', selectedVersion + ' ' + loader + ' is ready to play.');
+      onNotify?.(t('versions.created'), t('versions.ready', { name: selectedVersion + ' ' + loader }));
     } finally {
       setBusy(false);
     }
@@ -270,13 +264,13 @@ export default function ClustersView({
     <div className="clusters-view">
       <header className="clusters-header">
         <div>
-          <h1 className="clusters-title">Versions</h1>
+          <h1 className="clusters-title">{t('nav.versions')}</h1>
           <p className="clusters-subtitle">
             {loading
-              ? 'Loading the Minecraft version manifest...'
+              ? t('versions.loadingManifest')
               : manifest?.offline
-                ? 'Showing the last cached manifest. Reconnect to refresh.'
-                : 'Pick a release line, choose a build and a mod loader.'}
+                ? t('versions.cachedManifest')
+                : t('versions.subtitle')}
           </p>
         </div>
 
@@ -287,12 +281,12 @@ export default function ClustersView({
             onClick={() => setIncludeSnapshots((value) => !value)}
           >
             <NativeIcon name="sparkles" size={14} />
-            <span>Snapshots</span>
+            <span>{t('versions.snapshots')}</span>
           </button>
 
           <button type="button" className="sub-btn brand-btn" onClick={onOpenNewInstanceModal}>
             <NativeIcon name="plus" size={15} />
-            <span>New instance</span>
+            <span>{t('instances.new')}</span>
           </button>
         </div>
       </header>
@@ -300,7 +294,7 @@ export default function ClustersView({
       {loading && !lines.length ? (
         <div className="clusters-loading">
           <NativeIcon name="refresh" size={22} className="is-spinning" />
-          <span>Fetching versions from Mojang</span>
+          <span>{t('versions.fetching')}</span>
         </div>
       ) : (
         <div className="clusters-body-grid">
@@ -320,14 +314,14 @@ export default function ClustersView({
                   {installed > 0 && (
                     <span className="cluster-group-badge">
                       <NativeIcon name="check" size={11} />
-                      <span>{installed} installed</span>
+                      <span>{t('versions.installedCount', { count: installed })}</span>
                     </span>
                   )}
 
                   <span className="cluster-group-info">
                     <span className="cluster-group-name">{line.name}</span>
                     <span className="cluster-group-meta">
-                      {line.versions.length} {line.versions.length === 1 ? 'build' : 'builds'}
+                      {t('versions.buildCount', { count: line.versions.length })}
                     </span>
                   </span>
                 </button>
@@ -352,7 +346,7 @@ export default function ClustersView({
                   ))}
                   {selectedMeta?.releaseTime && (
                     <span className="sidebar-tag-pill subtle">
-                      {formatReleaseDate(selectedMeta.releaseTime)}
+                      {formatReleaseDate(selectedMeta.releaseTime, locale)}
                     </span>
                   )}
                 </div>
@@ -362,17 +356,17 @@ export default function ClustersView({
                 </p>
 
                 <div className="sidebar-selector-row">
-                  <label className="sidebar-selector-label">Version</label>
+                  <label className="sidebar-selector-label">{t('versions.version')}</label>
                   <Dropdown
                     value={selectedVersion}
                     options={versionOptions}
                     onChange={setSelectedVersion}
-                    placeholder="Select a version"
+                    placeholder={t('versions.selectVersion')}
                   />
                 </div>
 
                 <div className="sidebar-selector-row">
-                  <label className="sidebar-selector-label">Mod loader</label>
+                  <label className="sidebar-selector-label">{t('versions.modLoader')}</label>
                   <Dropdown value={loader} options={loaderOptions} onChange={setLoader} />
                 </div>
 
@@ -380,8 +374,9 @@ export default function ClustersView({
                   <p className="sidebar-note warn">
                     <NativeIcon name="alert" size={13} />
                     <span>
-                      {availability?.reason ||
-                        loader + ' has no build for ' + selectedVersion + ' yet.'}
+                      {availability?.reasonKey
+                        ? t(availability.reasonKey, availability.reasonVars)
+                        : t('versions.loaderNoBuildYet', { loader, version: selectedVersion })}
                     </span>
                   </p>
                 )}
@@ -389,7 +384,7 @@ export default function ClustersView({
                 {matchingInstance && (
                   <p className="sidebar-note">
                     <NativeIcon name="check-circle" size={13} />
-                    <span>Already installed as {matchingInstance.name}</span>
+                    <span>{t('versions.alreadyInstalled', { name: matchingInstance.name })}</span>
                   </p>
                 )}
 
@@ -401,7 +396,7 @@ export default function ClustersView({
                     disabled={busy || !selectedVersion || !loaderReady}
                   >
                     <NativeIcon name={matchingInstance ? 'play' : 'plus'} size={15} />
-                    <span>{matchingInstance ? 'Play' : 'Create instance'}</span>
+                    <span>{matchingInstance ? t('cluster.launch') : t('versions.createInstance')}</span>
                   </button>
 
                   <button
@@ -409,7 +404,7 @@ export default function ClustersView({
                     className="sidebar-view-btn"
                     onClick={handleOpen}
                     disabled={busy || !selectedVersion || !loaderReady}
-                    title={matchingInstance ? 'Open instance' : 'Create and open'}
+                    title={matchingInstance ? t('versions.openInstance') : t('versions.createAndOpen')}
                   >
                     <NativeIcon name="arrow-right" size={16} />
                   </button>

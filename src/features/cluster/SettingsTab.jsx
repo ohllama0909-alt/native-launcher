@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 export default function SettingsTab({ cluster, onUpdateCluster }) {
+  const { t } = useI18n();
   const [fullscreen, setFullscreen] = useState(cluster?.fullscreen || false);
   const [width, setWidth] = useState(cluster?.width || 854);
   const [height, setHeight] = useState(cluster?.height || 480);
@@ -32,11 +34,11 @@ export default function SettingsTab({ cluster, onUpdateCluster }) {
   return (
     <div className="cluster-tab-pane settings-tab">
       <div className="settings-section">
-        <h4 className="settings-section-heading">GAME DISPLAY</h4>
+        <h4 className="settings-section-heading">{t('clusterSettings.display')}</h4>
         <div className="settings-row">
           <div className="settings-row-info">
-            <span className="settings-row-title">Force Fullscreen</span>
-            <span className="settings-row-desc">Launch the game directly in fullscreen mode</span>
+            <span className="settings-row-title">{t('clusterSettings.fullscreen')}</span>
+            <span className="settings-row-desc">{t('clusterSettings.fullscreenDesc')}</span>
           </div>
           <label className="toggle-switch">
             <input
@@ -50,8 +52,8 @@ export default function SettingsTab({ cluster, onUpdateCluster }) {
 
         <div className="settings-row">
           <div className="settings-row-info">
-            <span className="settings-row-title">Window Resolution</span>
-            <span className="settings-row-desc">Default window dimensions</span>
+            <span className="settings-row-title">{t('clusterSettings.resolution')}</span>
+            <span className="settings-row-desc">{t('clusterSettings.resolutionDesc')}</span>
           </div>
           <div className="resolution-inputs">
             <input
@@ -74,11 +76,11 @@ export default function SettingsTab({ cluster, onUpdateCluster }) {
       </div>
 
       <div className="settings-section">
-        <h4 className="settings-section-heading">MEMORY ALLOCATION</h4>
+        <h4 className="settings-section-heading">{t('clusterSettings.memory')}</h4>
         <div className="settings-row">
           <div className="settings-row-info">
-            <span className="settings-row-title">Allocated RAM</span>
-            <span className="settings-row-desc">Memory allocated to the Minecraft JVM</span>
+            <span className="settings-row-title">{t('clusterSettings.allocatedRam')}</span>
+            <span className="settings-row-desc">{t('clusterSettings.allocatedRamDesc')}</span>
           </div>
           <div className="ram-slider-control">
             <input
@@ -96,16 +98,16 @@ export default function SettingsTab({ cluster, onUpdateCluster }) {
       </div>
 
       <div className="settings-section">
-        <h4 className="settings-section-heading">JAVA & LAUNCH ARGS</h4>
+        <h4 className="settings-section-heading">{t('clusterSettings.javaArgs')}</h4>
         <div className="settings-row vertical">
           <div className="settings-row-info">
-            <span className="settings-row-title">Custom Java Runtime Path</span>
-            <span className="settings-row-desc">Leave blank to use recommended bundled Java</span>
+            <span className="settings-row-title">{t('clusterSettings.javaPath')}</span>
+            <span className="settings-row-desc">{t('clusterSettings.javaPathDesc')}</span>
           </div>
           <input
             type="text"
             className="text-input full-width"
-            placeholder="Default (Auto-detected)"
+            placeholder={t('clusterSettings.autoDetected')}
             value={javaPath}
             onChange={(e) => setJavaPath(e.target.value)}
           />
@@ -113,8 +115,8 @@ export default function SettingsTab({ cluster, onUpdateCluster }) {
 
         <div className="settings-row vertical">
           <div className="settings-row-info">
-            <span className="settings-row-title">JVM Arguments</span>
-            <span className="settings-row-desc">Additional command line arguments passed to the JVM</span>
+            <span className="settings-row-title">{t('clusterSettings.jvmArgs')}</span>
+            <span className="settings-row-desc">{t('clusterSettings.jvmArgsDesc')}</span>
           </div>
           <input
             type="text"
@@ -127,12 +129,12 @@ export default function SettingsTab({ cluster, onUpdateCluster }) {
 
         <div className="settings-row">
           <div className="settings-row-info">
-            <span className="settings-row-title">Instance Directory</span>
-            <span className="settings-row-desc">Local files for this version</span>
+            <span className="settings-row-title">{t('clusterSettings.directory')}</span>
+            <span className="settings-row-desc">{t('clusterSettings.directoryDesc')}</span>
           </div>
           <button className="sub-btn" onClick={handleOpenFolder}>
             <Icon name="folder" size={14} />
-            <span>Open Directory</span>
+            <span>{t('clusterSettings.openDirectory')}</span>
           </button>
         </div>
       </div>
@@ -140,7 +142,7 @@ export default function SettingsTab({ cluster, onUpdateCluster }) {
       <div className="settings-bottom-bar">
         <button className="sub-btn brand-btn" onClick={handleSave}>
           <Icon name="check" size={14} />
-          <span>{saved ? 'Saved Changes!' : 'Save Settings'}</span>
+          <span>{saved ? t('clusterSettings.saved') : t('clusterSettings.save')}</span>
         </button>
       </div>
     </div>

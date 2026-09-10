@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 export default function PacksTab({ cluster, type = 'shaders' }) {
+  const { t } = useI18n();
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const subDir = type === 'shaders' ? 'shaderpacks' : 'resourcepacks';
-  const label = type === 'shaders' ? 'Shader Packs' : 'Resource Packs';
+  const label = t(type === 'shaders' ? 'packs.shaders' : 'packs.resources');
 
   useEffect(() => {
     let cancelled = false;
@@ -37,19 +39,19 @@ export default function PacksTab({ cluster, type = 'shaders' }) {
         <span className="toolbar-info">{packs.length} {label}</span>
         <button className="sub-btn" onClick={handleOpenFolder}>
           <Icon name="folder" size={14} />
-          <span>Open Folder</span>
+          <span>{t('common.openFolder')}</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="tab-empty-placeholder">Loading {label.toLowerCase()}...</div>
+        <div className="tab-empty-placeholder">{t('packs.loading', { type: label.toLocaleLowerCase() })}</div>
       ) : packs.length === 0 ? (
         <div className="tab-empty-placeholder">
           <Icon name={type === 'shaders' ? 'paint-pour' : 'colors'} size={36} />
-          <p>No {label.toLowerCase()} installed yet.</p>
+          <p>{t('packs.empty', { type: label.toLocaleLowerCase() })}</p>
           <button className="sub-btn brand-btn" onClick={handleOpenFolder}>
             <Icon name="folder" size={14} />
-            <span>Open {subDir} Folder</span>
+            <span>{t('packs.openFolder', { folder: subDir })}</span>
           </button>
         </div>
       ) : (

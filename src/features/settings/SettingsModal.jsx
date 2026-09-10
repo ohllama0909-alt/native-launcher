@@ -4,16 +4,18 @@ import AppearancePanel from './AppearancePanel.jsx';
 import AccountsPanel from './AccountsPanel.jsx';
 import StoragePanel from './StoragePanel.jsx';
 import ChangelogPanel from './ChangelogPanel.jsx';
+import { SUPPORTED_LOCALES } from '../../i18n/catalogs.js';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './SettingsModal.css';
 
 const TABS = [
-  { id: 'launcher', label: 'Launcher', icon: 'settings-02' },
-  { id: 'minecraft', label: 'Minecraft', icon: 'play' },
-  { id: 'appearance', label: 'Appearance', icon: 'paint-pour' },
-  { id: 'java', label: 'Java', icon: 'terminal' },
-  { id: 'accounts', label: 'Accounts', icon: 'users-01' },
-  { id: 'storage', label: 'Storage', icon: 'database' },
-  { id: 'changelog', label: 'Changelog', icon: 'clock-rewind' }
+  { id: 'launcher', key: 'settings.launcher', icon: 'settings-02' },
+  { id: 'minecraft', key: 'settings.minecraft', icon: 'play' },
+  { id: 'appearance', key: 'settings.appearance', icon: 'paint-pour' },
+  { id: 'java', key: 'settings.java', icon: 'terminal' },
+  { id: 'accounts', key: 'account.accounts', icon: 'users-01' },
+  { id: 'storage', key: 'settings.storage', icon: 'database' },
+  { id: 'changelog', key: 'settings.changelog', icon: 'clock-rewind' }
 ];
 
 const PREFS_KEY = 'native.preferences';
@@ -26,6 +28,10 @@ const DEFAULT_PREFS = {
   ram: 4,
   javaPath: '',
   javaArgs: ''
+};
+
+const LANGUAGE_NAMES = {
+  en: 'English', es: 'Español', de: 'Deutsch', fr: 'Français', 'pt-BR': 'Português (Brasil)', tr: 'Türkçe'
 };
 
 function readPrefs() {
@@ -49,6 +55,7 @@ export default function SettingsModal({
   onRemoveAccount,
   onOpenUpdater
 }) {
+  const { locale, setLocale, t } = useI18n();
   const [activeTab, setActiveTab] = useState('launcher');
   const [prefs, setPrefs] = useState(readPrefs);
   const [dataDir, setDataDir] = useState('');
@@ -84,6 +91,23 @@ export default function SettingsModal({
     if (window.native?.settings?.openDataDir) window.native.settings.openDataDir();
   };
 
+  const changeLanguage = async (nextLocale) => {
+    setLocale(nextLocale);
+    if (window.native?.settings) {
+      const current = await window.native.settings.load();
+      await window.native.settings.save({
+        ...current,
+        onboarding: { ...(current?.onboarding ?? {}), language: nextLocale }
+      });
+    } else {
+      const current = JSON.parse(localStorage.getItem('native.settings') || '{}');
+      localStorage.setItem('native.settings', JSON.stringify({
+        ...current,
+        onboarding: { ...(current.onboarding ?? {}), language: nextLocale }
+      }));
+    }
+  };
+
   if (!open) return null;
 
   const wide = activeTab === 'accounts' || activeTab === 'storage' || activeTab === 'changelog';
@@ -96,7 +120,7 @@ export default function SettingsModal({
       >
         <aside className="settings-sidebar">
           <div className="settings-sidebar-header">
-            <span className="settings-sidebar-title">Settings</span>
+            <span className="settings-sidebar-title">{t('common.settings')}</span>
           </div>
 
           {TABS.map((tab) => (
@@ -106,14 +130,14 @@ export default function SettingsModal({
               onClick={() => setActiveTab(tab.id)}
             >
               <Icon name={tab.icon} size={16} />
-              <span>{tab.label}</span>
+              <span>{t(tab.key)}</span>
             </button>
           ))}
         </aside>
 
         <main className="settings-content-area">
           <div className="settings-content-header">
-            <h2 className="settings-pane-title">{TABS.find((t) => t.id === activeTab)?.label}</h2>
+            <h2 className="settings-pane-title">{t(TABS.find((tab) => tab.id === activeTab)?.key)}</h2>
             <button className="icon-ctrl-btn" onClick={onClose}>
               <Icon name="x" size={16} />
             </button>
@@ -123,12 +147,24 @@ export default function SettingsModal({
             {activeTab === 'launcher' && (
               <>
                 <div className="settings-section">
-                  <h4 className="settings-section-heading">BEHAVIOR</h4>
+                  <h4 className="settings-section-heading">{t('settings.language')}</h4>
+                  <div className="settings-row">
+                    <div className="settings-row-info">
+                      <span className="settings-row-title">{t('settings.interfaceLanguage')}</span>
+                      <span className="settings-row-desc">{t('settings.interfaceLanguageDesc')}</span>
+                    </div>
+                    <select className="text-input" value={locale} onChange={(event) => changeLanguage(event.target.value)}>
+                      {SUPPORTED_LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_NAMES[code]}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="settings-section">
+                  <h4 className="settings-section-heading">{t('settings.behavior')}</h4>
 
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">Discord Rich Presence</span>
-                      <span className="settings-row-desc">Show your Minecraft activity in Discord</span>
+                      <span className="settings-row-title">{t('settings.discordPresence')}</span>
+                      <span className="settings-row-desc">{t('settings.discordDesc')}</span>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -142,8 +178,8 @@ export default function SettingsModal({
 
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">Close launcher on launch</span>
-                      <span className="settings-row-desc">Exit Native once Minecraft starts</span>
+                      <span className="settings-row-title">{t('settings.closeOnLaunch')}</span>
+                      <span className="settings-row-desc">{t('settings.closeOnLaunchDesc')}</span>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -157,8 +193,8 @@ export default function SettingsModal({
 
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">Keep game logs</span>
-                      <span className="settings-row-desc">Store the last session log for every instance</span>
+                      <span className="settings-row-title">{t('settings.keepLogs')}</span>
+                      <span className="settings-row-desc">{t('settings.keepLogsDesc')}</span>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -172,21 +208,21 @@ export default function SettingsModal({
                 </div>
 
                 <div className="settings-section">
-                  <h4 className="settings-section-heading">LAUNCHER DATA FOLDER</h4>
+                  <h4 className="settings-section-heading">{t('settings.dataFolder')}</h4>
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">Data location</span>
-                      <span className="settings-row-desc">{dataDir || 'Default user data directory'}</span>
+                      <span className="settings-row-title">{t('settings.dataLocation')}</span>
+                      <span className="settings-row-desc">{dataDir || t('settings.defaultData')}</span>
                     </div>
                     <button className="sub-btn" onClick={handleOpenDataDir}>
                       <Icon name="folder" size={14} />
-                      <span>Open folder</span>
+                      <span>{t('instances.openFolder')}</span>
                     </button>
                   </div>
                 </div>
 
                 <div className="settings-section">
-                  <h4 className="settings-section-heading">UPDATES</h4>
+                  <h4 className="settings-section-heading">{t('settings.updates')}</h4>
                   <div className="settings-row">
                     <div className="settings-row-info">
                       <span className="settings-row-title">Native</span>
@@ -194,7 +230,7 @@ export default function SettingsModal({
                     </div>
                     <button className="sub-btn brand-btn" onClick={onOpenUpdater}>
                       <Icon name="refresh" size={14} />
-                      <span>Check updates</span>
+                      <span>{t('settings.checkUpdates')}</span>
                     </button>
                   </div>
                 </div>
@@ -203,12 +239,12 @@ export default function SettingsModal({
 
             {activeTab === 'minecraft' && (
               <div className="settings-section">
-                <h4 className="settings-section-heading">GLOBAL GAME SETTINGS</h4>
+                <h4 className="settings-section-heading">{t('settings.gameSettings')}</h4>
 
                 <div className="settings-row">
                   <div className="settings-row-info">
-                    <span className="settings-row-title">Default fullscreen</span>
-                    <span className="settings-row-desc">Launch instances in fullscreen by default</span>
+                    <span className="settings-row-title">{t('settings.fullscreen')}</span>
+                    <span className="settings-row-desc">{t('settings.fullscreenDesc')}</span>
                   </div>
                   <label className="toggle-switch">
                     <input
@@ -222,8 +258,8 @@ export default function SettingsModal({
 
                 <div className="settings-row">
                   <div className="settings-row-info">
-                    <span className="settings-row-title">Default memory allocation</span>
-                    <span className="settings-row-desc">Used for new instances you create</span>
+                    <span className="settings-row-title">{t('settings.defaultMemory')}</span>
+                    <span className="settings-row-desc">{t('settings.defaultMemoryDesc')}</span>
                   </div>
                   <div className="ram-slider-control">
                     <input
@@ -245,17 +281,17 @@ export default function SettingsModal({
 
             {activeTab === 'java' && (
               <div className="settings-section">
-                <h4 className="settings-section-heading">JAVA RUNTIME</h4>
+                <h4 className="settings-section-heading">{t('settings.javaRuntime')}</h4>
 
                 <div className="settings-row vertical">
                   <div className="settings-row-info">
-                    <span className="settings-row-title">Java executable</span>
-                    <span className="settings-row-desc">Leave empty to use the runtime Native downloads</span>
+                    <span className="settings-row-title">{t('settings.javaExecutable')}</span>
+                    <span className="settings-row-desc">{t('settings.javaExecutableDesc')}</span>
                   </div>
                   <input
                     type="text"
                     className="text-input full-width"
-                    placeholder="Auto-detected Java runtime"
+                    placeholder={t('settings.javaAuto')}
                     value={prefs.javaPath}
                     onChange={(event) => updatePref({ javaPath: event.target.value })}
                   />
@@ -263,8 +299,8 @@ export default function SettingsModal({
 
                 <div className="settings-row vertical">
                   <div className="settings-row-info">
-                    <span className="settings-row-title">Extra JVM arguments</span>
-                    <span className="settings-row-desc">Applied on top of the launcher defaults</span>
+                    <span className="settings-row-title">{t('settings.jvmArgs')}</span>
+                    <span className="settings-row-desc">{t('settings.jvmArgsDesc')}</span>
                   </div>
                   <input
                     type="text"
