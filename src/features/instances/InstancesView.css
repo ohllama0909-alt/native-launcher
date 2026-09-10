@@ -392,11 +392,14 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
+  transform: translateZ(0);
   transition: transform 0.4s var(--ease-out);
 }
 
 .instance-card:hover .instance-card-art img {
-  transform: scale(1.05);
+  transform: scale(1.03) translateZ(0);
 }
 
 .instance-card-art-fade {

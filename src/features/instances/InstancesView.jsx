@@ -27,7 +27,7 @@ function loaderOf(instance) {
 }
 
 function artOf(instance) {
-  return instance?.art || getClusterArt(instance || {});
+  return getClusterArt(instance || {});
 }
 
 function relativeTime(value, formatRelativeTime, t) {

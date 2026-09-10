@@ -8,6 +8,7 @@ import PacksTab from './PacksTab.jsx';
 import SettingsTab from './SettingsTab.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { formatLaunchProgress } from '../launcher/useLauncher.js';
+import { getClusterArt } from '../../data/versionsData.js';
 import './ClusterDetailView.css';
 
 export default function ClusterDetailView({
@@ -88,70 +89,80 @@ export default function ClusterDetailView({
     ? t('cluster.vanillaDescription', { version })
     : t('cluster.loaderDescription', { version, loader: loaderName });
 
+  const backgroundArt = getClusterArt(cluster);
+
   return (
     <div className="cluster-detail-view">
-      <button className="cluster-back-link" onClick={onBack}>
-        <Icon name="arrow-left" size={14} />
-        <span>{backLabel}</span>
-      </button>
-
-      <div className="cluster-header-row">
-        <div className="cluster-header-text">
-          <h1 className="cluster-detail-title">{title}</h1>
-          <p className="cluster-detail-desc">{cluster.description || fallbackDesc}</p>
-        </div>
-
-        <div className="cluster-header-actions">
-          <button
-            className="cluster-icon-btn"
-            onClick={handleOpenFolder}
-            title={t('cluster.openGameFolder')}
-          >
-            <Icon name="folder" size={18} />
-          </button>
-
-          <button
-            className={`launch-btn ${isRunning ? 'kill' : ''}`}
-            onClick={() => {
-              if (isRunning) onKill();
-              else onLaunch(cluster);
-            }}
-            disabled={isBusy && !isRunning}
-          >
-            {isRunning && <Icon name="square" size={14} />}
-            <span>{getLaunchButtonLabel()}</span>
-          </button>
-        </div>
+      <div className="cluster-detail-bg-layer" aria-hidden="true">
+        <img className="cluster-detail-bg-img" src={backgroundArt} alt="" />
+        <div className="cluster-detail-bg-overlay" />
+        <div className="cluster-detail-bg-fade" />
       </div>
 
-      <div className="cluster-tabs-bar">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
+      <div className="cluster-detail-content-wrapper">
+        <button className="cluster-back-link" onClick={onBack}>
+          <Icon name="arrow-left" size={14} />
+          <span>{backLabel}</span>
+        </button>
+
+        <div className="cluster-header-row">
+          <div className="cluster-header-text">
+            <h1 className="cluster-detail-title">{title}</h1>
+            <p className="cluster-detail-desc">{cluster.description || fallbackDesc}</p>
+          </div>
+
+          <div className="cluster-header-actions">
             <button
-              key={tab.id}
-              className={`cluster-tab-btn ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              className="cluster-icon-btn"
+              onClick={handleOpenFolder}
+              title={t('cluster.openGameFolder')}
             >
-              <span>{t(tab.key)}</span>
-              {isActive && <div className="cluster-tab-underline" />}
+              <Icon name="folder" size={18} />
             </button>
-          );
-        })}
-      </div>
 
-      <div className="cluster-tab-content-area">
-        {activeTab === 'overview' && <OverviewTab cluster={cluster} />}
-        {activeTab === 'logs' && <LogsTab cluster={cluster} />}
-        {activeTab === 'screenshots' && <ScreenshotsTab cluster={cluster} />}
-        {activeTab === 'mods' && !isVanilla && (
-          <ModsTab cluster={cluster} onNavigateBrowse={onNavigateBrowse} />
-        )}
-        {activeTab === 'shaders' && !isVanilla && <PacksTab cluster={cluster} type="shaders" onNavigateBrowse={onNavigateBrowse} />}
-        {activeTab === 'textures' && <PacksTab cluster={cluster} type="textures" onNavigateBrowse={onNavigateBrowse} />}
-        {activeTab === 'settings' && (
-          <SettingsTab cluster={cluster} onUpdateCluster={onUpdateCluster} />
-        )}
+            <button
+              className={`launch-btn ${isRunning ? 'kill' : ''}`}
+              onClick={() => {
+                if (isRunning) onKill();
+                else onLaunch(cluster);
+              }}
+              disabled={isBusy && !isRunning}
+            >
+              {isRunning && <Icon name="square" size={14} />}
+              <span>{getLaunchButtonLabel()}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="cluster-tabs-bar">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                className={`cluster-tab-btn ${isActive ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span>{t(tab.key)}</span>
+                {isActive && <div className="cluster-tab-underline" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="cluster-tab-content-area">
+          {activeTab === 'overview' && <OverviewTab cluster={cluster} />}
+          {activeTab === 'logs' && <LogsTab cluster={cluster} />}
+          {activeTab === 'screenshots' && <ScreenshotsTab cluster={cluster} />}
+          {activeTab === 'mods' && !isVanilla && (
+            <ModsTab cluster={cluster} onNavigateBrowse={onNavigateBrowse} />
+          )}
+          {activeTab === 'shaders' && !isVanilla && <PacksTab cluster={cluster} type="shaders" onNavigateBrowse={onNavigateBrowse} />}
+          {activeTab === 'textures' && <PacksTab cluster={cluster} type="textures" onNavigateBrowse={onNavigateBrowse} />}
+          {activeTab === 'settings' && (
+            <SettingsTab cluster={cluster} onUpdateCluster={onUpdateCluster} />
+          )}
+        </div>
       </div>
     </div>
   );

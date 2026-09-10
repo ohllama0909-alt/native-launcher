@@ -17,8 +17,15 @@ const RAM_MAX = 16384;
 const RAM_STEP = 512;
 
 function lineFor(versionId) {
-  const major = versionLine(versionId).split('.')[1];
-  return RELEASE_LINES.find((entry) => String(entry.major) === String(major)) || null;
+  const line = versionLine(versionId);
+  return (
+    RELEASE_LINES.find(
+      (entry) =>
+        entry.id === line ||
+        String(entry.major) === line ||
+        '1.' + entry.major === line
+    ) || null
+  );
 }
 
 function artFor(versionId) {

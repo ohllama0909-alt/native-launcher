@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
-import { ART_ASSETS, RELEASE_LINES } from '../../data/versionsData.js';
+import { ART_ASSETS, RELEASE_LINES, getClusterArt } from '../../data/versionsData.js';
 import { bannerFor, getVersionBanners } from '../../lib/patchNotes.js';
 import {
   LOADERS,
@@ -18,13 +18,23 @@ import { useI18n } from '../../i18n/I18nProvider.jsx';
 const SNAPSHOT_LINE = 'snapshots';
 
 function lineMeta(lineId) {
-  return RELEASE_LINES.find((line) => '1.' + line.major === lineId) || null;
+  if (!lineId) return null;
+  return (
+    RELEASE_LINES.find(
+      (line) =>
+        line.id === lineId ||
+        String(line.major) === lineId ||
+        '1.' + line.major === lineId
+    ) || null
+  );
 }
 
 function describeLine(lineId, count, t) {
   if (lineId === SNAPSHOT_LINE) {
     return t('versions.snapshotDescription');
   }
+  const meta = lineMeta(lineId);
+  if (meta?.description) return meta.description;
   return t('versions.lineDescription', { version: lineId, count });
 }
 
@@ -34,21 +44,34 @@ function tagsForLine(lineId, t) {
   return lineId === SNAPSHOT_LINE ? [t('versions.snapshot'), t('versions.experimental')] : [t('versions.release')];
 }
 
-/** Image that fades in once decoded and quietly falls back to bundled art. */
+/** Image that handles pre-cached images gracefully and falls back to bundled art. */
 function Art({ src, className = '' }) {
   const [state, setState] = useState({ url: src, ready: false });
+  const imgRef = useRef(null);
 
   useEffect(() => {
     setState({ url: src, ready: false });
+    if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
+      setState({ url: src, ready: true });
+    }
   }, [src]);
+
+  const handleRef = (node) => {
+    imgRef.current = node;
+    if (node?.complete && node?.naturalWidth > 0) {
+      setState((prev) => (prev.ready ? prev : { ...prev, ready: true }));
+    }
+  };
 
   return (
     <img
+      ref={handleRef}
       className={className + (state.ready ? ' is-ready' : '')}
       src={state.url}
       alt=""
       draggable={false}
-      loading="lazy"
+      loading="eager"
+      decoding="async"
       onLoad={() => setState((prev) => ({ ...prev, ready: true }))}
       onError={() =>
         setState((prev) =>
@@ -139,13 +162,30 @@ export default function ClustersView({
       const ids = bucket.versions.map((version) => version.id);
       const banner = bannerFor(banners, ids[0], ids);
       const known = lineMeta(bucket.id);
+      const highResArt =
+        known?.art ||
+        getClusterArt({ version: bucket.id, mc_version: ids[0] });
+
+      let displayName;
+      if (bucket.id === SNAPSHOT_LINE) {
+        displayName = t('versions.snapshots');
+      } else if (known?.name) {
+        displayName =
+          known.id === bucket.id && !known.name.includes(bucket.id)
+            ? `${known.name} (${bucket.id})`
+            : known.name;
+      } else {
+        displayName = 'Minecraft ' + bucket.id;
+      }
 
       return {
         ...bucket,
-        name: bucket.id === SNAPSHOT_LINE ? t('versions.snapshots') : 'Minecraft ' + bucket.id,
-        art: banner?.image || known?.art || ART_ASSETS.default,
+        name: displayName,
+        // Always prioritize crisp, high-resolution widescreen artwork over 540x540 square thumbnails!
+        art: highResArt || banner?.image || ART_ASSETS.default,
+        artKey: known?.artKey || null,
         tags: tagsForLine(bucket.id, t),
-        description: banner?.shortText || describeLine(bucket.id, bucket.versions.length, t)
+        description: known?.description || banner?.shortText || describeLine(bucket.id, bucket.versions.length, t)
       };
     });
   }, [manifest, includeSnapshots, banners, t]);
@@ -186,13 +226,14 @@ export default function ClustersView({
   const availability = loaderAvailability(loader, selectedVersion, fabricSet);
   const loaderReady = availability?.available !== false;
 
-  // Banner for the exact selected version, then the line, then bundled art.
+  // Banner for the exact selected version or active line, prioritizing high-res art
   const versionBanner = bannerFor(
     banners,
     selectedVersion,
     activeLine?.versions.map((version) => version.id) || []
   );
-  const sidebarArt = versionBanner?.image || activeLine?.art || ART_ASSETS.default;
+  const specificArt = getClusterArt({ version: selectedVersion, mc_version: selectedVersion });
+  const sidebarArt = specificArt || activeLine?.art || ART_ASSETS.default;
 
   const versionOptions = useMemo(
     () =>
