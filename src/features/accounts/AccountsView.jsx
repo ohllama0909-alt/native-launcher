@@ -1,11 +1,31 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
-import WardrobeStage from './WardrobeStage.jsx';
-import OutfitRail from './OutfitRail.jsx';
+import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
 import OfficialCapes from './OfficialCapes.jsx';
 import './AccountsView.css';
 
 const EMPTY_SLOTS = Array.from({ length: 3 }, () => ({}));
+const DEFAULT_SKINS = [
+  { name: 'Steve', model: 'classic', tone: 'steve' },
+  { name: 'Alex', model: 'slim', tone: 'alex' },
+  { name: 'Sunny', model: 'slim', tone: 'sunny' },
+  { name: 'Zuri', model: 'slim', tone: 'zuri' },
+  { name: 'Noor', model: 'classic', tone: 'noor' },
+  { name: 'Makena', model: 'slim', tone: 'makena' },
+  { name: 'Ari', model: 'classic', tone: 'ari' },
+  { name: 'Kai', model: 'classic', tone: 'kai' }
+];
+
+function SectionTitle({ children }) {
+  return <div className="skin-section-title"><NativeIcon name="chevron-up" size={18} /><span>{children}</span></div>;
+}
+
+function MiniPlayer({ account, slot, model = 'classic', tone = 'steve', size = 'card' }) {
+  const preview = { ...account, skinUrl: slot?.skinUrl || account?.skinUrl, capeUrl: slot?.capeUrl || account?.capeUrl };
+  return <div className={`skin-mini skin-mini-${size} skin-tone-${tone}`}>
+    <SkinViewer3D account={preview} width={size === 'large' ? 220 : 132} height={size === 'large' ? 330 : 184} animation="idle" autoRotate={false} />
+  </div>;
+}
 
 export default function AccountsView({ account, onNotify, onWardrobeChanged }) {
   const [wardrobe, setWardrobe] = useState(null);
@@ -44,7 +64,6 @@ export default function AccountsView({ account, onNotify, onWardrobeChanged }) {
     apply(await window.native?.wardrobe?.choose({ account, kind, slot, model: wardrobe?.slots?.[slot]?.model || 'classic' }));
   }, 'Wardrobe', 'Could not import that PNG.');
   const select = (slot) => run(`select-${slot}`, async () => apply(await window.native?.wardrobe?.select(account, slot)), 'Wardrobe', 'Could not select that outfit.');
-  const setModel = (slot, model) => run(`model-${slot}`, async () => apply(await window.native?.wardrobe?.setModel(account, slot, model)), 'Wardrobe', 'Could not change the player model.');
   const sync = () => run('sync', async () => {
     await window.native?.wardrobe?.sync(account);
     onNotify?.('Wardrobe synced', 'Your selected outfit is available to connected Fabric instances.');
@@ -67,28 +86,57 @@ export default function AccountsView({ account, onNotify, onWardrobeChanged }) {
   const refreshOfficial = () => run('official-refresh', loadOfficial, 'Minecraft profile', 'Could not load your Minecraft profile.', captureProfileError);
 
   if (!account?.id || account.id === 'guest') {
-    return <div className="wardrobe" data-testid="wardrobe-view">
-      <header className="wardrobe-head"><div><span className="wardrobe-kicker">Player</span><h1>Wardrobe</h1><p>Sign in from your avatar in the title bar to create outfits.</p></div></header>
-      <div className="wardrobe-empty-state" data-testid="wardrobe-empty-state"><span className="wardrobe-empty-state-icon"><NativeIcon name="user" size={26} /></span><h2>No player selected</h2><p>Open the account switcher from the top-right avatar to start dressing up.</p></div>
+    return <div className="skin-selector" data-testid="wardrobe-view">
+      <aside className="skin-preview"><h1>Skin selector</h1><div className="player-name-tag">OhLLama</div><MiniPlayer account={{ name: 'Player' }} size="large" /><div className="rotate-hint"><NativeIcon name="move" size={16} /> Drag to rotate</div><button className="edit-skin-btn"><NativeIcon name="edit" size={16} /> Edit skin</button></aside>
+      <main className="skin-library"><SectionTitle>Saved skins</SectionTitle><div className="skin-grid"><button className="skin-tile add-tile"><NativeIcon name="plus" size={30} /><strong>Add skin</strong><span>Drag and drop</span></button></div><div className="wardrobe-empty-state" data-testid="wardrobe-empty-state"><h2>No player selected</h2><p>Open the account switcher from the top-right avatar to start dressing up.</p></div></main>
     </div>;
   }
 
   const slots = wardrobe?.slots || EMPTY_SLOTS;
   const selected = wardrobe?.selected ?? 0;
   const current = focused ?? selected;
-  const filledCount = slots.filter((slot) => slot.hasSkin || slot.hasCape).length;
+  const selectedSlot = slots[current] || {};
+  const saved = useMemo(() => slots.map((slot, index) => ({ slot, index })).filter(({ slot }) => slot.hasSkin || slot.hasCape), [slots]);
 
-  return <div className="wardrobe" data-testid="wardrobe-view">
-    <header className="wardrobe-head">
-      <div><span className="wardrobe-kicker">Player · {account.name}</span><h1>Wardrobe</h1><p>Three looks, one click to switch. {filledCount}/{slots.length} outfits ready.</p></div>
-      <button type="button" className="wardrobe-btn ghost" data-testid="wardrobe-sync-btn" onClick={sync} disabled={Boolean(busy)}>
-        <NativeIcon name={busy === 'sync' ? 'loader' : 'refresh'} size={15} className={busy === 'sync' ? 'wardrobe-spin' : ''} /> Sync to Fabric
-      </button>
-    </header>
-    <div className="wardrobe-body">
-      <WardrobeStage account={account} slot={slots[current]} index={current} isWearing={current === selected} busy={busy} onChoose={choose} onSelect={select} onSetModel={setModel} onPublish={publishOfficial} />
-      <OutfitRail slots={slots} account={account} selected={selected} current={current} busy={busy} onFocus={setFocused} onChoose={choose} onSelect={select} />
-    </div>
-    {account.isMicrosoft && <OfficialCapes official={official} error={profileError} busy={busy} onRefresh={refreshOfficial} onActivate={activateCape} />}
+  return <div className="skin-selector" data-testid="wardrobe-view">
+    <aside className="skin-preview">
+      <h1>Skin selector</h1>
+      <div className="player-name-tag">{account.name}</div>
+      <MiniPlayer account={account} slot={selectedSlot} size="large" />
+      <div className="rotate-hint"><NativeIcon name="move" size={16} /> Drag to rotate</div>
+      <button type="button" className="edit-skin-btn" onClick={() => choose('skin', current)} disabled={Boolean(busy)}><NativeIcon name={busy === `skin-${current}` ? 'loader' : 'edit'} size={16} className={busy === `skin-${current}` ? 'wardrobe-spin' : ''} /> Edit skin</button>
+      <button type="button" className="sync-skin-btn" onClick={sync} disabled={Boolean(busy)}><NativeIcon name={busy === 'sync' ? 'loader' : 'refresh'} size={15} className={busy === 'sync' ? 'wardrobe-spin' : ''} /> Sync to Fabric</button>
+    </aside>
+
+    <main className="skin-library">
+      <SectionTitle>Saved skins</SectionTitle>
+      <div className="skin-grid saved-grid">
+        <button type="button" className="skin-tile add-tile" onClick={() => choose('skin', current)} disabled={Boolean(busy)}>
+          <NativeIcon name={busy?.startsWith('skin-') ? 'loader' : 'plus'} size={30} className={busy?.startsWith('skin-') ? 'wardrobe-spin' : ''} />
+          <strong>Add skin</strong><span>Drag and drop</span>
+        </button>
+        {saved.map(({ slot, index }) => <button key={index} type="button" className={`skin-tile ${current === index ? 'selected' : ''}`} onClick={() => setFocused(index)} onDoubleClick={() => select(index)}>
+          <MiniPlayer account={account} slot={slot} size="card" />
+          {selected === index && <span className="selected-check"><NativeIcon name="check" size={15} /></span>}
+          <span className="skin-card-name">Outfit {index + 1}</span>
+        </button>)}
+      </div>
+
+      <SectionTitle>Default skins</SectionTitle>
+      <div className="skin-grid default-grid">
+        {DEFAULT_SKINS.map((skin, index) => <button key={skin.name} type="button" className={`skin-tile default-skin ${index === 0 && !selectedSlot.hasSkin ? 'selected' : ''}`} onClick={() => setFocused(selected)}>
+          <MiniPlayer account={account} model={skin.model} tone={skin.tone} size="card" />
+          <span className="skin-card-name">{skin.name}</span>
+        </button>)}
+      </div>
+
+      <div className="skin-actions-strip">
+        <button type="button" className="skin-action-btn" onClick={() => choose('cape', current)} disabled={Boolean(busy)}><NativeIcon name={busy === `cape-${current}` ? 'loader' : 'image'} size={15} className={busy === `cape-${current}` ? 'wardrobe-spin' : ''} /> {selectedSlot.hasCape ? 'Replace cape' : 'Add cape'}</button>
+        <button type="button" className="skin-action-btn primary" onClick={() => select(current)} disabled={selected === current || Boolean(busy)}><NativeIcon name={busy === `select-${current}` ? 'loader' : 'check'} size={15} className={busy === `select-${current}` ? 'wardrobe-spin' : ''} /> {selected === current ? 'Selected' : 'Use skin'}</button>
+        {account.isMicrosoft && selectedSlot.hasSkin && <button type="button" className="skin-action-btn" onClick={() => publishOfficial(current)} disabled={Boolean(busy)}><NativeIcon name={busy === `official-${current}` ? 'loader' : 'upload'} size={15} className={busy === `official-${current}` ? 'wardrobe-spin' : ''} /> Apply official</button>}
+      </div>
+
+      {account.isMicrosoft && <OfficialCapes official={official} error={profileError} busy={busy} onRefresh={refreshOfficial} onActivate={activateCape} />}
+    </main>
   </div>;
 }
