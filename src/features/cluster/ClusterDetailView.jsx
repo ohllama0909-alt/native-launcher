@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
 import OverviewTab from './OverviewTab.jsx';
 import LogsTab from './LogsTab.jsx';
@@ -11,6 +11,7 @@ import './ClusterDetailView.css';
 export default function ClusterDetailView({
   cluster,
   onBack,
+  backLabel = 'Back to Home',
   onLaunch,
   onKill,
   launcherState,
@@ -20,14 +21,45 @@ export default function ClusterDetailView({
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
+  const loaderName = String(cluster?.mc_loader || cluster?.loader || 'Vanilla');
+  const isVanilla = loaderName.toLowerCase() === 'vanilla';
+
+  /* Vanilla instances have no mod loader, so mods and shaders simply cannot
+     be installed. Resource packs still work, so Textures stays. */
+  const tabs = useMemo(() => {
+    const list = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'logs', label: 'Logs' },
+      { id: 'screenshots', label: 'Screenshots' }
+    ];
+
+    if (!isVanilla) {
+      list.push({ id: 'mods', label: 'Mods' });
+      list.push({ id: 'shaders', label: 'Shaders' });
+    }
+
+    list.push({ id: 'textures', label: 'Textures' });
+    list.push({ id: 'settings', label: 'Settings' });
+    return list;
+  }, [isVanilla]);
+
+  /* Never leave the page on a tab that is not on screen. */
+  useEffect(() => {
+    if (!tabs.some((tab) => tab.id === activeTab)) setActiveTab('overview');
+  }, [tabs, activeTab]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab, cluster?.id]);
+
   if (!cluster) {
     return (
       <div className="cluster-detail-view">
         <button className="cluster-back-link" onClick={onBack}>
           <Icon name="arrow-left" size={14} />
-          <span>Back to Home</span>
+          <span>{backLabel}</span>
         </button>
-        <div className="tab-empty-placeholder">No cluster selected.</div>
+        <div className="tab-empty-placeholder">No instance selected.</div>
       </div>
     );
   }
@@ -53,40 +85,31 @@ export default function ClusterDetailView({
     }
   };
 
-  const title = `${cluster.mc_loader || cluster.loader} ${cluster.mc_version || cluster.version}`;
+  const version = cluster.mc_version || cluster.version || '';
+  const title = cluster.name || `${loaderName} ${version}`;
 
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'logs', label: 'Logs' },
-    { id: 'screenshots', label: 'Screenshots' },
-    { id: 'mods', label: 'Mods' },
-    { id: 'shaders', label: 'Shaders' },
-    { id: 'textures', label: 'Textures' },
-    { id: 'settings', label: 'Settings' }
-  ];
+  const fallbackDesc = isVanilla
+    ? `Pure Minecraft ${version} with its own worlds, saves and settings.`
+    : `Minecraft ${version} on ${loaderName}, with its own mods, worlds and settings.`;
 
   return (
     <div className="cluster-detail-view">
-      {/* Back to Home Link */}
       <button className="cluster-back-link" onClick={onBack}>
         <Icon name="arrow-left" size={14} />
-        <span>Back to Home</span>
+        <span>{backLabel}</span>
       </button>
 
-      {/* Cluster Header matching launcher4.webp */}
       <div className="cluster-header-row">
         <div className="cluster-header-text">
           <h1 className="cluster-detail-title">{title}</h1>
-          <p className="cluster-detail-desc">
-            {cluster.description || 'Minecraft custom installation with OneClient optimizations and mod support.'}
-          </p>
+          <p className="cluster-detail-desc">{cluster.description || fallbackDesc}</p>
         </div>
 
         <div className="cluster-header-actions">
           <button
             className="cluster-icon-btn"
             onClick={handleOpenFolder}
-            title="Open Game Folder"
+            title="Open game folder"
           >
             <Icon name="folder" size={18} />
           </button>
@@ -105,7 +128,6 @@ export default function ClusterDetailView({
         </div>
       </div>
 
-      {/* Tab Navigation Bar */}
       <div className="cluster-tabs-bar">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -122,13 +144,14 @@ export default function ClusterDetailView({
         })}
       </div>
 
-      {/* Tab Content */}
       <div className="cluster-tab-content-area">
         {activeTab === 'overview' && <OverviewTab cluster={cluster} />}
         {activeTab === 'logs' && <LogsTab cluster={cluster} />}
         {activeTab === 'screenshots' && <ScreenshotsTab cluster={cluster} />}
-        {activeTab === 'mods' && <ModsTab cluster={cluster} onNavigateBrowse={onNavigateBrowse} />}
-        {activeTab === 'shaders' && <PacksTab cluster={cluster} type="shaders" />}
+        {activeTab === 'mods' && !isVanilla && (
+          <ModsTab cluster={cluster} onNavigateBrowse={onNavigateBrowse} />
+        )}
+        {activeTab === 'shaders' && !isVanilla && <PacksTab cluster={cluster} type="shaders" />}
         {activeTab === 'textures' && <PacksTab cluster={cluster} type="textures" />}
         {activeTab === 'settings' && (
           <SettingsTab cluster={cluster} onUpdateCluster={onUpdateCluster} />

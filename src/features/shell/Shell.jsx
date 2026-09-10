@@ -14,6 +14,14 @@ import useLauncher from '../launcher/useLauncher.js';
 import useInstances from '../instances/useInstances.js';
 import './Shell.css';
 
+const BACK_LABELS = {
+  home: 'Back to Home',
+  instances: 'Back to Instances',
+  versions: 'Back to Versions',
+  stats: 'Back to Statistics',
+  browse: 'Back to Browse'
+};
+
 export default function Shell({
   isMaximized,
   account,
@@ -29,6 +37,9 @@ export default function Shell({
   const [currentTab, setCurrentTab] = useState('home');
   const [clusterDetailTab, setClusterDetailTab] = useState('overview');
   const [browseReturnTab, setBrowseReturnTab] = useState('instances');
+
+  /* Where the open instance was opened from, so Back always goes there. */
+  const [detailOrigin, setDetailOrigin] = useState('home');
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -69,6 +80,13 @@ export default function Shell({
     if (!cluster?.id) return;
     instancesManager.select(cluster.id);
     setClusterDetailTab(tab);
+
+    setDetailOrigin((previous) => {
+      if (currentTab === 'cluster-detail') return previous;
+      if (currentTab === 'browse') return browseReturnTab;
+      return currentTab;
+    });
+
     setCurrentTab('cluster-detail');
   };
 
@@ -101,17 +119,19 @@ export default function Shell({
     const target = instancesManager.instances.find((item) => item.id === id);
     instancesManager.remove(id);
     if (target) notify('Instance removed', target.name);
-    if (currentTab === 'cluster-detail') setCurrentTab('instances');
+    if (currentTab === 'cluster-detail') setCurrentTab(detailOrigin);
   };
 
   const handleMinimize = () => window.native?.minimize();
   const handleMaximize = () => window.native?.maximize();
   const handleClose = () => window.native?.close();
 
+  const navTab = currentTab === 'cluster-detail' ? detailOrigin : currentTab;
+
   return (
     <div className="app-shell">
       <AppNavbar
-        currentTab={currentTab === 'cluster-detail' ? 'instances' : currentTab}
+        currentTab={navTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenNotifications={() => setNotificationsOpen(true)}
@@ -187,7 +207,8 @@ export default function Shell({
           <ClusterDetailView
             cluster={instancesManager.selected}
             initialTab={clusterDetailTab}
-            onBack={() => setCurrentTab('instances')}
+            onBack={() => setCurrentTab(detailOrigin)}
+            backLabel={BACK_LABELS[detailOrigin] || 'Back'}
             onLaunch={handleLaunch}
             onKill={launcher.kill}
             launcherState={launcher}
@@ -202,6 +223,7 @@ export default function Shell({
         onClose={() => setSettingsOpen(false)}
         accounts={accounts}
         activeId={activeId}
+        instances={instancesManager.instances}
         onAddMicrosoft={onAddMicrosoft}
         onAddOffline={onAddOffline}
         onSwitchAccount={onSwitchAccount}
