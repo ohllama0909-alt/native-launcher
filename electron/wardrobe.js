@@ -206,7 +206,7 @@ function publicState(account) {
     latest: [...items].sort((a, b) => b.createdAt - a.createdAt).slice(0, 12),
     // Field names kept stable for the account object and 3D viewer.
     active: {
-      id: skin?.id || null,
+      skinId: skin?.id || null,
       model: metadata.model,
       skinUrl: skin?.url || null,
       capeUrl: cape?.url || null,
