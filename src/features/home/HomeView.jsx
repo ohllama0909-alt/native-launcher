@@ -5,6 +5,7 @@ import ContextMenu from '../../components/ui/ContextMenu.jsx';
 import { getClusterArt } from '../../data/versionsData.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { formatLaunchProgress } from '../launcher/useLauncher.js';
+import useIsInstalled from '../instances/useIsInstalled.js';
 import './HomeView.css';
 
 export default function HomeView({
@@ -28,6 +29,8 @@ export default function HomeView({
   const isRunning = launcherState?.status === 'running' || launcherState?.status === 'game-running';
   const isDownloading = launcherState?.status === 'downloading';
   const isBusy = launcherState?.busy;
+
+  const isInstalled = useIsInstalled(cluster, launcherState?.status);
 
   const activeIndex = useMemo(
     () => instances.findIndex((item) => item.id === cluster?.id),
@@ -131,15 +134,25 @@ export default function HomeView({
 
             <div className="home-actions-row">
               <button
-                className={`launch-btn ${isRunning ? 'kill' : ''}`}
+                className={`launch-btn ${isRunning ? 'kill' : ''} ${!isInstalled && !isBusy ? 'install' : ''}`}
                 onClick={() => {
                   if (isRunning) onKill();
                   else onLaunch(cluster);
                 }}
                 disabled={isBusy && !isRunning}
               >
-                {isRunning && <Icon name="square" size={14} />}
-                <span>{getLaunchButtonLabel()}</span>
+                {isRunning ? (
+                  <Icon name="square" size={14} />
+                ) : !isInstalled && !isBusy ? (
+                  <NativeIcon name="arrow-down" size={16} />
+                ) : null}
+                <span>
+                  {isBusy || isRunning
+                    ? getLaunchButtonLabel()
+                    : !isInstalled
+                      ? t('common.install')
+                      : t('home.launch')}
+                </span>
               </button>
 
               <button

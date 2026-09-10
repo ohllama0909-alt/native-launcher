@@ -14,6 +14,7 @@ import {
 } from '../../lib/mojang.js';
 import './ClustersView.css';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { formatLaunchProgress } from '../launcher/useLauncher.js';
 
 const SNAPSHOT_LINE = 'snapshots';
 
@@ -91,7 +92,8 @@ export default function ClustersView({
   onLaunch,
   onOpenNewInstanceModal,
   onCreateInstance,
-  onNotify
+  onNotify,
+  launcherState
 }) {
   const { locale, t } = useI18n();
   const [manifest, setManifest] = useState(null);
@@ -204,14 +206,50 @@ export default function ClustersView({
     }
   }, [activeLine, selectedVersion]);
 
+  const [isInstalledOnDisk, setIsInstalledOnDisk] = useState(false);
+  const [installedDiskVersions, setInstalledDiskVersions] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      if (!selectedVersion) {
+        setIsInstalledOnDisk(false);
+        return;
+      }
+      try {
+        const [installed, list] = await Promise.all([
+          window.native?.instance?.isInstalled?.(selectedVersion, loader),
+          window.native?.instance?.installedVersions?.()
+        ]);
+        if (!cancelled) {
+          setIsInstalledOnDisk(Boolean(installed));
+          if (Array.isArray(list)) setInstalledDiskVersions(list);
+        }
+      } catch {
+        if (!cancelled) setIsInstalledOnDisk(false);
+      }
+    };
+    check();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVersion, loader, launcherState?.status]);
+
   const installedByLine = useMemo(() => {
     const map = new Map();
+    const verifiedKeys = new Set(
+      installedDiskVersions.map((item) => `${item.version}:${item.loader || 'Vanilla'}`)
+    );
     instances.forEach((instance) => {
-      const key = isReleaseId(instance.version) ? versionLine(instance.version) : SNAPSHOT_LINE;
-      map.set(key, (map.get(key) || 0) + 1);
+      const v = instance.version || instance.mc_version;
+      const l = instance.loader || instance.mc_loader || 'Vanilla';
+      if (verifiedKeys.has(`${v}:${l}`)) {
+        const key = isReleaseId(v) ? versionLine(v) : SNAPSHOT_LINE;
+        map.set(key, (map.get(key) || 0) + 1);
+      }
     });
     return map;
-  }, [instances]);
+  }, [instances, installedDiskVersions]);
 
   const matchingInstance = useMemo(
     () =>
@@ -221,6 +259,11 @@ export default function ClustersView({
       ) || null,
     [instances, selectedVersion, loader]
   );
+
+  const isBusyThisVersion =
+    Boolean(launcherState?.busy) &&
+    (launcherState?.instanceId === matchingInstance?.id ||
+      launcherState?.instance?.version === selectedVersion);
 
   const selectedMeta = activeLine?.versions.find((version) => version.id === selectedVersion);
   const availability = loaderAvailability(loader, selectedVersion, fabricSet);
@@ -268,18 +311,23 @@ export default function ClustersView({
   });
 
   const handlePrimary = async () => {
+    if (!selectedVersion || !loaderReady) return;
+
     if (matchingInstance) {
       onSelectCluster?.(matchingInstance.id);
       onLaunch?.(matchingInstance);
       return;
     }
-    if (!selectedVersion || !onCreateInstance) return;
+    if (!onCreateInstance) return;
 
     setBusy(true);
     try {
       const created = await onCreateInstance(buildPayload(), { open: false });
-      if (created?.id) onSelectCluster?.(created.id);
-      onNotify?.(t('versions.created'), t('versions.ready', { name: selectedVersion + ' ' + loader }));
+      if (created?.id) {
+        onSelectCluster?.(created.id);
+        // Immediately start download & verification pipeline!
+        onLaunch?.(created);
+      }
     } finally {
       setBusy(false);
     }
@@ -422,29 +470,56 @@ export default function ClustersView({
                   </p>
                 )}
 
-                {matchingInstance && (
-                  <p className="sidebar-note">
+                {isInstalledOnDisk ? (
+                  <p className="sidebar-note success">
                     <NativeIcon name="check-circle" size={13} />
-                    <span>{t('versions.alreadyInstalled', { name: matchingInstance.name })}</span>
+                    <span>
+                      {matchingInstance
+                        ? t('versions.alreadyInstalled', { name: matchingInstance.name })
+                        : `${selectedVersion} is installed`}
+                    </span>
                   </p>
-                )}
+                ) : matchingInstance ? (
+                  <p className="sidebar-note">
+                    <NativeIcon name="info" size={13} />
+                    <span>Configured as {matchingInstance.name} (Assets not installed)</span>
+                  </p>
+                ) : null}
 
                 <div className="sidebar-actions-row">
                   <button
                     type="button"
-                    className="sidebar-play-btn"
+                    className={`sidebar-play-btn ${!isInstalledOnDisk ? 'install-mode' : ''}`}
                     onClick={handlePrimary}
-                    disabled={busy || !selectedVersion || !loaderReady}
+                    disabled={busy || isBusyThisVersion || !selectedVersion || !loaderReady}
                   >
-                    <NativeIcon name={matchingInstance ? 'play' : 'plus'} size={15} />
-                    <span>{matchingInstance ? t('cluster.launch') : t('versions.createInstance')}</span>
+                    <NativeIcon
+                      name={
+                        isBusyThisVersion
+                          ? 'loader'
+                          : isInstalledOnDisk
+                            ? 'play'
+                            : 'arrow-down'
+                      }
+                      size={15}
+                      className={isBusyThisVersion ? 'spin' : ''}
+                    />
+                    <span>
+                      {isBusyThisVersion
+                        ? formatLaunchProgress(launcherState, t)
+                        : isInstalledOnDisk
+                          ? t('cluster.launch')
+                          : matchingInstance
+                            ? 'Install & Play'
+                            : t('common.install')}
+                    </span>
                   </button>
 
                   <button
                     type="button"
                     className="sidebar-view-btn"
                     onClick={handleOpen}
-                    disabled={busy || !selectedVersion || !loaderReady}
+                    disabled={busy || isBusyThisVersion || !selectedVersion || !loaderReady}
                     title={matchingInstance ? t('versions.openInstance') : t('versions.createAndOpen')}
                   >
                     <NativeIcon name="arrow-right" size={16} />

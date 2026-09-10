@@ -11,24 +11,35 @@ import { useEffect, useState } from 'react';
  * without needing an app restart.
  */
 export default function useIsInstalled(instance, settleKey) {
-  const [installed, setInstalled] = useState(true);
-  const version = instance?.version;
-  const loader = instance?.loader;
+  const [installed, setInstalled] = useState(false);
+  const version = instance?.mc_version || instance?.version;
+  const loader = instance?.mc_loader || instance?.loader || 'Vanilla';
 
   useEffect(() => {
-    if (!version) return undefined;
+    if (!version) {
+      setInstalled(false);
+      return undefined;
+    }
     const api = window.native?.instance;
-    if (!api) return undefined;
+    if (!api) {
+      // In web browser mock mode, assume uninstalled unless specifically in web preview
+      setInstalled(false);
+      return undefined;
+    }
 
-    // Switching instances mid-flight would otherwise let a slow answer for the
-    // old one overwrite the new one's.
     let cancelled = false;
     api
       .isInstalled(version, loader)
-      .then((result) => { if (!cancelled) setInstalled(Boolean(result)); })
-      .catch(() => { if (!cancelled) setInstalled(true); });
+      .then((result) => {
+        if (!cancelled) setInstalled(Boolean(result));
+      })
+      .catch(() => {
+        if (!cancelled) setInstalled(false);
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [version, loader, settleKey]);
 
   return installed;

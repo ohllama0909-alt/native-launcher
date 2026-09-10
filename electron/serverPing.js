@@ -67,7 +67,7 @@ function flattenMotd(node) {
 function cleanMotd(raw) {
   return flattenMotd(raw)
     .replace(/\u00a7[0-9a-fk-or]/gi, '') // strip § formatting codes
-    .replace(/\s+/g, ' ')
+    .replace(/[ \t]+/g, ' ')
     .trim();
 }
 
@@ -143,6 +143,7 @@ function pingOnce(host, port) {
           online: true,
           latency,
           motd: cleanMotd(parsed.description),
+          rawDescription: parsed.description,
           players: {
             online: parsed.players?.online ?? 0,
             max: parsed.players?.max ?? 0

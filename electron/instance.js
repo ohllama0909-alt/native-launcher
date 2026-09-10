@@ -12,7 +12,12 @@ const { shell } = require('electron');
 
 let deps = null;
 
-const rootDir = () => path.join(deps.app.getPath('userData'), 'minecraft');
+const rootDir = () => {
+  try {
+    if (deps?.app?.getPath) return path.join(deps.app.getPath('userData'), 'minecraft');
+  } catch {}
+  return path.join(require('os').homedir(), '.config', 'Native', 'minecraft');
+};
 const instancesDir = () => path.join(rootDir(), 'instances');
 
 function resolveInside(base, ...parts) {
@@ -28,47 +33,209 @@ function resolveInside(base, ...parts) {
 const instanceDir = (id) => resolveInside(instancesDir(), id);
 
 /**
- * Whether a version's client jar is on disk.
- *
- * minecraft-launcher-core writes the jar under the *profile* directory, which
- * for a modded instance is the loader profile (fabric-loader-<x>-<mc>), not the
- * vanilla version. Checking only versions/<mc>/<mc>.jar therefore reports "not
- * installed" for a fully installed Fabric or Forge instance, which is what put
- * the Install button back on a ready instance.
- *
- * Loader profile names embed a loader version we don't know here, so the
- * directory is matched by prefix and suffix instead.
+ * Fully verifies whether a Minecraft version is installed on disk,
+ * including client jar (>1MB), version json, mod loader profile (if Fabric/Forge),
+ * asset index json, asset objects, and libraries.
  */
-function isInstalled(version, loader) {
-  if (!version) return false;
-  const versionsDir = path.join(rootDir(), 'versions');
+function verifyInstallation(version, loader = 'Vanilla') {
+  if (!version) return { installed: false, reason: 'no_version' };
+  const root = rootDir();
+  const versionsDir = path.join(root, 'versions');
 
-  const hasJar = (name) => {
+  if (!fs.existsSync(versionsDir)) {
+    return { installed: false, reason: 'no_versions_dir' };
+  }
+
+  const hasValidFile = (filePath, minBytes = 1) => {
     try {
-      return fs.existsSync(resolveInside(versionsDir, name, `${name}.jar`));
+      const st = fs.statSync(filePath);
+      return st.isFile() && st.size >= minBytes;
     } catch {
-      return false; // name escaped the versions dir
+      return false;
     }
   };
 
-  if (hasJar(version)) return true;
+  // 1. Check Vanilla / Main Version files
+  let targetJsonPath = null;
+  let targetJarPath = null;
 
-  const prefix = loader === 'Fabric' ? 'fabric-loader-' : loader === 'Forge' ? 'forge-' : null;
-  if (!prefix) return false;
+  const vanillaDir = path.join(versionsDir, version);
+  const vanillaJson = path.join(vanillaDir, `${version}.json`);
+  const vanillaJar = path.join(vanillaDir, `${version}.jar`);
 
-  try {
-    return fs
-      .readdirSync(versionsDir, { withFileTypes: true })
-      .some(
-        (entry) =>
-          entry.isDirectory() &&
-          entry.name.startsWith(prefix) &&
-          entry.name.endsWith(`-${version}`) &&
-          hasJar(entry.name)
-      );
-  } catch {
-    return false; // no versions dir yet
+  let foundLoader = false;
+  let loaderJsonPath = null;
+
+  if (loader && loader !== 'Vanilla') {
+    const prefix = loader === 'Fabric' ? 'fabric-loader-' : loader === 'Forge' ? 'forge-' : null;
+    if (prefix) {
+      try {
+        const entries = fs.readdirSync(versionsDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory() && entry.name.startsWith(prefix) && entry.name.endsWith(`-${version}`)) {
+            const possibleJson = path.join(versionsDir, entry.name, `${entry.name}.json`);
+            const possibleJar = path.join(versionsDir, entry.name, `${entry.name}.jar`);
+            if (hasValidFile(possibleJson)) {
+              foundLoader = true;
+              loaderJsonPath = possibleJson;
+              if (hasValidFile(possibleJar, 1000000)) {
+                targetJarPath = possibleJar;
+              }
+              break;
+            }
+          }
+        }
+      } catch {}
+    }
+    if (!foundLoader) {
+      return { installed: false, reason: 'missing_loader', loader };
+    }
   }
+
+  // Check jar: must exist either under loader or vanilla (client jar must be > 1MB)
+  if (!targetJarPath) {
+    if (hasValidFile(vanillaJar, 1000000)) {
+      targetJarPath = vanillaJar;
+    }
+  }
+
+  if (!targetJarPath) {
+    return { installed: false, reason: 'missing_client_jar' };
+  }
+
+  targetJsonPath = hasValidFile(vanillaJson) ? vanillaJson : loaderJsonPath;
+  if (!targetJsonPath) {
+    return { installed: false, reason: 'missing_version_json' };
+  }
+
+  // 2. Read version json
+  let versionData = null;
+  try {
+    versionData = JSON.parse(fs.readFileSync(targetJsonPath, 'utf8'));
+  } catch {
+    return { installed: false, reason: 'invalid_version_json' };
+  }
+
+  // Inherit from parent vanilla JSON if needed
+  if (versionData?.inheritsFrom) {
+    const parentJson = path.join(versionsDir, versionData.inheritsFrom, `${versionData.inheritsFrom}.json`);
+    if (hasValidFile(parentJson)) {
+      try {
+        const parentData = JSON.parse(fs.readFileSync(parentJson, 'utf8'));
+        versionData = { ...parentData, ...versionData };
+      } catch {}
+    }
+  }
+
+  // 3. Asset index check
+  const assetIndexId = versionData?.assetIndex?.id || versionData?.assets || version;
+  const assetIndexFile = path.join(root, 'assets', 'indexes', `${assetIndexId}.json`);
+
+  if (!hasValidFile(assetIndexFile, 10)) {
+    return { installed: false, reason: 'missing_asset_index', assetIndexId };
+  }
+
+  let assetIndex = null;
+  try {
+    assetIndex = JSON.parse(fs.readFileSync(assetIndexFile, 'utf8'));
+  } catch {
+    return { installed: false, reason: 'invalid_asset_index', assetIndexId };
+  }
+
+  const objects = assetIndex?.objects;
+  if (!objects || typeof objects !== 'object') {
+    return { installed: false, reason: 'empty_asset_index' };
+  }
+
+  const objectKeys = Object.keys(objects);
+  const totalAssets = objectKeys.length;
+  if (totalAssets === 0) {
+    return { installed: false, reason: 'no_assets_listed' };
+  }
+
+  const objectsDir = path.join(root, 'assets', 'objects');
+  if (!fs.existsSync(objectsDir)) {
+    return { installed: false, reason: 'missing_assets_dir', totalAssets };
+  }
+
+  // 4. Verify asset objects on disk
+  let missingAssets = 0;
+  for (let i = 0; i < totalAssets; i++) {
+    const hash = objects[objectKeys[i]]?.hash;
+    if (!hash || typeof hash !== 'string' || hash.length < 2) continue;
+    const prefix = hash.slice(0, 2);
+    const assetPath = path.join(objectsDir, prefix, hash);
+    if (!hasValidFile(assetPath, 1)) {
+      missingAssets++;
+      if (missingAssets >= 3) {
+        return {
+          installed: false,
+          reason: 'missing_assets',
+          missingAssets,
+          totalAssets,
+          assetIndexId
+        };
+      }
+    }
+  }
+
+  if (missingAssets > 0) {
+    return {
+      installed: false,
+      reason: 'missing_assets',
+      missingAssets,
+      totalAssets,
+      assetIndexId
+    };
+  }
+
+  // 5. Libraries check
+  const librariesDir = path.join(root, 'libraries');
+  if (!fs.existsSync(librariesDir)) {
+    return { installed: false, reason: 'missing_libraries_dir' };
+  }
+
+  return {
+    installed: true,
+    totalAssets,
+    assetIndexId
+  };
+}
+
+function isInstalled(version, loader) {
+  try {
+    return Boolean(verifyInstallation(version, loader)?.installed);
+  } catch {
+    return false;
+  }
+}
+
+function installedVersions() {
+  const root = rootDir();
+  const versionsDir = path.join(root, 'versions');
+  if (!fs.existsSync(versionsDir)) return [];
+
+  const verified = [];
+  try {
+    const entries = fs.readdirSync(versionsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith('fabric-loader-') || entry.name.startsWith('forge-')) {
+        continue;
+      }
+      const v = entry.name;
+      if (verifyInstallation(v, 'Vanilla').installed) {
+        verified.push({ version: v, loader: 'Vanilla' });
+      }
+      if (verifyInstallation(v, 'Fabric').installed) {
+        verified.push({ version: v, loader: 'Fabric' });
+      }
+      if (verifyInstallation(v, 'Forge').installed) {
+        verified.push({ version: v, loader: 'Forge' });
+      }
+    }
+  } catch {}
+  return verified;
 }
 
 /* ── helpers ────────────────────────────────────────────────── */
@@ -319,6 +486,8 @@ function init(dependencies, ipcMain) {
   ipcMain.handle('instance:recentServers', () => recentServers());
 
   ipcMain.handle('instance:isInstalled', (_e, version, loader) => isInstalled(version, loader));
+  ipcMain.handle('instance:verifyInstallation', (_e, version, loader) => verifyInstallation(version, loader));
+  ipcMain.handle('instance:installedVersions', () => installedVersions());
 }
 
-module.exports = { init, resolveInside, isInstalled, cleanServerAddress, parseServerConnections };
+module.exports = { init, resolveInside, isInstalled, verifyInstallation, installedVersions, cleanServerAddress, parseServerConnections };

@@ -91,6 +91,21 @@ export default function InstancesView({
   const [renaming, setRenaming] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [installedDiskKeys, setInstalledDiskKeys] = useState(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    window.native?.instance?.installedVersions?.()
+      .then((list) => {
+        if (!cancelled && Array.isArray(list)) {
+          setInstalledDiskKeys(new Set(list.map((v) => `${v.version}:${v.loader || 'Vanilla'}`)));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [launcherState?.status]);
 
   const sortRef = useRef(null);
   const menuRef = useRef(null);
@@ -337,14 +352,18 @@ export default function InstancesView({
               const isSelected = selectedId === instance.id;
               const menuOpen = menuFor === instance.id;
 
+              const isInstalledOnDisk = installedDiskKeys.has(`${versionOf(instance)}:${loaderOf(instance)}`);
+
               return (
                 <article
                   key={instance.id}
-                  className={`instance-card ${isSelected ? 'selected' : ''} ${
-                    running ? 'running' : ''
+                  className={`instance-card ${isSelected ? 'is-selected' : ''} ${
+                    running ? 'is-running' : ''
                   } ${menuOpen ? 'menu-open' : ''}`}
-                  onClick={() => onSelect?.(instance.id)}
-                  onDoubleClick={() => onOpenCluster?.(instance, 'overview')}
+                  onClick={() => {
+                    onSelect?.(instance.id);
+                    onOpenCluster?.(instance);
+                  }}
                 >
                   <div className="instance-card-art">
                     <img src={artOf(instance)} alt="" draggable="false" />
@@ -360,7 +379,7 @@ export default function InstancesView({
                     <div className="instance-card-hover">
                       <button
                         type="button"
-                        className={`instance-card-play ${running ? 'stop' : ''}`}
+                        className={`instance-card-play ${running ? 'stop' : ''} ${!isInstalledOnDisk && !running ? 'install' : ''}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           if (running && launcher.status === 'running') onKill?.();
@@ -369,10 +388,31 @@ export default function InstancesView({
                             onLaunch?.(instance);
                           }
                         }}
-                        title={running ? t('home.kill') : t('instances.playNamed', { name: instance.name })}
+                        title={
+                          running
+                            ? t('home.kill')
+                            : isInstalledOnDisk
+                              ? t('instances.playNamed', { name: instance.name })
+                              : t('common.install')
+                        }
                       >
-                        <NativeIcon name={running && launcher.status === 'running' ? 'stop' : 'play'} size={16} />
-                        <span>{running ? formatLaunchProgress(launcherState, t) : t('instances.play')}</span>
+                        <NativeIcon
+                          name={
+                            running && launcher.status === 'running'
+                              ? 'stop'
+                              : isInstalledOnDisk
+                                ? 'play'
+                                : 'arrow-down'
+                          }
+                          size={16}
+                        />
+                        <span>
+                          {running
+                            ? formatLaunchProgress(launcherState, t)
+                            : isInstalledOnDisk
+                              ? t('instances.play')
+                              : t('common.install')}
+                        </span>
                       </button>
                     </div>
                   </div>

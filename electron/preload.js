@@ -75,6 +75,8 @@ contextBridge.exposeInMainWorld('native', {
     deleteWorld: (id, name) => ipcRenderer.invoke('instance:deleteWorld', id, name),
     getLogFile:  (id)       => ipcRenderer.invoke('instance:getLogFile', id),
     isInstalled: (version, loader) => ipcRenderer.invoke('instance:isInstalled', version, loader),
+    verifyInstallation: (version, loader) => ipcRenderer.invoke('instance:verifyInstallation', version, loader),
+    installedVersions: ()       => ipcRenderer.invoke('instance:installedVersions'),
     recentServers: ()       => ipcRenderer.invoke('instance:recentServers')
   },
   news: {

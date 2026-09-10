@@ -405,6 +405,28 @@
   filter: grayscale(0.35);
 }
 
+.sidebar-play-btn.install-mode {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  box-shadow: 0 10px 24px -14px rgba(2, 132, 199, 0.5);
+}
+
+.sidebar-note.success {
+  color: var(--success, #10b981);
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.spin {
+  animation: native-spin 1s linear infinite;
+}
+
+@keyframes native-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 1080px) {

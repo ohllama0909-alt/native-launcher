@@ -70,7 +70,10 @@ export default function StoragePanel({ instances = [] }) {
         };
 
         try {
-          row.installed = await window.native?.instance?.isInstalled?.(instance.id);
+          row.installed = await window.native?.instance?.isInstalled?.(
+            instance.version || instance.mc_version,
+            instance.loader || instance.mc_loader
+          );
         } catch {
           row.installed = null;
         }

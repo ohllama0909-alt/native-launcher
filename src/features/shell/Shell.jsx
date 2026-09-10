@@ -189,6 +189,7 @@ export default function Shell({
             onOpenNewInstanceModal={() => setCreateInstanceOpen(true)}
             onCreateInstance={handleCreateInstance}
             onNotify={notify}
+            launcherState={launcher}
           />
         )}
 

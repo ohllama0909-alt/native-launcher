@@ -1,0 +1,33 @@
+.motd-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(10, 12, 16, 0.7);
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 12px;
+  font-family: 'Minecraft', 'Consolas', 'Menlo', monospace;
+  font-size: 12.5px;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  user-select: text;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  min-height: 48px;
+  justify-content: center;
+  transition: border-color 0.16s var(--ease);
+}
+
+.motd-container:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.motd-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.9);
+}
+
+.motd-line.empty {
+  color: var(--fg-muted, #777);
+  font-style: italic;
+}
