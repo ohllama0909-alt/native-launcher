@@ -1,50 +1,22 @@
 /* ============================================================
-   Native — application title bar / navigation
+   Native — top navigation
+   Slim, quiet bar: wordmark left, text tabs centred under a
+   sliding underline, icon actions and window controls right.
    ============================================================ */
 
 .app-navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 400;
+  position: relative;
+  z-index: 60;
+  flex: none;
   height: var(--navbar-height);
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding-left: 18px;
-  background: linear-gradient(180deg, rgba(23, 31, 38, 0.94), rgba(17, 23, 28, 0.82));
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  gap: 16px;
+  padding: 0 0 0 18px;
+  background: var(--page);
   border-bottom: 1px solid var(--component-border);
-  user-select: none;
-  /* Electron frameless dragging. The previous build only had a Tauri-only
-     drag attribute, so the window could not be moved at all. */
   -webkit-app-region: drag;
-}
-
-.app-navbar::after {
-  content: '';
-  position: absolute;
-  left: 10%;
-  right: 10%;
-  bottom: -1px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--brand-glow), transparent);
-  opacity: 0.55;
-  pointer-events: none;
-}
-
-.app-navbar button,
-.app-navbar a,
-.app-navbar input {
-  -webkit-app-region: no-drag;
-}
-
-.app-navbar button:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
 }
 
 /* ---------- brand ---------- */
@@ -56,101 +28,85 @@
 }
 
 .navbar-logo-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  padding: 6px 12px 6px 6px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
-    transform 0.16s var(--ease);
+  opacity: 0.94;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+  -webkit-app-region: no-drag;
 }
 
 .navbar-logo-btn:hover {
-  background: var(--ghost-overlay);
-  border-color: var(--component-border);
+  opacity: 1;
+  transform: translateY(-1px);
 }
 
 .navbar-logo-btn:active {
-  transform: scale(0.98);
+  transform: none;
 }
 
-/* ---------- primary nav ---------- */
+/* ---------- tabs ---------- */
 
 .navbar-center {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 4px;
-  border-radius: var(--radius-full);
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid var(--component-border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.nav-indicator {
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 0;
-  border-radius: var(--radius-full);
-  background: var(--brand-gradient);
-  box-shadow: 0 6px 18px -6px var(--brand-glow), inset 0 1px 0 rgba(255, 255, 255, 0.24);
-  opacity: 0;
-  pointer-events: none;
-  will-change: transform, width;
-}
-
-.nav-indicator.is-ready {
-  opacity: 1;
-  transition: transform 0.32s var(--ease-out), width 0.32s var(--ease-out), opacity 0.2s var(--ease);
+  gap: 4px;
+  height: 100%;
+  -webkit-app-region: no-drag;
 }
 
 .nav-link {
   position: relative;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 16px;
+  height: 100%;
+  padding: 0 15px;
   border: none;
   background: transparent;
-  border-radius: var(--radius-full);
-  color: var(--fg-secondary);
   font-family: var(--font-sans);
   font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+  font-weight: 550;
+  letter-spacing: 0.005em;
+  color: var(--fg-muted);
   cursor: pointer;
-  transition: color 0.18s var(--ease), transform 0.18s var(--ease);
+  transition: color 0.16s var(--ease);
 }
 
 .nav-link:hover {
-  color: var(--fg-primary-hover);
-}
-
-.nav-link:active {
-  transform: scale(0.97);
+  color: var(--fg-secondary-hover);
 }
 
 .nav-link.active {
-  color: var(--fg-on-brand);
+  color: var(--fg-primary);
+  font-weight: 650;
 }
 
-.nav-link .native-icon {
-  flex: none;
-  opacity: 0.85;
-  transition: opacity 0.18s var(--ease);
+.nav-link-label {
+  position: relative;
+  top: -1px;
 }
 
-.nav-link.active .native-icon,
-.nav-link:hover .native-icon {
+.nav-underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  box-shadow: 0 0 10px var(--brand-glow);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-underline.is-ready {
   opacity: 1;
+  transition: transform 0.28s var(--ease-out), width 0.28s var(--ease-out),
+    opacity 0.2s var(--ease);
 }
 
 /* ---------- right side ---------- */
@@ -158,122 +114,76 @@
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 4px;
   height: 100%;
-  padding-left: 8px;
 }
 
 .nav-icon-btn {
   position: relative;
-  width: 36px;
-  height: 36px;
   display: grid;
   place-items: center;
-  border: 1px solid transparent;
+  width: 32px;
+  height: 32px;
+  border: none;
   border-radius: var(--radius);
   background: transparent;
-  color: var(--fg-secondary);
+  color: var(--fg-muted);
   cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease),
-    border-color 0.15s var(--ease), transform 0.15s var(--ease);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  -webkit-app-region: no-drag;
 }
 
 .nav-icon-btn:hover {
   background: var(--ghost-overlay-hover);
-  border-color: var(--component-border);
   color: var(--fg-primary);
-}
-
-.nav-icon-btn:active {
-  background: var(--ghost-overlay-pressed);
-  transform: scale(0.94);
 }
 
 .unread-badge {
   position: absolute;
   top: 3px;
   right: 3px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-full);
   background: var(--danger);
-  border: 2px solid #171f26;
-  color: #fff;
+  border: 2px solid var(--page);
   font-family: var(--font-sans);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
   line-height: 1;
-  pointer-events: none;
+  color: #ffffff;
 }
 
-/* ---------- account chip ---------- */
-
-.nav-account-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  height: 40px;
-  max-width: 200px;
-  padding: 4px 10px 4px 4px;
-  border: 1px solid var(--component-border);
+.nav-avatar-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
   border-radius: var(--radius-full);
-  background: var(--component-bg);
-  color: var(--fg-primary);
+  background: transparent;
   cursor: pointer;
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
-    transform 0.15s var(--ease);
+  transition: background 0.15s var(--ease), transform 0.15s var(--ease);
+  -webkit-app-region: no-drag;
 }
 
-.nav-account-chip:hover {
-  background: var(--component-bg-hover);
-  border-color: var(--component-border-hover);
+.nav-avatar-btn:hover {
+  background: var(--ghost-overlay-hover);
 }
 
-.nav-account-chip:active {
-  transform: scale(0.98);
+.nav-avatar-btn:active {
+  transform: scale(0.95);
 }
 
-.nav-account-avatar {
-  border-radius: var(--radius-full) !important;
-  box-shadow: 0 0 0 1.5px var(--component-border-hover);
-}
-
-.nav-account-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  min-width: 0;
-}
-
-.nav-account-name {
-  max-width: 108px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.15;
-  color: var(--fg-primary);
-}
-
-.nav-account-kind {
-  font-family: var(--font-sans);
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  line-height: 1.15;
-  color: var(--fg-muted);
-}
-
-.nav-account-caret {
-  flex: none;
-  color: var(--fg-muted);
+.nav-avatar-img {
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 1px var(--component-border-hover);
 }
 
 /* ---------- window controls ---------- */
@@ -282,17 +192,18 @@
   display: flex;
   align-items: stretch;
   height: 100%;
-  margin-left: 4px;
+  margin-left: 8px;
+  -webkit-app-region: no-drag;
 }
 
 .window-ctrl-btn {
-  width: var(--titlebar-btn-width);
-  height: 100%;
   display: grid;
   place-items: center;
+  width: var(--titlebar-btn-width);
+  height: 100%;
   border: none;
   background: transparent;
-  color: var(--fg-secondary);
+  color: var(--fg-muted);
   cursor: pointer;
   transition: background 0.13s var(--ease), color 0.13s var(--ease);
 }
@@ -306,55 +217,21 @@
   background: var(--ghost-overlay-pressed);
 }
 
-.window-ctrl-btn.close {
-  border-top-right-radius: 12px;
-}
-
 .window-ctrl-btn.close:hover {
-  background: #e5484d;
-  color: #fff;
+  background: var(--danger);
+  color: #ffffff;
 }
 
-.window-ctrl-btn.close:active {
-  background: #c93c40;
-}
+/* ---------- narrow windows ---------- */
 
-.window-frame.maximized .window-ctrl-btn.close {
-  border-top-right-radius: 0;
-}
-
-/* ---------- responsive ---------- */
-
-@media (max-width: 1120px) {
-  .nav-link {
-    padding: 0 13px;
-  }
-}
-
-@media (max-width: 1020px) {
-  .nav-link-label {
-    display: none;
+@media (max-width: 940px) {
+  .app-navbar {
+    gap: 8px;
+    padding-left: 12px;
   }
 
   .nav-link {
-    padding: 0 12px;
-  }
-}
-
-@media (max-width: 900px) {
-  .nav-account-meta {
-    display: none;
-  }
-
-  .nav-account-caret {
-    display: none;
-  }
-
-  .nav-account-chip {
-    padding: 4px;
-  }
-
-  .native-logo-text {
-    display: none;
+    padding: 0 11px;
+    font-size: 13px;
   }
 }

@@ -5,11 +5,11 @@ import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import './AppNavbar.css';
 
 export const NAV_TABS = [
-  { id: 'home', label: 'Home', icon: 'home' },
-  { id: 'instances', label: 'Instances', icon: 'layers' },
-  { id: 'versions', label: 'Versions', icon: 'cube' },
-  { id: 'browse', label: 'Browse', icon: 'compass' },
-  { id: 'stats', label: 'Stats', icon: 'chart' }
+  { id: 'home', label: 'Home' },
+  { id: 'instances', label: 'Instances' },
+  { id: 'versions', label: 'Versions' },
+  { id: 'browse', label: 'Browse' },
+  { id: 'stats', label: 'Stats' }
 ];
 
 export default function AppNavbar({
@@ -27,24 +27,23 @@ export default function AppNavbar({
 }) {
   const navRef = useRef(null);
   const itemRefs = useRef({});
-  const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+  const [underline, setUnderline] = useState({ left: 0, width: 0, ready: false });
 
-  // Slide the active pill under whichever tab is selected. Measured rather
-  // than hard-coded so it stays correct once Poppins swaps in and at any
-  // window width.
+  // Measure the active tab so the underline slides to exactly the right
+  // place at any window width and after Poppins swaps in.
   useLayoutEffect(() => {
     const wrap = navRef.current;
     const element = itemRefs.current[currentTab];
 
     if (!wrap || !element) {
-      setIndicator((current) => ({ ...current, ready: false }));
+      setUnderline((current) => ({ ...current, ready: false }));
       return undefined;
     }
 
     const measure = () => {
       const item = element.getBoundingClientRect();
       const container = wrap.getBoundingClientRect();
-      setIndicator({ left: item.left - container.left, width: item.width, ready: true });
+      setUnderline({ left: item.left - container.left, width: item.width, ready: true });
     };
 
     measure();
@@ -66,9 +65,7 @@ export default function AppNavbar({
     };
   }, [currentTab]);
 
-  const accountLabel = account?.name || 'Sign in';
-  const accountKind =
-    account?.type === 'microsoft' ? 'Microsoft' : account?.type === 'guest' ? 'Guest' : 'Offline';
+  const accountTitle = account?.name ? 'Account: ' + account.name : 'Accounts';
 
   return (
     <header className="app-navbar">
@@ -78,19 +75,14 @@ export default function AppNavbar({
           type="button"
           className="navbar-logo-btn"
           onClick={() => onSelectTab('home')}
-          title="Native — Home"
+          title="Native"
         >
-          <Logo height={30} />
+          <Logo height={26} />
         </button>
       </div>
 
       {/* Primary navigation */}
       <nav className="navbar-center" ref={navRef} aria-label="Primary">
-        <span
-          className={`nav-indicator ${indicator.ready ? 'is-ready' : ''}`}
-          style={{ transform: `translateX(${indicator.left}px)`, width: indicator.width }}
-          aria-hidden="true"
-        />
         {NAV_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -98,14 +90,18 @@ export default function AppNavbar({
             ref={(element) => {
               itemRefs.current[tab.id] = element;
             }}
-            className={`nav-link ${currentTab === tab.id ? 'active' : ''}`}
+            className={'nav-link ' + (currentTab === tab.id ? 'active' : '')}
             onClick={() => onSelectTab(tab.id)}
             aria-current={currentTab === tab.id ? 'page' : undefined}
           >
-            <NativeIcon name={tab.icon} size={16} strokeWidth={1.9} />
             <span className="nav-link-label">{tab.label}</span>
           </button>
         ))}
+        <span
+          className={'nav-underline ' + (underline.ready ? 'is-ready' : '')}
+          style={{ transform: 'translateX(' + underline.left + 'px)', width: underline.width }}
+          aria-hidden="true"
+        />
       </nav>
 
       {/* Actions + window controls */}
@@ -117,7 +113,7 @@ export default function AppNavbar({
           title="Notifications"
           aria-label="Notifications"
         >
-          <NativeIcon name="bell" size={18} />
+          <NativeIcon name="bell" size={17} strokeWidth={1.7} />
           {unreadCount > 0 && (
             <span className="unread-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
           )}
@@ -130,21 +126,17 @@ export default function AppNavbar({
           title="Settings"
           aria-label="Settings"
         >
-          <NativeIcon name="settings" size={18} />
+          <NativeIcon name="settings" size={17} strokeWidth={1.7} />
         </button>
 
         <button
           type="button"
-          className="nav-account-chip"
+          className="nav-avatar-btn"
           onClick={onOpenAccountSwitcher}
-          title={account?.name ? `${account.name} — ${accountKind}` : 'Accounts'}
+          title={accountTitle}
+          aria-label={accountTitle}
         >
-          <PlayerAvatar account={account} size={28} kind="avatar" className="nav-account-avatar" />
-          <span className="nav-account-meta">
-            <span className="nav-account-name">{accountLabel}</span>
-            <span className="nav-account-kind">{accountKind}</span>
-          </span>
-          <NativeIcon name="chevron-down" size={14} className="nav-account-caret" />
+          <PlayerAvatar account={account} size={26} kind="avatar" className="nav-avatar-img" />
         </button>
 
         <div className="window-controls-group">
@@ -155,7 +147,7 @@ export default function AppNavbar({
             title="Minimize"
             aria-label="Minimize"
           >
-            <NativeIcon name="minimize" size={15} strokeWidth={1.6} />
+            <NativeIcon name="minimize" size={14} strokeWidth={1.6} />
           </button>
 
           <button
@@ -165,7 +157,7 @@ export default function AppNavbar({
             title={isMaximized ? 'Restore down' : 'Maximize'}
             aria-label={isMaximized ? 'Restore down' : 'Maximize'}
           >
-            <NativeIcon name={isMaximized ? 'restore' : 'maximize'} size={14} strokeWidth={1.6} />
+            <NativeIcon name={isMaximized ? 'restore' : 'maximize'} size={13} strokeWidth={1.6} />
           </button>
 
           <button
@@ -175,7 +167,7 @@ export default function AppNavbar({
             title="Close"
             aria-label="Close"
           >
-            <NativeIcon name="close" size={15} strokeWidth={1.6} />
+            <NativeIcon name="close" size={14} strokeWidth={1.6} />
           </button>
         </div>
       </div>
