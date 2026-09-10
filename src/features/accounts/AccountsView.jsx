@@ -2,28 +2,52 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
 import OfficialCapes from './OfficialCapes.jsx';
+import steveSkin from '../../assets/steve.png';
+import alexSkin from '../../assets/alex.png';
 import './AccountsView.css';
 
 const EMPTY_SLOTS = Array.from({ length: 3 }, () => ({}));
 const DEFAULT_SKINS = [
-  { name: 'Steve', model: 'classic', tone: 'steve' },
-  { name: 'Alex', model: 'slim', tone: 'alex' },
-  { name: 'Sunny', model: 'slim', tone: 'sunny' },
-  { name: 'Zuri', model: 'slim', tone: 'zuri' },
-  { name: 'Noor', model: 'classic', tone: 'noor' },
-  { name: 'Makena', model: 'slim', tone: 'makena' },
-  { name: 'Ari', model: 'classic', tone: 'ari' },
-  { name: 'Kai', model: 'classic', tone: 'kai' }
+  { name: 'Steve', model: 'classic', tone: 'steve', skinUrl: steveSkin },
+  { name: 'Alex', model: 'slim', tone: 'alex', skinUrl: alexSkin },
+  { name: 'Sunny', model: 'slim', tone: 'sunny', skinUrl: alexSkin },
+  { name: 'Zuri', model: 'slim', tone: 'zuri', skinUrl: alexSkin },
+  { name: 'Noor', model: 'classic', tone: 'noor', skinUrl: steveSkin },
+  { name: 'Makena', model: 'slim', tone: 'makena', skinUrl: alexSkin },
+  { name: 'Ari', model: 'classic', tone: 'ari', skinUrl: steveSkin },
+  { name: 'Kai', model: 'classic', tone: 'kai', skinUrl: steveSkin }
 ];
 
 function SectionTitle({ children }) {
-  return <div className="skin-section-title"><NativeIcon name="chevron-up" size={18} /><span>{children}</span></div>;
+  return <h2 className="skin-section-title"><NativeIcon name="chevron-up" size={18} /><span>{children}</span></h2>;
 }
 
-function MiniPlayer({ account, slot, model = 'classic', tone = 'steve', size = 'card' }) {
-  const preview = { ...account, skinUrl: slot?.skinUrl || account?.skinUrl, capeUrl: slot?.capeUrl || account?.capeUrl };
-  return <div className={`skin-mini skin-mini-${size} skin-tone-${tone}`}>
-    <SkinViewer3D account={preview} width={size === 'large' ? 220 : 132} height={size === 'large' ? 330 : 184} animation="idle" autoRotate={false} />
+function MiniPlayer({ account, slot, skin, size = 'card', interactive = false }) {
+  const preview = {
+    ...account,
+    skinUrl: skin?.skinUrl || slot?.skinUrl || account?.skinUrl,
+    capeUrl: slot?.capeUrl || account?.capeUrl,
+    model: skin?.model || slot?.model || account?.model
+  };
+  return <div className={`skin-mini skin-mini-${size} ${skin ? `skin-tone-${skin.tone}` : ''}`}>
+    <SkinViewer3D account={preview} width={size === 'large' ? 224 : 150} height={size === 'large' ? 340 : 210} animation="idle" autoRotate={false} className={interactive ? 'interactive-skin' : ''} />
+  </div>;
+}
+
+function SkinSelectorShell({ account, selectedSlot, children, onEdit, busy }) {
+  return <div className="skin-selector" data-testid="wardrobe-view">
+    <aside className="skin-preview">
+      <h1>Skin selector</h1>
+      <div className="player-name-tag">{account?.name || 'OhLLama'}</div>
+      <MiniPlayer account={account || { name: 'Player' }} slot={selectedSlot} size="large" interactive />
+      <div className="rotate-hint"><NativeIcon name="move" size={16} /><span>Drag to rotate</span></div>
+      <div className="preview-actions">
+        <button type="button" className="edit-skin-btn" onClick={onEdit} disabled={!onEdit || Boolean(busy)}>
+          <NativeIcon name={busy?.startsWith('skin-') ? 'loader' : 'edit'} size={16} className={busy?.startsWith('skin-') ? 'wardrobe-spin' : ''} /> Edit skin
+        </button>
+      </div>
+    </aside>
+    <main className="skin-library">{children}</main>
   </div>;
 }
 
@@ -59,7 +83,6 @@ export default function AccountsView({ account, onNotify, onWardrobeChanged }) {
   };
   const captureProfileError = (error) => setProfileError(error?.message || '');
   const apply = (next) => { if (next) { setWardrobe(next); onWardrobeChanged?.(next); } };
-
   const choose = (kind, slot) => run(`${kind}-${slot}`, async () => {
     apply(await window.native?.wardrobe?.choose({ account, kind, slot, model: wardrobe?.slots?.[slot]?.model || 'classic' }));
   }, 'Wardrobe', 'Could not import that PNG.');
@@ -86,10 +109,11 @@ export default function AccountsView({ account, onNotify, onWardrobeChanged }) {
   const refreshOfficial = () => run('official-refresh', loadOfficial, 'Minecraft profile', 'Could not load your Minecraft profile.', captureProfileError);
 
   if (!account?.id || account.id === 'guest') {
-    return <div className="skin-selector" data-testid="wardrobe-view">
-      <aside className="skin-preview"><h1>Skin selector</h1><div className="player-name-tag">OhLLama</div><MiniPlayer account={{ name: 'Player' }} size="large" /><div className="rotate-hint"><NativeIcon name="move" size={16} /> Drag to rotate</div><button className="edit-skin-btn"><NativeIcon name="edit" size={16} /> Edit skin</button></aside>
-      <main className="skin-library"><SectionTitle>Saved skins</SectionTitle><div className="skin-grid"><button className="skin-tile add-tile"><NativeIcon name="plus" size={30} /><strong>Add skin</strong><span>Drag and drop</span></button></div><div className="wardrobe-empty-state" data-testid="wardrobe-empty-state"><h2>No player selected</h2><p>Open the account switcher from the top-right avatar to start dressing up.</p></div></main>
-    </div>;
+    return <SkinSelectorShell account={{ name: 'OhLLama' }}>
+      <SectionTitle>Saved skins</SectionTitle>
+      <div className="skin-grid saved-grid"><button className="skin-tile add-tile" type="button" disabled><NativeIcon name="plus" size={30} /><strong>Add skin</strong><span>Drag and drop</span></button></div>
+      <div className="wardrobe-empty-state" data-testid="wardrobe-empty-state"><h2>No player selected</h2><p>Open the account switcher from the top-right avatar to start dressing up.</p></div>
+    </SkinSelectorShell>;
   }
 
   const slots = wardrobe?.slots || EMPTY_SLOTS;
@@ -98,45 +122,35 @@ export default function AccountsView({ account, onNotify, onWardrobeChanged }) {
   const selectedSlot = slots[current] || {};
   const saved = useMemo(() => slots.map((slot, index) => ({ slot, index })).filter(({ slot }) => slot.hasSkin || slot.hasCape), [slots]);
 
-  return <div className="skin-selector" data-testid="wardrobe-view">
-    <aside className="skin-preview">
-      <h1>Skin selector</h1>
-      <div className="player-name-tag">{account.name}</div>
-      <MiniPlayer account={account} slot={selectedSlot} size="large" />
-      <div className="rotate-hint"><NativeIcon name="move" size={16} /> Drag to rotate</div>
-      <button type="button" className="edit-skin-btn" onClick={() => choose('skin', current)} disabled={Boolean(busy)}><NativeIcon name={busy === `skin-${current}` ? 'loader' : 'edit'} size={16} className={busy === `skin-${current}` ? 'wardrobe-spin' : ''} /> Edit skin</button>
-      <button type="button" className="sync-skin-btn" onClick={sync} disabled={Boolean(busy)}><NativeIcon name={busy === 'sync' ? 'loader' : 'refresh'} size={15} className={busy === 'sync' ? 'wardrobe-spin' : ''} /> Sync to Fabric</button>
-    </aside>
+  return <SkinSelectorShell account={account} selectedSlot={selectedSlot} onEdit={() => choose('skin', current)} busy={busy}>
+    <SectionTitle>Saved skins</SectionTitle>
+    <div className="skin-grid saved-grid">
+      <button type="button" className="skin-tile add-tile" onClick={() => choose('skin', current)} disabled={Boolean(busy)}>
+        <NativeIcon name={busy?.startsWith('skin-') ? 'loader' : 'plus'} size={30} className={busy?.startsWith('skin-') ? 'wardrobe-spin' : ''} />
+        <strong>Add skin</strong><span>Drag and drop</span>
+      </button>
+      {saved.map(({ slot, index }) => <button key={index} type="button" aria-label={`Preview outfit ${index + 1}`} className={`skin-tile saved-skin ${current === index ? 'selected' : ''}`} onClick={() => setFocused(index)} onDoubleClick={() => select(index)}>
+        <MiniPlayer account={account} slot={slot} />
+        {selected === index && <span className="selected-check"><NativeIcon name="check" size={15} /></span>}
+        <span className="skin-card-name">Outfit {index + 1}</span>
+      </button>)}
+    </div>
 
-    <main className="skin-library">
-      <SectionTitle>Saved skins</SectionTitle>
-      <div className="skin-grid saved-grid">
-        <button type="button" className="skin-tile add-tile" onClick={() => choose('skin', current)} disabled={Boolean(busy)}>
-          <NativeIcon name={busy?.startsWith('skin-') ? 'loader' : 'plus'} size={30} className={busy?.startsWith('skin-') ? 'wardrobe-spin' : ''} />
-          <strong>Add skin</strong><span>Drag and drop</span>
-        </button>
-        {saved.map(({ slot, index }) => <button key={index} type="button" className={`skin-tile ${current === index ? 'selected' : ''}`} onClick={() => setFocused(index)} onDoubleClick={() => select(index)}>
-          <MiniPlayer account={account} slot={slot} size="card" />
-          {selected === index && <span className="selected-check"><NativeIcon name="check" size={15} /></span>}
-          <span className="skin-card-name">Outfit {index + 1}</span>
-        </button>)}
-      </div>
+    <SectionTitle>Default skins</SectionTitle>
+    <div className="skin-grid default-grid">
+      {DEFAULT_SKINS.map((skin, index) => <div key={skin.name} className={`skin-tile default-skin ${index === 0 && !selectedSlot.hasSkin ? 'selected' : ''}`} title={skin.name}>
+        <MiniPlayer account={account} skin={skin} />
+        <span className="skin-card-name">{skin.name}</span>
+      </div>)}
+    </div>
 
-      <SectionTitle>Default skins</SectionTitle>
-      <div className="skin-grid default-grid">
-        {DEFAULT_SKINS.map((skin, index) => <button key={skin.name} type="button" className={`skin-tile default-skin ${index === 0 && !selectedSlot.hasSkin ? 'selected' : ''}`} onClick={() => setFocused(selected)}>
-          <MiniPlayer account={account} model={skin.model} tone={skin.tone} size="card" />
-          <span className="skin-card-name">{skin.name}</span>
-        </button>)}
-      </div>
+    <div className="skin-actions-strip" aria-label="Selected skin actions">
+      <button type="button" className="skin-action-btn" onClick={() => choose('cape', current)} disabled={Boolean(busy)}><NativeIcon name={busy === `cape-${current}` ? 'loader' : 'image'} size={15} className={busy === `cape-${current}` ? 'wardrobe-spin' : ''} /> {selectedSlot.hasCape ? 'Replace cape' : 'Add cape'}</button>
+      <button type="button" className="skin-action-btn" onClick={sync} disabled={Boolean(busy)}><NativeIcon name={busy === 'sync' ? 'loader' : 'refresh'} size={15} className={busy === 'sync' ? 'wardrobe-spin' : ''} /> Sync to Fabric</button>
+      <button type="button" className="skin-action-btn primary" onClick={() => select(current)} disabled={selected === current || Boolean(busy)}><NativeIcon name={busy === `select-${current}` ? 'loader' : 'check'} size={15} className={busy === `select-${current}` ? 'wardrobe-spin' : ''} /> {selected === current ? 'Selected' : 'Use skin'}</button>
+      {account.isMicrosoft && selectedSlot.hasSkin && <button type="button" className="skin-action-btn" onClick={() => publishOfficial(current)} disabled={Boolean(busy)}><NativeIcon name={busy === `official-${current}` ? 'loader' : 'upload'} size={15} className={busy === `official-${current}` ? 'wardrobe-spin' : ''} /> Apply official</button>}
+    </div>
 
-      <div className="skin-actions-strip">
-        <button type="button" className="skin-action-btn" onClick={() => choose('cape', current)} disabled={Boolean(busy)}><NativeIcon name={busy === `cape-${current}` ? 'loader' : 'image'} size={15} className={busy === `cape-${current}` ? 'wardrobe-spin' : ''} /> {selectedSlot.hasCape ? 'Replace cape' : 'Add cape'}</button>
-        <button type="button" className="skin-action-btn primary" onClick={() => select(current)} disabled={selected === current || Boolean(busy)}><NativeIcon name={busy === `select-${current}` ? 'loader' : 'check'} size={15} className={busy === `select-${current}` ? 'wardrobe-spin' : ''} /> {selected === current ? 'Selected' : 'Use skin'}</button>
-        {account.isMicrosoft && selectedSlot.hasSkin && <button type="button" className="skin-action-btn" onClick={() => publishOfficial(current)} disabled={Boolean(busy)}><NativeIcon name={busy === `official-${current}` ? 'loader' : 'upload'} size={15} className={busy === `official-${current}` ? 'wardrobe-spin' : ''} /> Apply official</button>}
-      </div>
-
-      {account.isMicrosoft && <OfficialCapes official={official} error={profileError} busy={busy} onRefresh={refreshOfficial} onActivate={activateCape} />}
-    </main>
-  </div>;
+    {account.isMicrosoft && <OfficialCapes official={official} error={profileError} busy={busy} onRefresh={refreshOfficial} onActivate={activateCape} />}
+  </SkinSelectorShell>;
 }
