@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
+import AppearancePanel from './AppearancePanel.jsx';
 import './SettingsModal.css';
 
 const TABS = [
@@ -9,17 +11,29 @@ const TABS = [
   { id: 'java', label: 'Java', icon: 'terminal' },
   { id: 'accounts', label: 'Accounts', icon: 'users-01' },
   { id: 'storage', label: 'Storage', icon: 'database' },
-  { id: 'apis', label: 'APIs', icon: 'link' },
   { id: 'changelog', label: 'Changelog', icon: 'code-snippet-02' }
 ];
 
-const ACCENT_COLORS = [
-  { name: 'Polyfrost Blue', hex: '#2b4bff' },
-  { name: 'Emerald', hex: '#00d46a' },
-  { name: 'Cyan', hex: '#4dd9f3' },
-  { name: 'Gold', hex: '#ffc233' },
-  { name: 'Amethyst', hex: '#bf88ff' }
-];
+const PREFS_KEY = 'native.preferences';
+
+const DEFAULT_PREFS = {
+  discordRpc: true,
+  closeOnLaunch: false,
+  keepLogs: true,
+  fullscreen: false,
+  ram: 4,
+  javaPath: '',
+  javaArgs: ''
+};
+
+function readPrefs() {
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    return raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_PREFS };
+  } catch {
+    return { ...DEFAULT_PREFS };
+  }
+}
 
 export default function SettingsModal({
   open,
@@ -33,77 +47,77 @@ export default function SettingsModal({
   onOpenUpdater
 }) {
   const [activeTab, setActiveTab] = useState('launcher');
-  const [closeOnLaunch, setCloseOnLaunch] = useState(false);
-  const [discordRpc, setDiscordRpc] = useState(true);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [ram, setRam] = useState(4);
-  const [accent, setAccent] = useState('#2b4bff');
-  const [metaUrl, setMetaUrl] = useState('https://data-v2.polyfrost.org');
-  const [javaPath, setJavaPath] = useState('');
+  const [prefs, setPrefs] = useState(readPrefs);
   const [offlineName, setOfflineName] = useState('');
   const [dataDir, setDataDir] = useState('');
 
   useEffect(() => {
     if (window.native?.settings?.dataDir) {
-      window.native.settings.dataDir().then(setDataDir);
+      window.native.settings.dataDir().then(setDataDir).catch(() => {});
     }
   }, []);
 
-  const handleOpenDataDir = () => {
-    if (window.native?.settings?.openDataDir) {
-      window.native.settings.openDataDir();
-    }
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  const updatePref = (patch) => {
+    setPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      try {
+        window.localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore storage failures */
+      }
+      return next;
+    });
   };
 
-  const handleSelectAccent = (hex) => {
-    setAccent(hex);
-    document.documentElement.style.setProperty('--brand', hex);
-    document.documentElement.style.setProperty('--brand-glow', `${hex}66`);
+  const handleOpenDataDir = () => {
+    if (window.native?.settings?.openDataDir) window.native.settings.openDataDir();
   };
 
   if (!open) return null;
 
   return (
     <div className="settings-modal-backdrop" onClick={onClose}>
-      <div className="settings-shell-container" onClick={(e) => e.stopPropagation()}>
-        {/* Left Sidebar */}
+      <div className="settings-shell-container" onClick={(event) => event.stopPropagation()}>
         <aside className="settings-sidebar">
           <div className="settings-sidebar-header">
             <span className="settings-sidebar-title">Settings</span>
           </div>
 
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                className={`settings-nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <Icon name={tab.icon} size={16} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              className={`settings-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <Icon name={tab.icon} size={16} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
         </aside>
 
-        {/* Right Content */}
         <main className="settings-content-area">
           <div className="settings-content-header">
-            <h2 className="settings-pane-title">
-              {TABS.find((t) => t.id === activeTab)?.label}
-            </h2>
+            <h2 className="settings-pane-title">{TABS.find((t) => t.id === activeTab)?.label}</h2>
             <button className="icon-ctrl-btn" onClick={onClose}>
               <Icon name="x" size={16} />
             </button>
           </div>
 
           <div className="settings-scroll-body">
-            {/* Launcher Settings */}
             {activeTab === 'launcher' && (
               <>
                 <div className="settings-section">
                   <h4 className="settings-section-heading">BEHAVIOR</h4>
+
                   <div className="settings-row">
                     <div className="settings-row-info">
                       <span className="settings-row-title">Discord Rich Presence</span>
@@ -112,8 +126,8 @@ export default function SettingsModal({
                     <label className="toggle-switch">
                       <input
                         type="checkbox"
-                        checked={discordRpc}
-                        onChange={(e) => setDiscordRpc(e.target.checked)}
+                        checked={prefs.discordRpc}
+                        onChange={(event) => updatePref({ discordRpc: event.target.checked })}
                       />
                       <span className="slider" />
                     </label>
@@ -121,14 +135,29 @@ export default function SettingsModal({
 
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">Close Launcher on Launch</span>
-                      <span className="settings-row-desc">Exit the launcher once Minecraft starts</span>
+                      <span className="settings-row-title">Close launcher on launch</span>
+                      <span className="settings-row-desc">Exit Native once Minecraft starts</span>
                     </div>
                     <label className="toggle-switch">
                       <input
                         type="checkbox"
-                        checked={closeOnLaunch}
-                        onChange={(e) => setCloseOnLaunch(e.target.checked)}
+                        checked={prefs.closeOnLaunch}
+                        onChange={(event) => updatePref({ closeOnLaunch: event.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+
+                  <div className="settings-row">
+                    <div className="settings-row-info">
+                      <span className="settings-row-title">Keep game logs</span>
+                      <span className="settings-row-desc">Store the last session log for every instance</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={prefs.keepLogs}
+                        onChange={(event) => updatePref({ keepLogs: event.target.checked })}
                       />
                       <span className="slider" />
                     </label>
@@ -139,12 +168,12 @@ export default function SettingsModal({
                   <h4 className="settings-section-heading">LAUNCHER DATA FOLDER</h4>
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">Data Location</span>
+                      <span className="settings-row-title">Data location</span>
                       <span className="settings-row-desc">{dataDir || 'Default user data directory'}</span>
                     </div>
                     <button className="sub-btn" onClick={handleOpenDataDir}>
                       <Icon name="folder" size={14} />
-                      <span>Open Folder</span>
+                      <span>Open folder</span>
                     </button>
                   </div>
                 </div>
@@ -153,137 +182,130 @@ export default function SettingsModal({
                   <h4 className="settings-section-heading">UPDATES</h4>
                   <div className="settings-row">
                     <div className="settings-row-info">
-                      <span className="settings-row-title">OneClient Desktop App</span>
+                      <span className="settings-row-title">Native</span>
                       <span className="settings-row-desc">v{window.native?.version || '1.0.0'}</span>
                     </div>
                     <button className="sub-btn brand-btn" onClick={onOpenUpdater}>
                       <Icon name="refresh" size={14} />
-                      <span>Check Updates</span>
+                      <span>Check updates</span>
                     </button>
                   </div>
                 </div>
               </>
             )}
 
-            {/* Minecraft Settings */}
             {activeTab === 'minecraft' && (
-              <>
-                <div className="settings-section">
-                  <h4 className="settings-section-heading">GLOBAL GAME SETTINGS</h4>
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-title">Default Fullscreen</span>
-                      <span className="settings-row-desc">Launch instances in fullscreen by default</span>
-                    </div>
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={fullscreen}
-                        onChange={(e) => setFullscreen(e.target.checked)}
-                      />
-                      <span className="slider" />
-                    </label>
-                  </div>
-
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-title">Default Memory Allocation</span>
-                      <span className="settings-row-desc">RAM allocated to game instances</span>
-                    </div>
-                    <div className="ram-slider-control">
-                      <input
-                        type="range"
-                        min="2"
-                        max="16"
-                        step="1"
-                        value={ram}
-                        onChange={(e) => setRam(Number(e.target.value))}
-                        className="range-input"
-                      />
-                      <span className="ram-badge">{ram} GB</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Appearance Settings */}
-            {activeTab === 'appearance' && (
               <div className="settings-section">
-                <h4 className="settings-section-heading">ACCENT COLOR</h4>
+                <h4 className="settings-section-heading">GLOBAL GAME SETTINGS</h4>
+
                 <div className="settings-row">
                   <div className="settings-row-info">
-                    <span className="settings-row-title">Launcher Theme Color</span>
-                    <span className="settings-row-desc">The primary branding color across the client</span>
+                    <span className="settings-row-title">Default fullscreen</span>
+                    <span className="settings-row-desc">Launch instances in fullscreen by default</span>
                   </div>
-                  <div className="accent-color-options">
-                    {ACCENT_COLORS.map((c) => (
-                      <div
-                        key={c.hex}
-                        className={`accent-color-swatch ${accent === c.hex ? 'selected' : ''}`}
-                        style={{ backgroundColor: c.hex }}
-                        onClick={() => handleSelectAccent(c.hex)}
-                        title={c.name}
-                      />
-                    ))}
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={prefs.fullscreen}
+                      onChange={(event) => updatePref({ fullscreen: event.target.checked })}
+                    />
+                    <span className="slider" />
+                  </label>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row-info">
+                    <span className="settings-row-title">Default memory allocation</span>
+                    <span className="settings-row-desc">Used for new instances you create</span>
+                  </div>
+                  <div className="ram-slider-control">
+                    <input
+                      type="range"
+                      min="2"
+                      max="16"
+                      step="1"
+                      value={prefs.ram}
+                      onChange={(event) => updatePref({ ram: Number(event.target.value) })}
+                      className="range-input"
+                    />
+                    <span className="ram-badge">{prefs.ram} GB</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Java Settings */}
+            {activeTab === 'appearance' && <AppearancePanel />}
+
             {activeTab === 'java' && (
               <div className="settings-section">
-                <h4 className="settings-section-heading">JAVA RUNTIME CONFIGURATION</h4>
+                <h4 className="settings-section-heading">JAVA RUNTIME</h4>
+
                 <div className="settings-row vertical">
                   <div className="settings-row-info">
-                    <span className="settings-row-title">Default Java Executable</span>
-                    <span className="settings-row-desc">Path to Java executable for Minecraft</span>
+                    <span className="settings-row-title">Java executable</span>
+                    <span className="settings-row-desc">Leave empty to use the runtime Native downloads</span>
                   </div>
                   <input
                     type="text"
                     className="text-input full-width"
                     placeholder="Auto-detected Java runtime"
-                    value={javaPath}
-                    onChange={(e) => setJavaPath(e.target.value)}
+                    value={prefs.javaPath}
+                    onChange={(event) => updatePref({ javaPath: event.target.value })}
+                  />
+                </div>
+
+                <div className="settings-row vertical">
+                  <div className="settings-row-info">
+                    <span className="settings-row-title">Extra JVM arguments</span>
+                    <span className="settings-row-desc">Applied on top of the launcher defaults</span>
+                  </div>
+                  <input
+                    type="text"
+                    className="text-input full-width"
+                    placeholder="-XX:+UseG1GC"
+                    value={prefs.javaArgs}
+                    onChange={(event) => updatePref({ javaArgs: event.target.value })}
                   />
                 </div>
               </div>
             )}
 
-            {/* Accounts Settings */}
             {activeTab === 'accounts' && (
               <div className="settings-section">
                 <h4 className="settings-section-heading">CONNECTED ACCOUNTS</h4>
+
                 <div className="mods-list-container">
-                  {accounts.map((acc) => {
-                    const isActive = acc.id === activeId;
+                  {accounts.length === 0 && (
+                    <div className="settings-row">
+                      <div className="settings-row-info">
+                        <span className="settings-row-title">No accounts yet</span>
+                        <span className="settings-row-desc">Add a Microsoft or offline account to start playing</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {accounts.map((account) => {
+                    const isActive = account.id === activeId;
                     return (
-                      <div key={acc.id} className="package-item-row">
+                      <div key={account.id} className="package-item-row">
                         <div className="package-icon-wrap">
-                          <Icon name="users-01" size={18} />
+                          <PlayerAvatar account={account} kind="avatar" size={28} />
                         </div>
                         <div className="package-info-col">
-                          <span className="package-title">{acc.name}</span>
+                          <span className="package-title">{account.name}</span>
                           <span className="package-version-tag">
-                            {acc.type === 'microsoft' ? 'Microsoft Account' : 'Offline Player'}
+                            {account.type === 'offline' ? 'Offline player' : 'Microsoft account'}
                           </span>
                         </div>
                         <div className="toolbar-actions">
                           {isActive ? (
                             <span className="badge-installed">Active</span>
                           ) : (
-                            <button
-                              className="sub-btn"
-                              onClick={() => onSwitchAccount(acc.id)}
-                            >
+                            <button className="sub-btn" onClick={() => onSwitchAccount(account.id)}>
                               Select
                             </button>
                           )}
-                          <button
-                            className="icon-delete-btn"
-                            onClick={() => onRemoveAccount(acc.id)}
-                          >
+                          <button className="icon-delete-btn" onClick={() => onRemoveAccount(account.id)}>
                             <Icon name="trash-01" size={15} />
                           </button>
                         </div>
@@ -292,19 +314,19 @@ export default function SettingsModal({
                   })}
                 </div>
 
-                <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
                   <button className="sub-btn brand-btn" onClick={onAddMicrosoft}>
                     <Icon name="plus" size={14} />
-                    <span>Add Microsoft Account</span>
+                    <span>Add Microsoft account</span>
                   </button>
 
                   <div style={{ display: 'flex', gap: 6 }}>
                     <input
                       type="text"
                       className="text-input"
-                      placeholder="Player Name"
+                      placeholder="Player name"
                       value={offlineName}
-                      onChange={(e) => setOfflineName(e.target.value)}
+                      onChange={(event) => setOfflineName(event.target.value)}
                     />
                     <button
                       className="sub-btn"
@@ -315,65 +337,59 @@ export default function SettingsModal({
                         }
                       }}
                     >
-                      Add Offline
+                      Add offline
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Storage Settings */}
             {activeTab === 'storage' && (
               <div className="settings-section">
-                <h4 className="settings-section-heading">DISK USAGE & CACHES</h4>
+                <h4 className="settings-section-heading">DISK USAGE AND CACHES</h4>
                 <div className="settings-row">
                   <div className="settings-row-info">
-                    <span className="settings-row-title">Cached Data</span>
-                    <span className="settings-row-desc">Downloaded assets, skins, and mod caches</span>
+                    <span className="settings-row-title">Cached avatars and metadata</span>
+                    <span className="settings-row-desc">Skin renders and version manifests stored on disk</span>
                   </div>
                   <button
                     className="sub-btn"
                     onClick={() => {
-                      alert('Caches cleared successfully.');
+                      try {
+                        window.localStorage.removeItem('native.versionManifest');
+                      } catch {
+                        /* ignore */
+                      }
                     }}
                   >
-                    Clear Caches
+                    Clear cache
+                  </button>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row-info">
+                    <span className="settings-row-title">Instance files</span>
+                    <span className="settings-row-desc">{dataDir || 'Default user data directory'}</span>
+                  </div>
+                  <button className="sub-btn" onClick={handleOpenDataDir}>
+                    <Icon name="folder" size={14} />
+                    <span>Open folder</span>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* APIs Settings */}
-            {activeTab === 'apis' && (
-              <div className="settings-section">
-                <h4 className="settings-section-heading">REMOTE ENDPOINTS</h4>
-                <div className="settings-row vertical">
-                  <div className="settings-row-info">
-                    <span className="settings-row-title">Custom Meta URL Base</span>
-                    <span className="settings-row-desc">Default: https://data-v2.polyfrost.org</span>
-                  </div>
-                  <input
-                    type="text"
-                    className="text-input full-width"
-                    value={metaUrl}
-                    onChange={(e) => setMetaUrl(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Changelog Settings */}
             {activeTab === 'changelog' && (
               <div className="settings-section">
-                <h4 className="settings-section-heading">ONECLIENT RELEASE NOTES</h4>
+                <h4 className="settings-section-heading">NATIVE RELEASE NOTES</h4>
                 <div className="mod-modal-desc">
-                  <h3>OneClient v3.9.8</h3>
-                  <p style={{ marginTop: 8 }}>
-                    • Complete OneLauncher GUI remake matching OneClient design specification.<br />
-                    • Seamless support for Minecraft 26.2, 26.1.2, 1.21.11, 1.21.1, and 1.20.x.<br />
-                    • Browse Mods integration for Modrinth and CurseForge with category filters.<br />
-                    • Playtime metrics, statistics charts, and live logging.<br />
-                    • Native launcher engine optimizations.
+                  <h3>Native v{window.native?.version || '3.9.9'}</h3>
+                  <p style={{ marginTop: 8, lineHeight: 1.7 }}>
+                    Rebuilt navigation, window controls and the Native identity.<br />
+                    New Instances page with custom instance creation and per-instance actions.<br />
+                    Versions page now runs on the live Mojang manifest with loader availability.<br />
+                    Browse supports mods, modpacks, shaderpacks, resourcepacks and datapacks.<br />
+                    Fully customisable appearance: accent, darkness, contrast, rounding and scale.
                   </p>
                 </div>
               </div>
