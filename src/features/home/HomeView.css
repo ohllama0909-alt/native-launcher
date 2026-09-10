@@ -80,7 +80,7 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: #ffffff;
+  color: var(--fg-primary-hover);
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
 }
 
@@ -98,66 +98,22 @@
   gap: 10px;
 }
 
-.launch-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-width: 176px;
-  height: 50px;
-  padding: 0 30px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius-md);
-  background: var(--brand-gradient);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--fg-on-brand);
-  cursor: pointer;
-  box-shadow: 0 14px 34px -14px var(--brand-glow);
-  transition: filter 0.16s var(--ease), transform 0.16s var(--ease-spring),
-    box-shadow 0.16s var(--ease);
-}
-
-.launch-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 18px 40px -14px var(--brand-glow);
-}
-
-.launch-btn:active:not(:disabled) {
-  transform: scale(0.985);
-}
-
-.launch-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.launch-btn.kill {
-  background: var(--danger);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  box-shadow: none;
-}
-
 .cluster-settings-btn {
   display: grid;
   place-items: center;
   width: 50px;
   height: 50px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-  color: #ffffff;
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  color: var(--fg-primary-hover);
   cursor: pointer;
   transition: background 0.16s var(--ease), transform 0.16s var(--ease);
 }
 
 .cluster-settings-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--surface-tint-hover);
   transform: translateY(-1px);
 }
 
@@ -318,7 +274,7 @@
   font-family: var(--font-sans);
   font-size: 13.5px;
   font-weight: 650;
-  color: #ffffff;
+  color: var(--fg-primary);
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
 }
 
@@ -375,10 +331,10 @@
   padding: 5px 13px;
   border: 1px solid rgba(255, 255, 255, .18);
   border-radius: var(--radius-sm);
-  background: rgba(7, 10, 14, .72);
-  backdrop-filter: blur(10px);
+  background: var(--page-overlay);
+  backdrop-filter: blur(var(--blur-glass));
   box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
-  color: #fff;
+  color: var(--fg-primary-hover);
   font: 650 12px var(--font-sans);
   text-shadow: 0 1px 4px #000;
 }
@@ -434,7 +390,7 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--fg-muted);
 }
 
 .home-greeting-name {
@@ -445,7 +401,7 @@
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #ffffff;
+  color: var(--fg-primary-hover);
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
 }
 
@@ -462,20 +418,20 @@
   gap: 7px;
   height: 34px;
   padding: 0 13px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  background: rgba(12, 9, 12, 0.5);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--surface-glass);
   backdrop-filter: blur(10px);
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--fg-primary);
   font: 650 12px var(--font-sans);
   cursor: pointer;
   transition: background 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.15s var(--ease-out);
 }
 
 .home-quick-btn:hover {
-  background: rgba(255, 255, 255, 0.11);
-  border-color: rgba(255, 255, 255, 0.24);
-  color: #fff;
+  background: var(--surface-tint-hover);
+  border-color: var(--brand-border);
+  color: var(--fg-primary-hover);
   transform: translateY(-1px);
 }
 
@@ -486,7 +442,7 @@
   background: var(--brand-gradient);
   box-shadow: 0 14px 30px -16px var(--brand-glow);
   font-size: 13.5px;
-  color: #fff;
+  color: var(--fg-on-brand);
 }
 
 .home-info-grid {
@@ -512,10 +468,10 @@
   flex-direction: column;
   gap: 3px;
   padding: 11px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 13px;
-  background: rgba(10, 8, 11, 0.52);
-  backdrop-filter: blur(12px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--blur-glass));
 }
 
 .home-stat-icon {
@@ -533,7 +489,7 @@
   font-family: var(--font-sans);
   font-size: 17px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--fg-primary-hover);
 }
 
 .home-stat-label {
@@ -544,14 +500,14 @@
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--fg-muted);
 }
 
 .home-card {
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 14px;
-  background: rgba(10, 8, 11, 0.56);
-  backdrop-filter: blur(12px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--blur-glass));
   overflow: hidden;
 }
 
@@ -560,7 +516,7 @@
   align-items: center;
   gap: 8px;
   padding: 11px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--hairline);
   color: var(--brand-2);
 }
 
@@ -571,7 +527,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--fg-primary);
 }
 
 .home-card-head-hint {
@@ -606,7 +562,7 @@
 }
 
 .home-list-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-tint);
 }
 
 .home-list-art {
@@ -632,7 +588,7 @@
   font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 650;
-  color: #f2eef3;
+  color: var(--fg-primary);
 }
 
 .home-list-text small {
@@ -641,13 +597,13 @@
   white-space: nowrap;
   font-family: var(--font-sans);
   font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--fg-muted);
 }
 
 .home-list-end {
   margin-left: auto;
   flex: none;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--fg-muted);
 }
 
 .home-list-row:hover .home-list-end {

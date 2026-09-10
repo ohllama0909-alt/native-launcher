@@ -116,3 +116,56 @@ export function preloadAccountAvatars(accounts = [], size = 64) {
     preloadAvatar(skinRenderUrl('avatar', skinIdentifier(account), size));
   });
 }
+
+/* ---------- locker helpers ---------- */
+
+/** Read a dropped/selected File as a data URL (renderer only). */
+export function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Could not read that file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Classic (4px arms) or slim (3px arms)?
+ *
+ * In the 64x64 layout the right arm occupies x=40..56 for classic skins and
+ * x=40..55 for slim ones, so the column at x=54..55 is only opaque on classic
+ * textures. Anything unreadable falls back to classic — the user can still
+ * flip the model in the locker.
+ */
+export function detectSkinModel(dataUrl) {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined' || !dataUrl) {
+      resolve('classic');
+      return;
+    }
+    const image = new Image();
+    image.onload = () => {
+      try {
+        if (image.naturalWidth !== 64 || image.naturalHeight !== 64) {
+          resolve('classic');
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.drawImage(image, 0, 0);
+        const { data } = context.getImageData(54, 20, 2, 12);
+        let opaque = 0;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] > 8) opaque += 1;
+        }
+        resolve(opaque > 0 ? 'classic' : 'slim');
+      } catch {
+        resolve('classic');
+      }
+    };
+    image.onerror = () => resolve('classic');
+    image.src = dataUrl;
+  });
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Blocks, CircleUserRound, Compass, Home, Layers3, Minus, Settings, X } from 'lucide-react';
+import { Bell, Blocks, Compass, Home, Layers3, Minus, Settings, UserRound, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
@@ -9,6 +9,7 @@ import './AppNavbar.css';
 /** Primary destinations, in the order they appear in the rail. */
 export const NAV_ITEMS = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
+  { id: 'accounts', labelKey: 'nav.locker', icon: UserRound },
   { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
   { id: 'versions', labelKey: 'nav.versions', icon: Blocks },
   { id: 'browse', labelKey: 'nav.browse', icon: Compass }
@@ -35,7 +36,6 @@ export default function AppNavbar({
   currentTab,
   onSelectTab,
   onOpenSettings,
-  onOpenAccountSwitcher,
   onOpenNotifications,
   account,
   notifications = 0,
@@ -46,8 +46,6 @@ export default function AppNavbar({
 }) {
   const { t } = useI18n();
   const buildVersion = window.native?.version || packageInfo.version;
-  const accountLabel = account?.name ? `${t('account.named', { name: account.name })}` : t('account.accounts');
-
   return (
     <>
       <header className="noctra-titlebar">
@@ -81,12 +79,17 @@ export default function AppNavbar({
               icon={icon}
               active={currentTab === id}
               onClick={() => onSelectTab(id)}
-              label={t(labelKey)}
+              label={id === 'accounts' && account?.name ? t('account.named', { name: account.name }) : t(labelKey)}
+              status={id === 'accounts' && account?.isMicrosoft ? 'gold' : null}
             />
           ))}
         </nav>
 
         <span className="rail-divider" aria-hidden="true" />
+
+
+
+        <div className="rail-spacer" />
 
         <div className="rail-group">
           <RailButton
@@ -95,18 +98,6 @@ export default function AppNavbar({
             onClick={onOpenNotifications}
             label={t('window.notifications')}
             tone={notifications > 0 ? 'alert' : null}
-          />
-        </div>
-
-        <div className="rail-spacer" />
-
-        <div className="rail-group">
-          <RailButton
-            icon={CircleUserRound}
-            active={currentTab === 'accounts'}
-            onClick={onOpenAccountSwitcher}
-            label={accountLabel}
-            status={account?.isMicrosoft ? 'gold' : 'muted'}
           />
           <RailButton icon={Settings} onClick={onOpenSettings} label={t('common.settings')} />
         </div>

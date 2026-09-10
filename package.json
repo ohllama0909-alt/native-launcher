@@ -28,7 +28,8 @@
     "build-release": "bash scripts/build-release.sh",
     "publish": "bash scripts/publish-update.sh",
     "release": "bash scripts/build-release.sh && bash scripts/publish-update.sh",
-    "update-server": "node update-server.js"
+    "update-server": "node update-server.js",
+    "skin-server": "node skin-server/server.js"
   },
   "build": {
     "appId": "app.noctraclient.desktop",

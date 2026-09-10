@@ -30,12 +30,20 @@ contextBridge.exposeInMainWorld('native', {
   },
   wardrobe: {
     get: (account) => ipcRenderer.invoke('wardrobe:get', account),
+    // `dataUrl` accepts a raw base64 string or a data: URL from a dropped file.
+    upload: (account, kind, dataUrl, options = {}) =>
+      ipcRenderer.invoke('wardrobe:upload', { account, kind, dataUrl, ...options }),
     choose: (payload) => ipcRenderer.invoke('wardrobe:choose', payload),
-    select: (account, slot) => ipcRenderer.invoke('wardrobe:select', { account, slot }),
-    setModel: (account, slot, model) => ipcRenderer.invoke('wardrobe:setModel', { account, slot, model }),
+    apply: (account, id) => ipcRenderer.invoke('wardrobe:apply', { account, id }),
+    clearActive: (account, kind) => ipcRenderer.invoke('wardrobe:clearActive', { account, kind }),
+    favorite: (account, id, favorite) => ipcRenderer.invoke('wardrobe:favorite', { account, id, favorite }),
+    rename: (account, id, name) => ipcRenderer.invoke('wardrobe:rename', { account, id, name }),
+    remove: (account, id) => ipcRenderer.invoke('wardrobe:remove', { account, id }),
+    setModel: (account, model) => ipcRenderer.invoke('wardrobe:setModel', { account, model }),
+    export: (account, id) => ipcRenderer.invoke('wardrobe:export', { account, id }),
     sync: (account) => ipcRenderer.invoke('wardrobe:sync', account),
     officialProfile: (account) => ipcRenderer.invoke('wardrobe:officialProfile', account),
-    applyOfficialSkin: (account, slot) => ipcRenderer.invoke('wardrobe:applyOfficialSkin', { account, slot }),
+    applyOfficialSkin: (account, id) => ipcRenderer.invoke('wardrobe:applyOfficialSkin', { account, id }),
     activateOfficialCape: (account, capeId) => ipcRenderer.invoke('wardrobe:activateOfficialCape', { account, capeId })
   },
   settings: {

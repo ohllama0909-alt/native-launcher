@@ -1,6 +1,61 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { pngBuffer, usernameOf } = require('../skin-server/server');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const zlib = require('node:zlib');
+
+// The data directory is resolved when the module is loaded, so point it at a
+// scratch folder before requiring the server.
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'noctra-skin-api-'));
+process.env.NATIVE_SKIN_DATA = DATA_DIR;
+delete process.env.NATIVE_SKIN_PUBLIC_URL;
+
+const { pngBuffer, usernameOf, listen, customSkinProfile } = require('../skin-server/server');
+
+/* ---------- tiny PNG helper ---------- */
+
+let crcTable = null;
+function crc32(buffer) {
+  if (!crcTable) {
+    crcTable = new Int32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+      let c = n;
+      for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      crcTable[n] = c;
+    }
+  }
+  let crc = -1;
+  for (const byte of buffer) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return crc ^ -1;
+}
+
+function makePng(fill = 0) {
+  const chunk = (type, data) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body) >>> 0);
+    return Buffer.concat([length, body, crc]);
+  };
+  const size = 64;
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  const raw = Buffer.alloc(size * (1 + size * 4), fill);
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0))
+  ]);
+}
+
+/* ---------- pure helpers ---------- */
 
 test('skin API accepts valid Minecraft usernames only', () => {
   assert.equal(usernameOf('Player_123'), 'Player_123');
@@ -11,4 +66,78 @@ test('skin API accepts valid Minecraft usernames only', () => {
 test('skin API rejects non-PNG uploads', () => {
   assert.equal(pngBuffer(null), null);
   assert.throws(() => pngBuffer(Buffer.from('not a png').toString('base64')));
+});
+
+/* ---------- profile document shape ---------- */
+
+test('CustomSkinAPI documents use absolute texture URLs and follow the model', () => {
+  const origin = 'https://api.example.test';
+  const classic = customSkinProfile(
+    { username: 'Notch', model: 'default', skin: 'a'.repeat(64), cape: 'b'.repeat(64) },
+    origin
+  );
+  assert.equal(classic.skins.default, `${origin}/csl/textures/${'a'.repeat(64)}`);
+  assert.equal(classic.skins.slim, undefined);
+  assert.equal(classic.capes.default, `${origin}/csl/textures/${'b'.repeat(64)}`);
+
+  const slim = customSkinProfile({ username: 'Notch', model: 'slim', skin: 'c'.repeat(64), cape: null }, origin);
+  assert.equal(slim.skins.slim, `${origin}/csl/textures/${'c'.repeat(64)}`);
+  assert.equal(slim.skins.default, undefined);
+  assert.deepEqual(slim.capes, {});
+
+  const empty = customSkinProfile({ username: 'Notch', model: 'default' }, origin);
+  assert.deepEqual(empty.skins, {});
+  assert.deepEqual(empty.capes, {});
+});
+
+/* ---------- HTTP round trip ---------- */
+
+test('publishing an outfit serves a CustomSkinLoader profile and texture', async (t) => {
+  const server = await listen(0, '127.0.0.1');
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const key = crypto.randomBytes(32).toString('hex');
+  const skin = makePng(0x11);
+  const cape = makePng(0x22);
+
+  const publish = await fetch(`${base}/v1/wardrobe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ username: 'Notch', model: 'slim', skin: skin.toString('base64'), cape: cape.toString('base64') })
+  });
+  assert.equal(publish.status, 200);
+
+  const profileRes = await fetch(`${base}/csl/Notch.json`);
+  assert.equal(profileRes.status, 200);
+  assert.equal(profileRes.headers.get('access-control-allow-origin'), '*');
+  const profile = await profileRes.json();
+  assert.equal(profile.username, 'Notch');
+  assert.equal(profile.model, 'slim');
+  assert.match(profile.skins.slim, new RegExp(`^${base}/csl/textures/[a-f0-9]{64}$`));
+  assert.match(profile.capes.default, new RegExp(`^${base}/csl/textures/[a-f0-9]{64}$`));
+
+  // The advertised URLs really serve the uploaded bytes.
+  const textureRes = await fetch(profile.skins.slim);
+  assert.equal(textureRes.status, 200);
+  assert.equal(textureRes.headers.get('content-type'), 'image/png');
+  const served = Buffer.from(await textureRes.arrayBuffer());
+  assert.equal(served.length, skin.length);
+  assert.ok(served.equals(skin));
+
+  // The proxy headers decide the origin when no explicit public URL is set.
+  const proxied = await fetch(`${base}/csl/Notch`, { headers: { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'api.nativelaunch.xyz' } });
+  const proxiedProfile = await proxied.json();
+  assert.match(proxiedProfile.skins.slim, /^https:\/\/api\.nativelaunch\.xyz\/csl\/textures\//);
+
+  // A different key must not hijack the profile.
+  const conflict = await fetch(`${base}/v1/wardrobe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${crypto.randomBytes(32).toString('hex')}` },
+    body: JSON.stringify({ username: 'Notch', skin: skin.toString('base64') })
+  });
+  assert.equal(conflict.status, 403);
+
+  // Unknown players are a clean 404.
+  assert.equal((await fetch(`${base}/csl/Herobrine.json`)).status, 404);
+  assert.equal((await fetch(`${base}/health`)).status, 200);
 });

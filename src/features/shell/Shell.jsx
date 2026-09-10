@@ -7,7 +7,7 @@ import BrowseView from '../browser/BrowseView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import SettingsModal from '../settings/SettingsModal.jsx';
-import AccountsView from '../accounts/AccountsView.jsx';
+import LockerView from '../locker/LockerView.jsx';
 import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
 import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
 import useLauncher from '../launcher/useLauncher.js';
@@ -213,10 +213,11 @@ export default function Shell({
         )}
 
         {currentTab === 'accounts' && (
-          <AccountsView
+          <LockerView
             account={account}
             onNotify={notify}
             onWardrobeChanged={onWardrobeChanged}
+            onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
           />
         )}
 

@@ -18,9 +18,9 @@
   border-radius: 15px;
   background: var(--launch-gradient, linear-gradient(135deg, #48c1b7, #27877f));
   box-shadow:
-    0 16px 34px -18px rgba(58, 168, 159, 0.85),
+    0 16px 34px -18px var(--launch-shadow, rgba(58, 168, 159, 0.85)),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  color: #fff;
+  color: var(--fg-on-brand);
   font: 650 14.5px var(--font-sans);
   letter-spacing: 0.005em;
   cursor: pointer;
@@ -144,21 +144,21 @@
 .launch-action.is-install {
   background: var(--brand-gradient, linear-gradient(135deg, #8f438f, #bf72c0));
   box-shadow:
-    0 16px 34px -18px rgba(185, 91, 187, 0.85),
+    0 16px 34px -18px var(--launch-shadow, rgba(185, 91, 187, 0.85)),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .launch-action.is-download,
 .launch-action.is-verify,
 .launch-action.is-progress {
-  background: linear-gradient(135deg, #3d86d8, #234f88);
+  background: var(--info-gradient, linear-gradient(135deg, #3d86d8, #234f88));
   box-shadow:
-    0 16px 34px -18px rgba(66, 145, 235, 0.85),
+    0 16px 34px -18px rgba(66, 145, 235, 0.8),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .launch-action.is-stop {
-  background: linear-gradient(135deg, #e0525d, #a3222d);
+  background: var(--danger-gradient, linear-gradient(135deg, #e0525d, #a3222d));
   box-shadow:
     0 16px 34px -18px rgba(239, 68, 78, 0.8),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);

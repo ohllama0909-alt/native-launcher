@@ -30,7 +30,8 @@ export default function SkinViewer3D({
   animation = null,
   paused = false,
   autoRotate = false,
-  className = ''
+  className = '',
+  onViewer = null
 }) {
   const canvasRef = useRef(null);
   const viewerRef = useRef(null);
@@ -40,6 +41,8 @@ export default function SkinViewer3D({
   const [ready, setReady] = useState(false);
 
   const skinUrl = skinTextureUrl(account);
+  const onViewerRef = useRef(onViewer);
+  onViewerRef.current = onViewer;
 
   /* ---- create the viewer once ---- */
   useEffect(() => {
@@ -74,6 +77,7 @@ export default function SkinViewer3D({
         }
 
         viewerRef.current = viewer;
+        onViewerRef.current?.(viewer);
         setReady(true);
       })
       .catch(() => {
@@ -97,7 +101,15 @@ export default function SkinViewer3D({
     const viewer = viewerRef.current;
     if (!viewer || !ready) return;
 
-    viewer.loadSkin(skinUrl).then(() => {
+    // Arm width is explicit when the locker knows it, otherwise the library
+    // infers it from the texture.
+    const modelOption = account?.model === 'slim'
+      ? 'slim'
+      : account?.model === 'classic'
+        ? 'default'
+        : 'auto-detect';
+
+    viewer.loadSkin(skinUrl, { model: modelOption }).then(() => {
       if (viewer.renderPaused) viewer.render();
     }).catch(() => {
       viewer.loadSkin(SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN).then(() => {
@@ -116,6 +128,14 @@ export default function SkinViewer3D({
       }
     });
   }, [skinUrl, account, ready]);
+
+  /* ---- live auto-rotate toggle ---- */
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !ready) return;
+    viewer.autoRotate = autoRotate;
+    if (autoRotate) viewer.render();
+  }, [autoRotate, ready]);
 
   /* ---- animation selection ---- */
   useEffect(() => {

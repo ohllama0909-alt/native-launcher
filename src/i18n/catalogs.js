@@ -63,6 +63,7 @@ const tr = {
 };
 
 Object.assign(en, {
+  'account.logInWith':'Log in with','account.viewCode':'View code','account.backHome':'Back to Home','account.community':'Community','account.privacy':'Privacy Policy','account.terms':'Terms of Service','account.support':'Support','nav.locker':'Locker',
   'account.signedInAs':'Signed in as','account.empty':'No accounts yet. Add one to start playing.','account.switch':'Switch account','account.remove':'Remove account','account.add':'Add an account','account.signInMicrosoft':'Sign in with Microsoft','account.offlineUsername':'Offline username','account.addButton':'Add','account.offlineHint':'Offline accounts can only join servers that allow them.',
   'account.wardrobe':'Wardrobe','account.securing':'Securing your session…','account.securingDesc':'Encrypting account data and finishing sign-in','action.title':'Action center','action.quickAccess':'Quick access','action.search':'Search mods, modpacks, shaders and resource packs','action.discover':'Discover content','action.openBrowse':'Open Browse','action.goTo':'Go to',
   'back.home':'Back to Home','back.instances':'Back to Instances','back.versions':'Back to Versions','back.stats':'Back to Statistics','back.browse':'Back to Browse','notify.launching':'Launching game','notify.starting':'Starting {name} — {version}','notify.created':'Instance created','notify.modpackInstalled':'Modpack installed','notify.ready':'{name} is ready to play','notify.duplicated':'Instance duplicated',

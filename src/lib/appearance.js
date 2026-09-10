@@ -180,6 +180,7 @@ export function applyAppearance(appearance) {
   style.setProperty('--brand-glow', rgba(accent, value.glow ? 0.42 : 0.16));
   style.setProperty('--brand-soft', mix(accent, '#ffffff', 0.55));
   style.setProperty('--fg-on-brand', onAccentText(accent));
+  style.setProperty('--accent-text', mix(accent, '#ffffff', 0.42));
   style.setProperty(
     '--brand-gradient',
     'linear-gradient(135deg, ' +
@@ -190,6 +191,19 @@ export function applyAppearance(appearance) {
       mix(accent, '#ffffff', 0.24) +
       ' 100%)'
   );
+  // Primary actions (Play, Install, Wear outfit) wear the accent so the whole
+  // app follows Settings → Appearance, not just its surfaces.
+  style.setProperty(
+    '--launch-gradient',
+    'linear-gradient(135deg, ' +
+      mix(accent, '#000000', 0.18) +
+      ' 0%, ' +
+      accent +
+      ' 52%, ' +
+      mix(accent, '#ffffff', 0.28) +
+      ' 100%)'
+  );
+  style.setProperty('--launch-shadow', rgba(accent, value.glow ? 0.5 : 0.22));
   style.setProperty('--shadow-brand', value.glow ? '0 0 24px ' + rgba(accent, 0.32) : 'none');
   style.setProperty('--home-scrim', String(value.wallpaperDim / 100));
 

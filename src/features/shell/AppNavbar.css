@@ -15,8 +15,8 @@
   align-items: center;
   justify-content: space-between;
   padding-left: 20px;
-  background: #080608;
-  border-bottom: 1px solid #241f24;
+  background: var(--page-sunken);
+  border-bottom: 1px solid var(--hairline);
   -webkit-app-region: drag;
 }
 
@@ -27,18 +27,18 @@
   gap: 10px;
   font-size: 10.5px;
   letter-spacing: 0.01em;
-  color: #6f6a72;
+  color: var(--fg-muted);
 }
 
 .noctra-build > i {
   width: 1px;
   height: 10px;
-  background: #312d31;
+  background: var(--hairline-strong);
 }
 
 .noctra-build b {
   font-weight: 700;
-  color: #aaa5ac;
+  color: var(--fg-secondary);
 }
 
 .noctra-build strong {
@@ -46,22 +46,22 @@
   align-items: center;
   gap: 5px;
   font-weight: 650;
-  color: #d0cdd2;
+  color: var(--fg-secondary);
 }
 
 .noctra-build strong > span {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #34ed79;
-  box-shadow: 0 0 7px #22c55e;
+  background: var(--color-success);
+  box-shadow: 0 0 7px var(--color-success);
 }
 
 .noctra-wordmark {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #a29da4;
+  color: var(--fg-secondary);
   font-weight: 700;
 }
 
@@ -81,7 +81,7 @@
   height: 100%;
   display: grid;
   place-items: center;
-  color: #c4c0c5;
+  color: var(--fg-secondary);
 }
 
 .window-ctrl-btn:last-child {
@@ -89,12 +89,12 @@
 }
 
 .window-ctrl-btn:hover {
-  background: #ffffff0d;
-  color: #fff;
+  background: var(--surface-tint);
+  color: var(--fg-primary-hover);
 }
 
 .window-ctrl-btn.close:hover {
-  background: #c42b34;
+  background: var(--danger);
 }
 
 /* ---------- rail ---------- */
@@ -109,8 +109,8 @@
   align-items: center;
   gap: 6px;
   padding: 20px 0 18px;
-  background: linear-gradient(180deg, #0a0709 0%, #080608 58%, #0a0709 100%);
-  border-right: 1px solid #241f24;
+  background: var(--page-sunken);
+  border-right: 1px solid var(--hairline);
   -webkit-app-region: drag;
 }
 
@@ -122,13 +122,13 @@
   place-items: center;
   flex: none;
   margin-bottom: 12px;
-  border-radius: 13px;
+  border-radius: var(--radius-lg);
   -webkit-app-region: no-drag;
   transition: background 0.15s var(--ease), transform 0.15s var(--ease-out);
 }
 
 .noctra-logo:hover {
-  background: #ffffff0d;
+  background: var(--surface-tint);
   transform: translateY(-1px);
 }
 
@@ -162,8 +162,8 @@
   display: grid;
   place-items: center;
   flex: none;
-  border-radius: 12px;
-  color: #b6b0ba;
+  border-radius: var(--radius-md);
+  color: var(--fg-secondary);
   -webkit-app-region: no-drag;
   transition: background 0.16s var(--ease), color 0.16s var(--ease), transform 0.16s var(--ease-out);
 }
@@ -174,8 +174,8 @@
 }
 
 .rail-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  background: var(--surface-tint);
+  color: var(--fg-primary-hover);
 }
 
 .rail-btn:active {
@@ -188,9 +188,9 @@
 }
 
 .rail-btn.is-active {
-  background: linear-gradient(135deg, rgba(160, 81, 162, 0.24), rgba(160, 81, 162, 0.1));
-  box-shadow: inset 0 0 0 1px rgba(160, 81, 162, 0.42);
-  color: #e2c3e3;
+  background: var(--brand-subtle);
+  box-shadow: inset 0 0 0 1px var(--brand-border);
+  color: var(--brand-soft);
 }
 
 /* Accent bar pinned to the rail edge marks the active destination. */
@@ -208,7 +208,7 @@
 }
 
 .rail-btn.tone-alert {
-  color: #ffd9dd;
+  color: var(--danger);
 }
 
 /* Tooltips: the rail sits on the window edge, so labels open to the right. */
@@ -220,11 +220,11 @@
   top: 50%;
   z-index: 90;
   padding: 6px 10px;
-  border: 1px solid #2c2630;
-  border-radius: 8px;
-  background: #17131a;
+  border: 1px solid var(--component-border);
+  border-radius: var(--radius);
+  background: var(--elevated-bg);
   box-shadow: var(--shadow-popover);
-  color: #ece8ee;
+  color: var(--fg-primary-hover);
   font: 600 11.5px var(--font-sans);
   white-space: nowrap;
   opacity: 0;
@@ -245,7 +245,7 @@
   width: 22px;
   height: 1px;
   margin: 8px 0;
-  background: #2a242c;
+  background: var(--hairline);
 }
 
 .rail-spacer {
@@ -261,12 +261,12 @@
   padding: 0 4px;
   display: grid;
   place-items: center;
-  border: 2px solid #080608;
+  border: 2px solid var(--page-sunken);
   border-radius: 9px;
-  background: #ef4444;
+  background: var(--danger);
   font: 700 9px/1 var(--font-sans);
   font-style: normal;
-  color: #fff;
+  color: var(--fg-on-danger, #fff);
   box-sizing: content-box;
 }
 
@@ -277,20 +277,20 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  border: 1.5px solid #080608;
+  border: 1.5px solid var(--page-sunken);
 }
 
 .rail-status.gold {
-  background: #e6b33f;
-  box-shadow: 0 0 8px rgba(230, 179, 63, 0.6);
+  background: var(--color-gold);
+  box-shadow: 0 0 8px rgba(230, 179, 63, 0.55);
 }
 
 .rail-status.muted {
-  background: #4a444d;
+  background: var(--fg-muted);
 }
 
 .rail-status.red {
-  background: #ff3c4b;
+  background: var(--color-danger);
 }
 
 @media (prefers-reduced-motion: reduce) {

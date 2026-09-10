@@ -9,6 +9,7 @@ A Minecraft launcher for Windows, Linux and macOS. Built with Electron, React an
 - **Loaders** — Vanilla, Fabric, Forge, NeoForge and Quilt.
 - **Browse** — search Modrinth for mods, modpacks, shaderpacks, resourcepacks and datapacks. Each download is routed to the right folder, and `.mrpack` modpacks are unpacked into a brand new instance.
 - **Accounts** — Microsoft sign-in plus offline accounts, with real skins and avatars for both.
+- **Locker** — a full wardrobe for every account: upload skins and capes (drag & drop or browse), favourite the ones you like, wear a classic or slim model, then publish the active outfit to your Minecraft profile. Everything is stored locally first and synced to the Noctra wardrobe API in the background.
 - **Auto updates** — delivered through GitHub releases.
 
 ## Getting started
@@ -27,6 +28,40 @@ To run a production build locally:
 ```bash
 npm start
 ```
+
+## Wardrobe API (custom skins)
+
+Skins and capes are served to the game through **CustomSkinLoader**. The API
+itself lives in [`skin-server/server.js`](skin-server/server.js) and speaks the
+CustomSkinAPI protocol:
+
+| Route | Purpose |
+| --- | --- |
+| `GET /health` | Health check |
+| `GET /csl/:username.json` | CustomSkinLoader profile (absolute `skins` / `capes` URLs) |
+| `GET /csl/textures/:sha256` | Content-addressed PNG texture |
+| `POST /v1/wardrobe` | Publish the active outfit (`Bearer <wardrobe key>`, base64 PNGs) |
+
+Run it locally, in a container, or behind nginx — `scripts/api.nativelaunch.xyz.nginx`
+and `scripts/native-skin-api.service` are the production pair that serve
+`api.nativelaunch.xyz` on port 3418.
+
+```bash
+npm run skin-server                       # http://127.0.0.1:3418
+NATIVE_SKIN_PORT=3418 NATIVE_SKIN_DATA=~/.local/share/native-skin-api npm run skin-server
+```
+
+The launcher talks to `https://api.nativelaunch.xyz` by default. Point it at a
+self-hosted server (including the local one) with:
+
+```bash
+NATIVE_WARDROBE_API=http://127.0.0.1:3418 npm run dev
+```
+
+When a Fabric instance launches, the launcher writes the active skin and cape
+into `CustomSkinLoader/LocalSkin/`, an `ExtraList/NativeWardrobe.json` entry for
+the API, and installs the pinned CustomSkinLoader build for that Minecraft
+version.
 
 ## Packaging
 

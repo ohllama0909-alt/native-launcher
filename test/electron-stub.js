@@ -24,6 +24,11 @@ const stub = {
     getVersion: () => '0.0.0-test',
     setPath: () => {}
   },
+  dialog: {
+    showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+    showSaveDialog: async () => ({ canceled: true, filePath: undefined }),
+    showMessageBox: async () => ({ response: 0 })
+  },
   shell: {
     openPath: async () => '',
     openExternal: async () => {}

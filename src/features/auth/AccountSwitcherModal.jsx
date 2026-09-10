@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Github, Minus, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
+import BrandIcon from '../../components/ui/BrandIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import { preloadAccountAvatars } from '../../lib/skins.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
@@ -10,6 +11,17 @@ import loginSide from '../../assets/noctra-login-side.png';
 import './AccountSwitcherModal.css';
 
 const OFFLINE_NAME = /^[A-Za-z0-9_]{3,16}$/;
+
+/* Placeholder destinations — drop the real invite/feed URLs in here. */
+const COMMUNITY = {
+  discord: 'https://discord.gg/noctra',
+  x: 'https://x.com/noctraclient',
+  instagram: 'https://instagram.com/noctraclient',
+  youtube: 'https://youtube.com/@noctraclient',
+  patreon: 'https://patreon.com/noctraclient'
+};
+
+const LEGAL = 'https://noctra.client';
 
 export default function AccountSwitcherModal({
   open,
@@ -50,6 +62,8 @@ export default function AccountSwitcherModal({
   }, [open]);
 
   if (!open) return null;
+
+  const openExternal = (url) => window.native?.openExternal?.(url);
 
   const handleAddMicrosoft = async () => {
     setBusy(true);
@@ -103,7 +117,7 @@ export default function AccountSwitcherModal({
       <div className="account-login-layout">
         <section className="account-login-panel">
           <div className="account-login-content">
-            <Logo height={62} variant="mark" className="account-login-logo" />
+            <Logo height={72} variant="mark" className="account-login-logo" />
             <h1>Noctra <strong>Client</strong></h1>
 
             {accounts.length > 0 && (
@@ -147,9 +161,15 @@ export default function AccountSwitcherModal({
             )}
 
             <button type="button" className="account-login-microsoft" onClick={handleAddMicrosoft} disabled={busy}>
-              <span>{busy ? t('account.securing') : 'Log in with'}</span>
+              <span>{busy ? t('account.securing') : t('account.logInWith')}</span>
               <span className="account-login-ms-mark" aria-hidden="true"><i /><i /><i /><i /></span>
               <strong>Microsoft</strong>
+            </button>
+
+            <button type="button" className="account-login-github" onClick={() => openExternal('https://github.com/ohllama0909-alt/native-launcher')}>
+              <span>{t('account.viewCode')}</span>
+              <Github size={21} />
+              <strong>GitHub</strong>
             </button>
 
             <button type="button" className="account-login-offline-toggle" onClick={() => setShowOffline((value) => !value)}>
@@ -182,22 +202,34 @@ export default function AccountSwitcherModal({
             {accounts.length > 0 && !firstRun && (
               <button type="button" className="account-login-home" onClick={onClose}>
                 <ArrowLeft size={17} />
-                <span>Back to Home</span>
+                <span>{t('account.backHome')}</span>
               </button>
             )}
 
-            <button
-              type="button"
-              className="account-login-github"
-              onClick={() => window.native?.openExternal?.('https://github.com/ohllama0909-alt/native-launcher')}
-            >
-              <span>View code</span>
-              <Github size={20} />
-              <strong>GitHub</strong>
-            </button>
+            <div className="account-login-social" role="group" aria-label={t('account.community')}>
+              <button type="button" title="Discord" aria-label="Discord" onClick={() => openExternal(COMMUNITY.discord)}>
+                <BrandIcon name="discord" size={19} />
+              </button>
+              <button type="button" title="X" aria-label="X" onClick={() => openExternal(COMMUNITY.x)}>
+                <BrandIcon name="x" size={17} />
+              </button>
+              <button type="button" title="Instagram" aria-label="Instagram" onClick={() => openExternal(COMMUNITY.instagram)}>
+                <BrandIcon name="instagram" size={19} />
+              </button>
+              <button type="button" title="YouTube" aria-label="YouTube" onClick={() => openExternal(COMMUNITY.youtube)}>
+                <BrandIcon name="youtube" size={21} />
+              </button>
+              <button type="button" title="Patreon" aria-label="Patreon" onClick={() => openExternal(COMMUNITY.patreon)}>
+                <BrandIcon name="patreon" size={18} />
+              </button>
+            </div>
 
             <footer>
-              <span>Privacy Policy</span><i /> <span>Terms of Service</span><i /> <span>Support</span>
+              <button type="button" onClick={() => openExternal(`${LEGAL}/privacy`)}>{t('account.privacy')}</button>
+              <i />
+              <button type="button" onClick={() => openExternal(`${LEGAL}/terms`)}>{t('account.terms')}</button>
+              <i />
+              <button type="button" onClick={() => openExternal(`${LEGAL}/support`)}>{t('account.support')}</button>
             </footer>
           </div>
         </section>
