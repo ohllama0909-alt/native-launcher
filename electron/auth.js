@@ -211,7 +211,7 @@ async function getMinecraftSession(accountId) {
 
     const cached = mcSessions[acc.id];
     if (cached && (typeof cached.validate !== 'function' || cached.validate())) {
-      return cached.mclc();
+      return cached;
     }
 
     if (!acc.refresh) return null;

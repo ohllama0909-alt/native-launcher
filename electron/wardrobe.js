@@ -247,6 +247,10 @@ async function prepareFabricInstance(instance, account, onState = () => {}) {
 
 function init(dependencies, ipcMain) {
   deps = dependencies;
+  const profileResult = (operation) => async (...args) => {
+    try { return { ok: true, profile: await operation(...args) }; }
+    catch (error) { return { ok: false, error: String(error?.message || error) }; }
+  };
   ipcMain.handle('wardrobe:get', (_event, account) => publicState(account));
   ipcMain.handle('wardrobe:choose', async (_event, payload) => {
     const state = await chooseTexture(payload.account, payload.kind, payload.slot, payload.model);
@@ -272,9 +276,9 @@ function init(dependencies, ipcMain) {
     return publicState(account);
   });
   ipcMain.handle('wardrobe:sync', (_event, account) => syncWardrobe(account));
-  ipcMain.handle('wardrobe:officialProfile', (_event, account) => officialProfile(account));
-  ipcMain.handle('wardrobe:applyOfficialSkin', (_event, { account, slot }) => applyOfficialSkin(account, slot));
-  ipcMain.handle('wardrobe:activateOfficialCape', (_event, { account, capeId }) => activateOfficialCape(account, capeId));
+  ipcMain.handle('wardrobe:officialProfile', profileResult((_event, account) => officialProfile(account)));
+  ipcMain.handle('wardrobe:applyOfficialSkin', profileResult((_event, { account, slot }) => applyOfficialSkin(account, slot)));
+  ipcMain.handle('wardrobe:activateOfficialCape', profileResult((_event, { account, capeId }) => activateOfficialCape(account, capeId)));
 }
 
 module.exports = { init, publicState, pngInfo, prepareFabricInstance, API_ROOT };

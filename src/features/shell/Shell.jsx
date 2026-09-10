@@ -8,6 +8,7 @@ import StatsView from '../stats/StatsView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import SettingsModal from '../settings/SettingsModal.jsx';
 import AccountsView from '../accounts/AccountsView.jsx';
+import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
 import ActionCenter from '../actions/ActionCenter.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
@@ -48,6 +49,7 @@ export default function Shell({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [actionCenterOpen, setActionCenterOpen] = useState(false);
+  const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
 
@@ -141,7 +143,7 @@ export default function Shell({
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenNotifications={() => setNotificationsOpen(true)}
-        onOpenAccountSwitcher={() => setCurrentTab('accounts')}
+        onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
         unreadCount={notifications.length}
         account={account}
         isMaximized={isMaximized}
@@ -216,12 +218,6 @@ export default function Shell({
         {currentTab === 'accounts' && (
           <AccountsView
             account={account}
-            accounts={accounts}
-            activeId={activeId}
-            onAddMicrosoft={onAddMicrosoft}
-            onAddOffline={onAddOffline}
-            onSwitchAccount={onSwitchAccount}
-            onRemoveAccount={onRemoveAccount}
             onNotify={notify}
             onWardrobeChanged={onWardrobeChanged}
           />
@@ -247,6 +243,17 @@ export default function Shell({
         onClose={() => setSettingsOpen(false)}
         instances={instancesManager.instances}
         onOpenUpdater={onOpenUpdater}
+      />
+
+      <AccountSwitcherModal
+        open={accountSwitcherOpen}
+        onClose={() => setAccountSwitcherOpen(false)}
+        accounts={accounts}
+        activeId={activeId}
+        onSwitchAccount={onSwitchAccount}
+        onAddMicrosoft={onAddMicrosoft}
+        onAddOffline={onAddOffline}
+        onRemoveAccount={onRemoveAccount}
       />
 
       <ActionCenter

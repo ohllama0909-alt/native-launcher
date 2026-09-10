@@ -49,7 +49,6 @@ export const DEFAULT_APPEARANCE = {
   radius: 'soft',
   scale: 100,
   wallpaperDim: 72,
-  homeAvatarMode: 'fly',
   animations: true,
   glow: true
 };
@@ -134,7 +133,6 @@ function sanitize(raw) {
     radius: radiusIds.includes(source.radius) ? source.radius : DEFAULT_APPEARANCE.radius,
     scale: Math.round(clamp(source.scale ?? DEFAULT_APPEARANCE.scale, 80, 130)),
     wallpaperDim: Math.round(clamp(source.wallpaperDim ?? DEFAULT_APPEARANCE.wallpaperDim, 0, 95)),
-    homeAvatarMode: source.homeAvatarMode === 'runner' ? 'runner' : 'fly',
     animations: source.animations !== false,
     glow: source.glow !== false
   };

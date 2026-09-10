@@ -240,29 +240,6 @@ export default function AppearancePanel() {
           </div>
         </div>
 
-        <div className="ap-row">
-          <div className="ap-row-info">
-            <span className="ap-row-title">Home character</span>
-            <span className="ap-row-desc">Choose how your 3D skin moves on the Home page</span>
-          </div>
-          <div className="ap-segmented">
-            <button
-              type="button"
-              className={appearance.homeAvatarMode === 'fly' ? 'active' : ''}
-              onClick={() => update({ homeAvatarMode: 'fly' })}
-            >
-              Fly around
-            </button>
-            <button
-              type="button"
-              className={appearance.homeAvatarMode === 'runner' ? 'active' : ''}
-              onClick={() => update({ homeAvatarMode: 'runner' })}
-            >
-              Run by Play
-            </button>
-          </div>
-        </div>
-
         <div className="ap-wallpaper-preview">
           <div className="ap-wallpaper-art" />
           <div

@@ -53,7 +53,8 @@ export default function AccountSwitcherModal({
     setBusy(true);
     setError('');
     try {
-      await onAddMicrosoft?.();
+      const result = await onAddMicrosoft?.();
+      if (result && !result.ok) throw new Error(result.error || t('error.microsoftLogin'));
     } catch (err) {
       setError(err?.message || t('error.microsoftLogin'));
     } finally {
@@ -72,7 +73,8 @@ export default function AccountSwitcherModal({
     setBusy(true);
     setError('');
     try {
-      await onAddOffline?.(name);
+      const result = await onAddOffline?.(name);
+      if (result && !result.ok) throw new Error(result.error || t('error.offlineAccount'));
       setOfflineName('');
     } catch (err) {
       setError(err?.message || t('error.offlineAccount'));
