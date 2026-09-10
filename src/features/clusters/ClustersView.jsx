@@ -176,7 +176,7 @@ export default function ClustersView({
 
   const handlePrimary = async () => {
     if (matchingInstance) {
-      onSelectCluster?.(matchingInstance);
+      onSelectCluster?.(matchingInstance.id);
       onLaunch?.(matchingInstance);
       return;
     }
@@ -186,7 +186,7 @@ export default function ClustersView({
     setBusy(true);
     try {
       const created = await onCreateInstance(buildPayload(), { open: false });
-      if (created) onSelectCluster?.(created);
+      if (created?.id) onSelectCluster?.(created.id);
       onNotify?.({
         title: 'Instance created',
         body: selectedVersion + ' ' + loader + ' is ready to play.'
@@ -198,6 +198,7 @@ export default function ClustersView({
 
   const handleOpen = async () => {
     if (matchingInstance) {
+      onSelectCluster?.(matchingInstance.id);
       onOpenCluster?.(matchingInstance);
       return;
     }
