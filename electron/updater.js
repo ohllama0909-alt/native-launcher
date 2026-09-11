@@ -17,7 +17,7 @@ autoUpdater.fullChangelog = true;
 const PRIMARY_FEED = {
   provider: 'github',
   owner: 'ohllama0909-alt',
-  repo: 'native-launch'
+  repo: 'noctra-client'
 };
 const LEGACY_FEED = {
   provider: 'github',
@@ -181,7 +181,7 @@ async function checkForUpdates({ silent = false } = {}) {
         result = await autoUpdater.checkForUpdates();
       } catch (err) {
         primaryError = err;
-        log.warn('Primary update feed check (native-launch) failed, trying legacy (native-launcher):', err);
+        log.warn('Primary update feed check (noctra-client) failed, trying legacy (native-launcher):', err);
       }
 
       // If primary feed had no update or failed, check legacy feed so clients in transition don't miss updates

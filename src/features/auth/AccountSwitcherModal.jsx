@@ -167,7 +167,7 @@ export default function AccountSwitcherModal({
                 <button
                   type="button"
                   className="account-login-github"
-                  onClick={() => openExternal('https://github.com/ohllama0909-alt/native-launch')}
+                  onClick={() => openExternal('https://github.com/ohllama0909-alt/noctra-client')}
                 >
                   <span className="account-login-btn-lead">{t('account.viewCode')}</span>
                   <Github size={23} className="account-login-gh-mark" />

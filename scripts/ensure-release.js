@@ -23,7 +23,7 @@ const root = path.join(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 const owner = pkg.build?.publish?.owner || 'ohllama0909-alt';
-const primaryRepo = pkg.build?.publish?.repo || 'native-launch';
+const primaryRepo = pkg.build?.publish?.repo || 'noctra-client';
 const targetRepos = [primaryRepo, 'native-launcher'].filter((v, i, a) => a.indexOf(v) === i);
 const tag = `v${pkg.version}`;
 

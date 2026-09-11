@@ -4,10 +4,10 @@ import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './SettingsPanels.css';
 
 const PRIMARY_RELEASES_API =
-  'https://api.github.com/repos/ohllama0909-alt/native-launch/releases?per_page=12';
+  'https://api.github.com/repos/ohllama0909-alt/noctra-client/releases?per_page=12';
 const LEGACY_RELEASES_API =
   'https://api.github.com/repos/ohllama0909-alt/native-launcher/releases?per_page=12';
-const RELEASES_PAGE = 'https://github.com/ohllama0909-alt/native-launch/releases';
+const RELEASES_PAGE = 'https://github.com/ohllama0909-alt/noctra-client/releases';
 
 function cleanVersion(tag) {
   return String(tag || '').replace(/^v/i, '');
