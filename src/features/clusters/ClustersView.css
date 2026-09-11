@@ -150,6 +150,13 @@
 
 /* ---------- Version Card ---------- */
 
+/* Reset global `.version-card` (defined in HomeView.css for recents scroller)
+   so the clusters grid can fill columns as 1fr, not stay at 232px wide. */
+.clusters-cards-grid .version-card {
+  flex: initial;
+  width: auto;
+}
+
 .version-card {
   position: relative;
   height: 150px;
