@@ -478,7 +478,12 @@ export default function ClustersView({
                   </div>
 
                   {/* Centered Big Version Number */}
-                  <div className="version-card-center-numeral">
+                  <div
+                    className={
+                      "version-card-center-numeral" +
+                      (String(line.id).length > 4 ? " is-long" : "")
+                    }
+                  >
                     <span>{line.id}</span>
                   </div>
 
