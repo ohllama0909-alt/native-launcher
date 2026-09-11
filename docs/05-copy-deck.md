@@ -29,6 +29,8 @@ mockups.
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "support": "Support",
+    "waiting": "Waiting for Microsoft...",
+    "tryAgain": "Try again",
     "continueOffline": "Continue offline"
   },
 

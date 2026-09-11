@@ -8,7 +8,7 @@ app, plus the Noctra backend that powers Relay, friends and cloud sync.
 frontend) compresses the calendar to roughly **40 % of the serial total**
 because Phases 3–8 parallelise well.
 
-**Serial total: ~62 dw (~14 months solo) · Team of 3: ~25 calendar weeks (~6 months)**
+**Serial total: ~61 dw (~14 months solo) · Team of 3: ~25 calendar weeks (~6 months)**
 
 ---
 
@@ -18,7 +18,7 @@ because Phases 3–8 parallelise well.
 |---|---|---|---|---|
 | 0 | Foundations & legal | Repo, CI, signed empty app ships | 3 dw | — |
 | 1 | Design system | Storybook of every component matching the mockups | 5 dw | 2 |
-| 2 | Auth | Real Microsoft login, session persisted | 4 dw | 1 |
+| 2 | Auth | Real Microsoft login via `msmc`, session persisted | 3 dw | 1 |
 | 3 | Launch core | **Vanilla Minecraft launches.** *First playable* | 7 dw | 4 |
 | 4 | Home shell | Home with real profiles, launch states, offline mode | 4 dw | 3 |
 | 5 | Versions & profiles | Version grid, profile panel, loaders, advanced settings | 8 dw | 6 |
@@ -40,7 +40,7 @@ because Phases 3–8 parallelise well.
 
 | # | Task | Est. |
 |---|---|---|
-| 0.1 | **Submit the Azure application for Minecraft auth API access.** Do this on day 1 — approval is the longest lead time in the project | 0.2 dw |
+| 0.1 | **Submit the Minecraft AppID allowlist request** (Entra app: *Mobile and desktop*, `consumers` tenant, scope `XboxLive.signin offline_access`, then the Minecraft AppID registration form). Do this on day 1 — the review is manual and slow. **Not a blocker:** development proceeds on `msmc`'s default client ID (architecture §4.0), so this only gates the public release | 0.2 dw |
 | 0.2 | Monorepo (pnpm workspaces), `packages/app` + `packages/server`, TS strict, ESLint + Prettier, commitlint | 0.4 dw |
 | 0.3 | `electron-vite` scaffold: main / preload / renderer, HMR, frameless window, `contextIsolation` + `sandbox` on | 0.5 dw |
 | 0.4 | Typed IPC skeleton (`shared/ipc-contract.ts`) with zod validation and a codegen'd `window.noctra` | 0.5 dw |
@@ -74,20 +74,26 @@ pixel-compared against the corresponding crop from `/design`.
 
 ---
 
-## Phase 2 — Authentication · 4 dw
+## Phase 2 — Authentication · 3 dw
+
+Built on `msmc` (architecture §4.0), not a hand-rolled OAuth chain. The
+five-hop flow, token refresh and the Electron login window come from the
+library; this phase is provider wiring, the vault, the UI and error mapping.
 
 | # | Task | Est. |
 |---|---|---|
-| 2.1 | Device-code OAuth against Azure AD (`XboxLive.signin offline_access`), polling with correct `authorization_pending` / `slow_down` handling | 0.7 dw |
-| 2.2 | XBL → XSTS → `login_with_xbox` chain; map `XErr` 2148916233 / 2148916238 to human messages | 0.8 dw |
+| 2.1 | Wire `msmc` behind `main/auth/provider.ts` using the default client ID; Electron launch mode, `MStoken` config path left open for the swap to Noctra's own ID | 0.3 dw |
+| 2.2 | Error mapping on top of msmc: `XErr` 2148916233 (no Xbox account) / 2148916238 (child account), `403 Invalid app registration`, network failures → human messages | 0.3 dw |
 | 2.3 | Entitlement check + `/minecraft/profile`; persist `uuid`, `name`, skins, capes | 0.4 dw |
-| 2.4 | Token vault on `safeStorage`; silent refresh on boot; refresh-failure → re-auth modal | 0.6 dw |
+| 2.4 | Token vault on `safeStorage` (persist msmc's refresh token); silent refresh on boot; refresh-failure → re-auth modal | 0.6 dw |
 | 2.5 | Login screen (§1 of screen specs): split layout, Microsoft + GitHub buttons, 5 social links, footer, hero art | 0.7 dw |
-| 2.6 | Device-code card, error state, offline profile creation, `Continue offline` | 0.5 dw |
+| 2.6 | Login-pending state, error state, offline profile creation, `Continue offline` | 0.5 dw |
 | 2.7 | Account menu behind the greeting chevron: switch account, multi-account store, logout | 0.3 dw |
+| 2.8 | **Client-ID swap** — move to Noctra's own allowlisted ID via `MStoken` once task 0.1 is approved; re-verify the full chain and the consent-screen branding | 0.2 dw |
 
-**DoD:** a real Microsoft account signs in, the session survives a restart, and
-logout clears the vault.
+**DoD:** a real Microsoft account signs in through `msmc`, the session survives
+a restart, and logout clears the vault. Task 2.8 stays open until the allowlist
+request from 0.1 is granted — it must not block G1–G3.
 
 ---
 
@@ -259,7 +265,9 @@ exchange a message with an image attachment.
 ## Critical path
 
 ```
-P0.1 Azure approval ──────────────────────────────┐ (external, start day 1)
+P0.1 Minecraft AppID allowlist ───────────────────┐ (external, start day 1;
+                                                  │  gates release only —
+                                                  │  dev runs on msmc default)
 P0 → P1 ┐                                         │
         ├→ P3 Launch core → P4 Home → P5 Profiles → P6 Content → G2
 P0 → P2 ┘                                         │
@@ -276,7 +284,8 @@ in parallel the moment the design system is stable.
 
 | Risk | Impact | Likelihood | Mitigation |
 |---|---|---|---|
-| Azure/Minecraft auth app not approved | **Blocks everything online** | Medium | Submit day 1; build the whole launch core against an offline profile so P3–P6 are unblocked |
+| Own client ID not allowlisted by Minecraft Services | Blocks **public release** only (was: everything online) | Medium | Ship development and beta on `msmc`'s default client ID; submit the request day 1 (task 0.1); swap via `MStoken` in one line (task 2.8). Launch core also works against an offline profile |
+| msmc's default client ID revoked or blocked | High | Low | Provider abstraction (`main/auth/provider.ts`) makes the ID a config value; own approved ID is the standing mitigation, offline mode is the fallback |
 | Forge 1.13+ installer processors | High | High | Time-boxed to 1.3 dw; fall back to shipping Fabric/NeoForge first and Forge 1.13+ post-beta |
 | macOS arm64 LWJGL natives | High | Medium | Nightly CI matrix from P3.11; keep an x64-Rosetta fallback path |
 | Modrinth rate limits at scale | Medium | Medium | Aggressive disk cache, a server-side proxy with shared cache, honest User-Agent |

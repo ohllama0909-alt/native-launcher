@@ -55,10 +55,15 @@ a glowing `N`-marked cube. Ships as a static asset; may slowly parallax on curso
 | State | UI |
 |---|---|
 | Idle | as above |
-| Device-code pending | Microsoft button → spinner + `Waiting for Microsoft…`; card shows the user code, `Copy code`, `Open browser again`, `Cancel` |
-| Error | inline `--danger` message under the button + `Try again` |
+| Auth pending | Microsoft button → spinner + `Waiting for Microsoft…`; `msmc`'s Electron login window is open on top; `Cancel` closes it and restores the idle state |
+| Error | inline `--danger` message under the button + `Try again`. Map `XErr` 2148916233 → `This Microsoft account has no Xbox profile`, 2148916238 → `This is a child account — ask the family manager to grant permission`, `403 Invalid app registration` → `Noctra isn't authorised for Minecraft services yet` |
 | Offline | Microsoft button disabled; `Continue offline` secondary appears (offline profile, no online play) |
 | Success | 220ms fade to `/home` |
+
+> Auth is implemented with `msmc`, which opens its own Electron window for the
+> Microsoft login rather than showing a device code. If you later switch to the
+> device-code flow, add a card with the user code, `Copy code`,
+> `Open browser again` and `Cancel`.
 
 ---
 
@@ -364,7 +369,7 @@ troubleshooting."*
 | Case | Behaviour |
 |---|---|
 | No internet at boot | Offline banner, cached profiles/friends, offline launch of already-downloaded versions |
-| Auth token expired | Silent refresh; on failure a re-auth modal, launch blocked |
+| Auth token expired | Silent refresh via msmc's stored refresh token; on failure a re-auth modal, launch blocked |
 | Manifest / CDN unreachable | `Couldn't reach Mojang services` + `Retry`, offline launch still allowed |
 | Download failure / checksum mismatch | Per-file retry ×3, then `Download failed` + `Retry` / `View log` |
 | Disk full | Pre-flight free-space check with required size in the error |

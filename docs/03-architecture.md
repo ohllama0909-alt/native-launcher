@@ -35,6 +35,7 @@ if install size becomes a product requirement.
 | Icons | `lucide-react` + a bespoke nav-rail set as SVG sprites |
 | 3D | `three` + `skinview3d` |
 | Local DB | SQLite via `better-sqlite3` (profiles, gallery index, message cache) |
+| Minecraft auth | `msmc` — default vanilla client ID for development, own allowlisted client ID for release |
 | Secrets | `keytar` / Electron `safeStorage` for refresh tokens |
 | Logging | `electron-log` with rotating files |
 | Errors | Sentry (main + renderer), opt-in |
@@ -66,10 +67,10 @@ noctra/
 │  │  │  │  │  ├─ cloud.ipc.ts
 │  │  │  │  │  └─ system.ipc.ts            # window controls, shell, paths, updates
 │  │  │  │  ├─ auth/
-│  │  │  │  │  ├─ msal.ts                  # device-code / loopback OAuth
-│  │  │  │  │  ├─ xbox.ts                  # XBL + XSTS
-│  │  │  │  │  ├─ minecraft.ts             # login_with_xbox, entitlements, profile
-│  │  │  │  │  └─ store.ts                 # safeStorage-backed token vault
+│  │  │  │  │  ├─ provider.ts                # msmc wrapper; client ID is config
+│  │  │  │  │  ├─ errors.ts                  # XErr / 403 → human messages
+│  │  │  │  │  ├─ offline.ts                 # offline profile + offline UUID
+│  │  │  │  │  └─ store.ts                   # safeStorage-backed token vault
 │  │  │  │  ├─ game/
 │  │  │  │  │  ├─ manifest.ts              # version_manifest_v2 + per-version JSON
 │  │  │  │  │  ├─ assets.ts                # asset index + object download
@@ -235,7 +236,55 @@ sends IDs and receives view models.
 
 ## 4. Authentication
 
+### 4.0 Implementation: `msmc` first, own client ID later
+
+Do **not** hand-roll the five hops below at the start of the project. Use
+[`msmc`](https://www.npmjs.com/package/msmc) (Hanro50), which implements the
+whole chain, token refresh and an Electron launch mode:
+
+```ts
+import { Auth } from "msmc";
+
+const auth  = new Auth("select_account");
+const xbox  = await auth.launch("electron");   // opens the MS login window
+const mc    = await xbox.getMinecraft();
+const creds = mc.mclc();                        // access token, uuid, name → argbuilder
+```
+
+`msmc` **bundles the vanilla Minecraft launcher's client ID**, so calling
+`new Auth()` with no `MStoken` authenticates real Microsoft accounts with **no
+Azure registration and no approval wait**. That is what unblocks Phases 2–6 on
+day 1.
+
+**Why approval is still required for release.** The gate is not Azure, it is
+Minecraft Services: hop 4 (`POST /authentication/login_with_xbox`) returns
+`403 Invalid app registration` unless the client ID sits on Microsoft's
+**manual allowlist**. There is no self-service bypass in the Entra portal.
+`msmc`'s default works purely because it borrows an already-allowlisted ID.
+
+| | msmc default ID | Own approved ID |
+|---|---|---|
+| Development / personal use | Works immediately | — |
+| Public release | Not officially sanctioned; revocable at any time | The legitimate path |
+| MS consent screen branding | reads *Minecraft Launcher* | reads *Noctra* |
+
+**The swap** is a one-liner once the allowlist request lands — pass an
+`MStoken` to the constructor:
+
+```ts
+new Auth({ client_id: process.env.NOCTRA_CLIENT_ID, redirect: "http://localhost:5123/callback" });
+```
+
+Register the app as **Mobile and desktop applications** against the
+`consumers` tenant (personal Microsoft accounts) with scope
+`XboxLive.signin offline_access`, then submit the Minecraft AppID registration
+form — see roadmap task 0.1. Keep the abstraction behind
+`main/auth/provider.ts` so neither path leaks into the rest of the codebase.
+
 ### 4.1 Microsoft / Xbox → Minecraft (5 hops)
+
+Reference only — `msmc` performs all of this for you. Understand it so you can
+debug failures and map errors to the UI.
 
 ```
 1. Azure AD OAuth              → Microsoft access_token + refresh_token
@@ -263,9 +312,11 @@ Electron `safeStorage.encryptString` into `userData/auth.bin` (DPAPI on Windows,
 Keychain on macOS, libsecret on Linux). Never the renderer, never plain JSON.
 On boot: silent refresh; on failure show the re-auth modal and block launching.
 
-**Blocker to schedule early:** using the Minecraft authentication APIs in a
-third-party launcher requires an approved Azure application. Submit the request
-in Phase 0 — approval is the long pole, not the code.
+**Blocker to schedule early — but no longer a hard stop.** Shipping publicly
+requires a client ID on the Minecraft Services allowlist, and that review is
+manual and slow. Submit the request in Phase 0 regardless, then keep building
+against `msmc`'s default client ID (§4.0) so nothing waits on it. Follow up via
+`enforce@minecraft.net` if the request stalls.
 
 **Offline mode:** a locally stored username + offline UUID
 (`UUID.nameUUIDFromBytes("OfflinePlayer:" + name)`), launch allowed only for
