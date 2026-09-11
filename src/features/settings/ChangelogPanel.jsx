@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './SettingsPanels.css';
@@ -13,41 +15,28 @@ function cleanVersion(tag) {
   return String(tag || '').replace(/^v/i, '');
 }
 
-/** Very small markdown-ish renderer: headings, bullets, code and links. */
-function renderBody(body) {
-  const lines = String(body || '')
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .filter((line, index, all) => line || all[index - 1]);
-
-  return lines.slice(0, 40).map((line, index) => {
-    const key = index + '-' + line.slice(0, 12);
-
-    if (/^#{1,6}\s/.test(line)) {
-      return (
-        <h5 key={key} className="cl-body-head">
-          {line.replace(/^#{1,6}\s/, '')}
-        </h5>
-      );
+function sanitizeHtml(dirtyHtml) {
+  if (typeof DOMPurify?.sanitize === 'function') {
+    return DOMPurify.sanitize(dirtyHtml);
+  }
+  if (typeof window !== 'undefined' && typeof DOMPurify === 'function') {
+    try {
+      return DOMPurify(window).sanitize(dirtyHtml);
+    } catch {
+      // fallback
     }
+  }
+  return dirtyHtml;
+}
 
-    if (/^[-*]\s/.test(line)) {
-      return (
-        <div key={key} className="cl-body-item">
-          <span className="cl-bullet" />
-          <span>{line.replace(/^[-*]\s/, '')}</span>
-        </div>
-      );
-    }
-
-    if (!line.trim()) return <div key={key} className="cl-body-gap" />;
-
-    return (
-      <p key={key} className="cl-body-text">
-        {line}
-      </p>
-    );
-  });
+/** Rich markdown renderer for GitHub changelogs and release notes */
+function formatChangelogMarkdown(body) {
+  let raw = String(body || '').replace(/\r\n/g, '\n').trim();
+  if (!raw) return '';
+  // Normalize unicode bullets to standard markdown bullets
+  raw = raw.replace(/^([ \t]*)•[ \t]+/gm, '$1- ');
+  const parsed = marked.parse(raw, { gfm: true, breaks: true });
+  return sanitizeHtml(parsed);
 }
 
 export default function ChangelogPanel({ onOpenUpdater }) {
@@ -115,7 +104,19 @@ export default function ChangelogPanel({ onOpenUpdater }) {
   );
 
   const openExternal = (url) => {
-    if (window.native?.openExternal) window.native.openExternal(url);
+    if (!url) return;
+    if (window.native?.openExternal) {
+      window.native.openExternal(url);
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleBodyClick = (event) => {
+    const anchor = event.target.closest('a');
+    if (!anchor?.href) return;
+    event.preventDefault();
+    openExternal(anchor.href);
   };
 
   return (
@@ -193,18 +194,26 @@ export default function ChangelogPanel({ onOpenUpdater }) {
 
               {open && (
                 <div className="cl-entry-body">
-                  {release.body ? renderBody(release.body) : (
+                  {release.body ? (
+                    <div
+                      className="cl-markdown"
+                      onClick={handleBodyClick}
+                      dangerouslySetInnerHTML={{ __html: formatChangelogMarkdown(release.body) }}
+                    />
+                  ) : (
                     <p className="cl-body-text">{t('changelog.noNotes')}</p>
                   )}
 
-                  <button
-                    type="button"
-                    className="sp-ghost-btn"
-                    onClick={() => openExternal(release.url)}
-                  >
-                    <NativeIcon name="external-link" size={13} />
-                    <span>{t('changelog.openGitHub')}</span>
-                  </button>
+                  <div className="cl-body-footer">
+                    <button
+                      type="button"
+                      className="sp-ghost-btn"
+                      onClick={() => openExternal(release.url)}
+                    >
+                      <NativeIcon name="external-link" size={13} />
+                      <span>{t('changelog.openGitHub')}</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </article>

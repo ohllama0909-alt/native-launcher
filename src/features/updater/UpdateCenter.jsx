@@ -203,7 +203,8 @@ function renderReleaseNotes(notes) {
   }
   raw = raw.replace(/\\n/g, '\n').trim();
   if (!raw) return '';
-  return DOMPurify.sanitize(marked.parse(raw));
+  raw = raw.replace(/^([ \t]*)•[ \t]+/gm, '$1- ');
+  return DOMPurify.sanitize(marked.parse(raw, { gfm: true, breaks: true }));
 }
 
 function formatBytes(value) {

@@ -426,9 +426,224 @@
 .cl-entry-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 4px 15px 15px 30px;
+  gap: 12px;
+  padding: 12px 20px 18px 34px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.16);
 }
+
+.cl-body-footer {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ---------- Rich Markdown Typography ---------- */
+
+.cl-markdown {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--fg-secondary);
+  word-break: break-word;
+}
+
+.cl-markdown > :first-child {
+  margin-top: 0;
+}
+
+.cl-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.cl-markdown h1,
+.cl-markdown h2,
+.cl-markdown h3,
+.cl-markdown h4,
+.cl-markdown h5,
+.cl-markdown h6 {
+  margin: 16px 0 6px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg-primary);
+  line-height: 1.35;
+}
+
+.cl-markdown h1 {
+  font-size: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 5px;
+}
+
+.cl-markdown h2 {
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 4px;
+}
+
+.cl-markdown h3 {
+  font-size: 13px;
+}
+
+.cl-markdown h4,
+.cl-markdown h5,
+.cl-markdown h6 {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+}
+
+/* Paragraphs */
+.cl-markdown p {
+  margin: 0 0 8px;
+  color: var(--fg-secondary);
+}
+
+/* Lists */
+.cl-markdown ul,
+.cl-markdown ol {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+
+.cl-markdown li {
+  margin: 3px 0;
+  line-height: 1.6;
+  color: var(--fg-secondary);
+}
+
+.cl-markdown li::marker {
+  color: var(--fg-muted);
+}
+
+.cl-markdown li > p {
+  margin: 0;
+}
+
+.cl-markdown ul ul,
+.cl-markdown ol ol,
+.cl-markdown ul ol,
+.cl-markdown ol ul {
+  margin: 2px 0 4px;
+  padding-left: 16px;
+}
+
+/* Links */
+.cl-markdown a {
+  color: #388bfd;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.cl-markdown a:hover {
+  color: #58a6ff;
+  border-bottom-color: rgba(88, 166, 255, 0.4);
+}
+
+/* Strong / Emphasis */
+.cl-markdown strong,
+.cl-markdown b {
+  font-weight: 650;
+  color: var(--fg-primary);
+}
+
+.cl-markdown em,
+.cl-markdown i {
+  font-style: italic;
+  color: var(--fg-primary);
+}
+
+/* Inline Code */
+.cl-markdown code {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #f1f5f9;
+}
+
+/* Code Blocks */
+.cl-markdown pre {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  overflow-x: auto;
+}
+
+.cl-markdown pre code {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+/* Blockquotes */
+.cl-markdown blockquote {
+  margin: 8px 0;
+  padding: 8px 14px;
+  border-left: 3px solid #0071e3;
+  border-radius: 0 8px 8px 0;
+  background: rgba(0, 113, 227, 0.07);
+  color: var(--fg-secondary);
+}
+
+.cl-markdown blockquote p {
+  margin: 0;
+}
+
+/* Horizontal Rules */
+.cl-markdown hr {
+  margin: 14px 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Tables */
+.cl-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+.cl-markdown th,
+.cl-markdown td {
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+}
+
+.cl-markdown th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 650;
+  color: var(--fg-primary);
+}
+
+.cl-markdown td {
+  color: var(--fg-secondary);
+}
+
+/* Checkboxes */
+.cl-markdown input[type="checkbox"] {
+  margin-right: 6px;
+  accent-color: #0071e3;
+  vertical-align: middle;
+}
+
+/* ---------- Legacy fallback classes ---------- */
 
 .cl-body-head {
   margin: 8px 0 2px;
