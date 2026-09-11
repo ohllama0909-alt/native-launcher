@@ -1,6 +1,6 @@
-# Native
+# Noctra Client
 
-A Minecraft launcher for Windows, Linux and macOS. Built with Electron, React and Vite.
+A modern Minecraft launcher for Windows, Linux and macOS. Built with Electron, React and Vite.
 
 ## Features
 
@@ -9,8 +9,18 @@ A Minecraft launcher for Windows, Linux and macOS. Built with Electron, React an
 - **Loaders** — Vanilla, Fabric, Forge, NeoForge and Quilt.
 - **Browse** — search Modrinth for mods, modpacks, shaderpacks, resourcepacks and datapacks. Each download is routed to the right folder, and `.mrpack` modpacks are unpacked into a brand new instance.
 - **Accounts** — Microsoft sign-in plus offline accounts, with real skins and avatars for both.
-- **Locker** — a full wardrobe for every account: upload skins and capes (drag & drop or browse), favourite the ones you like, wear a classic or slim model, then publish the active outfit to your Minecraft profile. Everything is stored locally first and synced to the Noctra wardrobe API in the background.
 - **Auto updates** — delivered through GitHub releases.
+
+## Repository Contents
+
+- **`src/` & `electron/`**: Noctra Client desktop application source code.
+- **[`docs/`](./docs/)**: Comprehensive documentation suite:
+  - [01 — Design Book](./docs/01-design-book.md): Brand, color palette, typography, spacing, component library
+  - [02 — Screen Specs](./docs/02-screen-specs.md): Detailed per-screen specification and edge cases
+  - [03 — Architecture](./docs/03-architecture.md): Electron + React + TS architecture, IPC contract, launch pipeline
+  - [04 — Roadmap](./docs/04-roadmap.md): 10-phase build roadmap from scratch with estimates and gates
+  - [05 — Copy Deck](./docs/05-copy-deck.md): Complete verbatim string catalog for i18n
+- **[`design/`](./design/)**: High-resolution UI/UX design mockups covering all client interfaces.
 
 ## Getting started
 
@@ -29,40 +39,6 @@ To run a production build locally:
 npm start
 ```
 
-## Wardrobe API (custom skins)
-
-Skins and capes are served to the game through **CustomSkinLoader**. The API
-itself lives in [`skin-server/server.js`](skin-server/server.js) and speaks the
-CustomSkinAPI protocol:
-
-| Route | Purpose |
-| --- | --- |
-| `GET /health` | Health check |
-| `GET /csl/:username.json` | CustomSkinLoader profile (absolute `skins` / `capes` URLs) |
-| `GET /csl/textures/:sha256` | Content-addressed PNG texture |
-| `POST /v1/wardrobe` | Publish the active outfit (`Bearer <wardrobe key>`, base64 PNGs) |
-
-Run it locally, in a container, or behind nginx — `scripts/api.nativelaunch.xyz.nginx`
-and `scripts/native-skin-api.service` are the production pair that serve
-`api.nativelaunch.xyz` on port 3418.
-
-```bash
-npm run skin-server                       # http://127.0.0.1:3418
-NATIVE_SKIN_PORT=3418 NATIVE_SKIN_DATA=~/.local/share/native-skin-api npm run skin-server
-```
-
-The launcher talks to `https://api.nativelaunch.xyz` by default. Point it at a
-self-hosted server (including the local one) with:
-
-```bash
-NATIVE_WARDROBE_API=http://127.0.0.1:3418 npm run dev
-```
-
-When a Fabric instance launches, the launcher writes the active skin and cape
-into `CustomSkinLoader/LocalSkin/`, an `ExtraList/NativeWardrobe.json` entry for
-the API, and installs the pinned CustomSkinLoader build for that Minecraft
-version.
-
 ## Packaging
 
 ```bash
@@ -71,50 +47,11 @@ npm run dist:linux   # AppImage + deb
 npm run dist:mac     # dmg + zip
 ```
 
-Builds land in `release/`. `npm run dist:win:publish` bumps the version, ensures the GitHub release exists and publishes the artifacts.
-
-## Project structure
-
-```
-electron/          Main process: window, auth, launcher, mods, modpacks, updater
-  main.js          Window creation and the IPC surface
-  preload.js       The window.native bridge exposed to the renderer
-  auth.js          Microsoft and offline accounts, cached avatars
-  mods.js          Content downloads into mods/shaderpacks/resourcepacks/datapacks
-  modpacks.js      .mrpack installer
-src/
-  components/ui/   Shared primitives (NativeIcon, PlayerAvatar, Logo, Button...)
-  features/
-    shell/         App frame, navbar and window controls
-    home/          Landing view
-    instances/     Instance grid and the create-instance flow
-    clusters/      Versions page
-    browser/       Modrinth browser
-    cluster/       Instance detail
-    auth/          Accounts drawer
-    settings/      Settings
-    updater/       Update centre
-  lib/
-    mojang.js      Version manifest + loader availability
-    skins.js       Skin and avatar URL resolution
-    contentApi.js  CurseForge and Modrinth normalisation
-  styles/          Design tokens and global styles
-```
-
-## Where data lives
-
-Everything is stored under the Electron user-data directory:
-
-| Path | Contents |
-| --- | --- |
-| `instances.json` | Your instance list |
-| `accounts.json` | Accounts and the active account id |
-| `avatars/` | Cached player avatars |
-| `minecraft/` | Assets, libraries, versions |
-| `minecraft/instances/<id>/` | One game directory per instance |
+Builds land in `release/`.
 
 ## Tech
 
 [Electron](https://www.electronjs.org/) · [React 18](https://react.dev/) · [Vite](https://vite.dev/) · [minecraft-launcher-core](https://github.com/Pierce01/MinecraftLauncher-core) · [msmc](https://github.com/Hanro50/MSMC) · [electron-updater](https://www.electron.build/auto-update)
 
-Game content is provided by [Modrinth](https://modrinth.com/). Native is an unofficial project and is not affiliated with Mojang or Microsoft.
+Game content is provided by [Modrinth](https://modrinth.com/). Noctra Client is an unofficial project and is not affiliated with Mojang or Microsoft.
+
