@@ -1,69 +1,62 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import NativeIcon from '../../components/ui/NativeIcon.jsx';
-import Dropdown from '../../components/ui/Dropdown.jsx';
-import { ART_ASSETS, RELEASE_LINES, getClusterArt } from '../../data/versionsData.js';
-import { bannerFor, getVersionBanners } from '../../lib/patchNotes.js';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import NativeIcon from "../../components/ui/NativeIcon.jsx";
+import { ART_ASSETS, RELEASE_LINES, getClusterArt } from "../../data/versionsData.js";
+import { bannerFor, getVersionBanners } from "../../lib/patchNotes.js";
 import {
   LOADERS,
-  formatReleaseDate,
   getFabricGameVersions,
   getVersionManifest,
   isReleaseId,
   loaderAvailability,
   versionLine
-} from '../../lib/mojang.js';
-import './ClustersView.css';
-import { useI18n } from '../../i18n/I18nProvider.jsx';
-import LaunchActionButton from '../launcher/LaunchActionButton.jsx';
+} from "../../lib/mojang.js";
+import { useI18n } from "../../i18n/I18nProvider.jsx";
+import vanillaIcon from "../../assets/icons/vanilla.png";
+import fabricIcon from "../../assets/icons/fabric.png";
+import forgeIcon from "../../assets/icons/forge.jpg";
+import "./ClustersView.css";
 
-const SNAPSHOT_LINE = 'snapshots';
+const SNAPSHOT_LINE = "snapshots";
 
-/* Failure reasons from instance verification, mapped to user-facing copy.
-   "assets not installed" was previously printed for every failure — including
-   complete installs whose asset index was just named after the loader. */
-const INSTALL_REASON_KEYS = {
-  missing_loader: 'versions.reasonLoader',
-  missing_client_jar: 'versions.reasonJar',
-  missing_version_json: 'versions.reasonMetadata',
-  invalid_version_json: 'versions.reasonMetadata',
-  missing_asset_index: 'versions.reasonAssets',
-  invalid_asset_index: 'versions.reasonAssets',
-  empty_asset_index: 'versions.reasonAssets',
-  no_assets_listed: 'versions.reasonAssets',
-  missing_assets_dir: 'versions.reasonAssets',
-  missing_assets: 'versions.reasonAssets',
-  missing_libraries_dir: 'versions.reasonLibraries'
+/**
+ * 9 Canonical Major Releases in the exact order specified by reference mockup c65d:
+ * Row 1: 26.1 | 1.21 | 1.20
+ * Row 2: 1.19 | 1.16 | 1.13
+ * Row 3: 1.12 | 1.8  | 1.7
+ */
+const FEATURED_ORDER = [
+  "26.1",
+  "1.21",
+  "1.20",
+  "1.19",
+  "1.16",
+  "1.13",
+  "1.12",
+  "1.8",
+  "1.7"
+];
+
+/** Default patches per card matching mockup c65d */
+const CANONICAL_PATCHES = {
+  "26.1": "26.1.1",
+  "1.21": "1.21.7",
+  "1.20": "1.20.4",
+  "1.19": "1.19.1",
+  "1.16": "1.16.5",
+  "1.13": "1.13.1",
+  "1.12": "1.12.2",
+  "1.8": "1.8.9",
+  "1.7": "1.7.10"
 };
 
-function lineMeta(lineId) {
-  if (!lineId) return null;
-  return (
-    RELEASE_LINES.find(
-      (line) =>
-        line.id === lineId ||
-        String(line.major) === lineId ||
-        '1.' + line.major === lineId
-    ) || null
-  );
+function getLoaderIcon(loader) {
+  if (loader === "Forge") return forgeIcon;
+  if (loader === "Vanilla") return vanillaIcon;
+  return fabricIcon;
 }
 
-function describeLine(lineId, count, t) {
-  if (lineId === SNAPSHOT_LINE) {
-    return t('versions.snapshotDescription');
-  }
-  const meta = lineMeta(lineId);
-  if (meta?.description) return meta.description;
-  return t('versions.lineDescription', { version: lineId, count });
-}
-
-function tagsForLine(lineId, t) {
-  const known = lineMeta(lineId);
-  if (known?.tags?.length) return known.tags;
-  return lineId === SNAPSHOT_LINE ? [t('versions.snapshot'), t('versions.experimental')] : [t('versions.release')];
-}
-
-/** Image that handles pre-cached images gracefully and falls back to bundled art. */
-function Art({ src, className = '' }) {
+/** Robust artwork renderer that handles cached & bundled artwork with graceful fallback. */
+function Art({ src, className = "" }) {
   const [state, setState] = useState({ url: src, ready: false });
   const imgRef = useRef(null);
 
@@ -84,7 +77,7 @@ function Art({ src, className = '' }) {
   return (
     <img
       ref={handleRef}
-      className={className + (state.ready ? ' is-ready' : '')}
+      className={className + (state.ready ? " is-ready" : "")}
       src={state.url}
       alt=""
       draggable={false}
@@ -104,6 +97,7 @@ function Art({ src, className = '' }) {
 
 export default function ClustersView({
   instances = [],
+  selectedCluster,
   onSelectCluster,
   onOpenCluster,
   onLaunch,
@@ -113,17 +107,34 @@ export default function ClustersView({
   onNotify,
   launcherState
 }) {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   const [manifest, setManifest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fabricSet, setFabricSet] = useState(null);
   const [banners, setBanners] = useState(null);
-  const [selectedLine, setSelectedLine] = useState(null);
-  const [selectedVersion, setSelectedVersion] = useState('');
-  const [loader, setLoader] = useState('Fabric');
-  const [includeSnapshots, setIncludeSnapshots] = useState(false);
-  const [busy, setBusy] = useState(false);
 
+  // Selected card defaults to 1.21 to match reference mockup c65d
+  const [selectedLine, setSelectedLine] = useState("1.21");
+  const [selectedPatches, setSelectedPatches] = useState({});
+  const [selectedLoaders, setSelectedLoaders] = useState({});
+  const [openDropdownLine, setOpenDropdownLine] = useState(null);
+  const [includeSnapshots, setIncludeSnapshots] = useState(false);
+  const [creatingLineId, setCreatingLineId] = useState(null);
+
+  // Close patch dropdown on click outside
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (!e.target.closest(".version-patch-dropdown-container")) {
+        setOpenDropdownLine(null);
+      }
+    };
+    if (openDropdownLine) {
+      document.addEventListener("pointerdown", handleOutside);
+      return () => document.removeEventListener("pointerdown", handleOutside);
+    }
+  }, [openDropdownLine]);
+
+  // Fetch manifests and artwork maps
   useEffect(() => {
     let cancelled = false;
 
@@ -142,7 +153,6 @@ export default function ClustersView({
       })
       .catch(() => {});
 
-    // Official Mojang artwork, one image per real version.
     getVersionBanners()
       .then((map) => {
         if (!cancelled) setBanners(map);
@@ -154,10 +164,23 @@ export default function ClustersView({
     };
   }, []);
 
+  // Build and sort release lines
   const lines = useMemo(() => {
     const versions = manifest?.versions || [];
     const buckets = new Map();
 
+    // 1. Seed buckets with known RELEASE_LINES to ensure 26.2, 26.1, 1.21..1.7 exist
+    RELEASE_LINES.forEach((knownLine) => {
+      if (knownLine.id === SNAPSHOT_LINE && !includeSnapshots) return;
+      buckets.set(knownLine.id, {
+        id: knownLine.id,
+        versions: (knownLine.versions || []).map((v) => ({ id: v.version, type: "release" })),
+        newest: "2026-01-01T00:00:00Z",
+        known: knownLine
+      });
+    });
+
+    // 2. Ingest versions from Mojang manifest
     versions.forEach((version) => {
       const release = isReleaseId(version.id);
       if (!release && !includeSnapshots) return;
@@ -165,375 +188,349 @@ export default function ClustersView({
       const key = release ? versionLine(version.id) : SNAPSHOT_LINE;
       if (!key) return;
 
-      if (!buckets.has(key)) buckets.set(key, { id: key, versions: [], newest: version.releaseTime });
+      if (!buckets.has(key)) {
+        buckets.set(key, { id: key, versions: [], newest: version.releaseTime, known: null });
+      }
       const bucket = buckets.get(key);
-      bucket.versions.push(version);
-      if (version.releaseTime > bucket.newest) bucket.newest = version.releaseTime;
+      if (!bucket.versions.some((item) => item.id === version.id)) {
+        bucket.versions.push(version);
+      }
+      if (version.releaseTime && (!bucket.newest || version.releaseTime > bucket.newest)) {
+        bucket.newest = version.releaseTime;
+      }
     });
 
     const list = Array.from(buckets.values());
+
+    // 3. Sort: canonical featured order first (0..8), then newer/other versions, then snapshots
     list.sort((a, b) => {
-      if (a.id === SNAPSHOT_LINE) return -1;
-      if (b.id === SNAPSHOT_LINE) return 1;
-      return String(b.newest).localeCompare(String(a.newest));
+      if (a.id === SNAPSHOT_LINE) return 1;
+      if (b.id === SNAPSHOT_LINE) return -1;
+
+      const aFeaturedIdx = FEATURED_ORDER.indexOf(a.id);
+      const bFeaturedIdx = FEATURED_ORDER.indexOf(b.id);
+
+      if (aFeaturedIdx !== -1 && bFeaturedIdx !== -1) {
+        return aFeaturedIdx - bFeaturedIdx;
+      }
+      if (aFeaturedIdx !== -1) return -1;
+      if (bFeaturedIdx !== -1) return 1;
+
+      // For others, numerical descending version sort
+      const aNum = parseFloat(a.id) || 0;
+      const bNum = parseFloat(b.id) || 0;
+      if (bNum !== aNum) return bNum - aNum;
+
+      return String(b.newest || "").localeCompare(String(a.newest || ""));
     });
 
     return list.map((bucket) => {
-      const ids = bucket.versions.map((version) => version.id);
+      const known = bucket.known || RELEASE_LINES.find((r) => r.id === bucket.id);
+      const ids = bucket.versions.map((v) => v.id);
       const banner = bannerFor(banners, ids[0], ids);
-      const known = lineMeta(bucket.id);
-      const highResArt =
-        known?.art ||
-        getClusterArt({ version: bucket.id, mc_version: ids[0] });
-
-      let displayName;
-      if (bucket.id === SNAPSHOT_LINE) {
-        displayName = t('versions.snapshots');
-      } else if (known?.name) {
-        displayName =
-          known.id === bucket.id && !known.name.includes(bucket.id)
-            ? `${known.name} (${bucket.id})`
-            : known.name;
-      } else {
-        displayName = 'Minecraft ' + bucket.id;
-      }
+      const highResArt = known?.art || getClusterArt({ version: bucket.id, mc_version: ids[0] });
 
       return {
         ...bucket,
-        name: displayName,
-        // Always prioritize crisp, high-resolution widescreen artwork over 540x540 square thumbnails!
+        name: known?.name || "Minecraft " + bucket.id,
         art: highResArt || banner?.image || ART_ASSETS.default,
-        artKey: known?.artKey || null,
-        tags: tagsForLine(bucket.id, t),
-        description: known?.description || banner?.shortText || describeLine(bucket.id, bucket.versions.length, t)
+        tags: known?.tags || [bucket.id === SNAPSHOT_LINE ? "Snapshot" : "Release"],
+        description: known?.description || banner?.shortText || "Minecraft release " + bucket.id
       };
     });
-  }, [manifest, includeSnapshots, banners, t]);
+  }, [manifest, includeSnapshots, banners]);
 
-  useEffect(() => {
-    if (!lines.length) return;
-    if (!lines.some((line) => line.id === selectedLine)) setSelectedLine(lines[0].id);
-  }, [lines, selectedLine]);
-
-  const activeLine = lines.find((line) => line.id === selectedLine) || null;
-
-  useEffect(() => {
-    if (!activeLine) return;
-    if (!activeLine.versions.some((version) => version.id === selectedVersion)) {
-      setSelectedVersion(activeLine.versions[0]?.id || '');
+  // Patch resolution per line
+  const getPatchForLine = (lineId, lineVersions = []) => {
+    if (selectedPatches[lineId]) return selectedPatches[lineId];
+    if (CANONICAL_PATCHES[lineId]) {
+      const found = lineVersions.find((v) => v.id === CANONICAL_PATCHES[lineId]);
+      if (found) return found.id;
+      return CANONICAL_PATCHES[lineId];
     }
-  }, [activeLine, selectedVersion]);
+    return lineVersions[0]?.id || lineId;
+  };
 
-  const [installInfo, setInstallInfo] = useState(null);
-  const [installedDiskVersions, setInstalledDiskVersions] = useState([]);
-  const isInstalledOnDisk = Boolean(installInfo?.installed);
+  // Loader resolution per line
+  const getLoaderForLine = (lineId) => {
+    if (selectedLoaders[lineId]) return selectedLoaders[lineId];
+    if (["1.7", "1.8", "1.9", "1.10", "1.11", "1.12"].includes(lineId)) return "Forge";
+    if (lineId === "1.13") return "Vanilla";
+    return "Fabric";
+  };
 
-  useEffect(() => {
-    let cancelled = false;
-    const check = async () => {
-      if (!selectedVersion) {
-        setInstallInfo(null);
-        return;
-      }
-      try {
-        const [verification, list] = await Promise.all([
-          window.native?.instance?.verifyInstallation?.(selectedVersion, loader),
-          window.native?.instance?.installedVersions?.()
-        ]);
-        if (!cancelled) {
-          setInstallInfo(verification || null);
-          if (Array.isArray(list)) setInstalledDiskVersions(list);
-        }
-      } catch {
-        if (!cancelled) setInstallInfo(null);
-      }
-    };
-    check();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedVersion, loader, launcherState?.status]);
-
-  const installedByLine = useMemo(() => {
-    const map = new Map();
-    const verifiedKeys = new Set(
-      installedDiskVersions.map((item) => `${item.version}:${item.loader || 'Vanilla'}`)
-    );
-    instances.forEach((instance) => {
-      const v = instance.version || instance.mc_version;
-      const l = instance.loader || instance.mc_loader || 'Vanilla';
-      if (verifiedKeys.has(`${v}:${l}`)) {
-        const key = isReleaseId(v) ? versionLine(v) : SNAPSHOT_LINE;
-        map.set(key, (map.get(key) || 0) + 1);
-      }
-    });
-    return map;
-  }, [instances, installedDiskVersions]);
-
-  const matchingInstance = useMemo(
-    () =>
+  // Find matching instance from instances array
+  const findMatchingInstance = (patch, loader) => {
+    return (
       instances.find(
-        (instance) =>
-          instance.version === selectedVersion && (instance.loader || 'Vanilla') === loader
-      ) || null,
-    [instances, selectedVersion, loader]
-  );
+        (inst) =>
+          (inst.version === patch || inst.mc_version === patch) &&
+          (inst.loader || "Vanilla").toLowerCase() === loader.toLowerCase()
+      ) || null
+    );
+  };
 
-  const isBusyThisVersion =
-    Boolean(launcherState?.busy) &&
-    (launcherState?.instanceId === matchingInstance?.id ||
-      launcherState?.instance?.version === selectedVersion);
+  // Cycle loader on icon click
+  const handleCycleLoader = (e, lineId, patch) => {
+    e.stopPropagation();
+    const current = getLoaderForLine(lineId);
+    const available = LOADERS.filter(
+      (l) => loaderAvailability(l, patch, fabricSet)?.available !== false
+    );
+    const idx = available.indexOf(current);
+    const next = available[(idx + 1) % available.length] || "Fabric";
+    setSelectedLoaders((prev) => ({ ...prev, [lineId]: next }));
+  };
 
-  const selectedMeta = activeLine?.versions.find((version) => version.id === selectedVersion);
-  const availability = loaderAvailability(loader, selectedVersion, fabricSet);
-  const loaderReady = availability?.available !== false;
+  // Select patch from dropdown
+  const handleSelectPatch = (lineId, patch) => {
+    setSelectedPatches((prev) => ({ ...prev, [lineId]: patch }));
+    setSelectedLine(lineId);
+    setOpenDropdownLine(null);
+  };
 
-  // Banner for the exact selected version or active line, prioritizing high-res art
-  const versionBanner = bannerFor(
-    banners,
-    selectedVersion,
-    activeLine?.versions.map((version) => version.id) || []
-  );
-  const specificArt = getClusterArt({ version: selectedVersion, mc_version: selectedVersion });
-  const sidebarArt = specificArt || activeLine?.art || ART_ASSETS.default;
+  // Launch button handler
+  const handleLaunchClick = async (e, line) => {
+    e.stopPropagation();
+    setSelectedLine(line.id);
+    const patch = getPatchForLine(line.id, line.versions);
+    const loader = getLoaderForLine(line.id);
+    const matching = findMatchingInstance(patch, loader);
 
-  const versionOptions = useMemo(
-    () =>
-      (activeLine?.versions || []).map((version) => ({
-        value: version.id,
-        label: version.id,
-        hint: version.type === 'release' ? '' : version.type
-      })),
-    [activeLine]
-  );
+    const isBusy =
+      Boolean(launcherState?.busy) &&
+      (launcherState?.instanceId === matching?.id ||
+        launcherState?.instance?.version === patch);
 
-  const loaderOptions = useMemo(
-    () =>
-      LOADERS.map((option) => {
-        const check = loaderAvailability(option, selectedVersion, fabricSet);
-        return {
-          value: option,
-          label: option,
-          hint: check?.available === false ? t('versions.unavailable') : ''
-        };
-      }),
-    [selectedVersion, fabricSet, t]
-  );
-
-  const buildPayload = () => ({
-    name: selectedVersion + ' ' + loader,
-    version: selectedVersion,
-    loader,
-    description: activeLine?.description || '',
-    tags: activeLine?.tags || [],
-    art: sidebarArt
-  });
-
-  const handlePrimary = async () => {
-    if (!selectedVersion || !loaderReady) return;
-
-    if (matchingInstance) {
-      onSelectCluster?.(matchingInstance.id);
-      onLaunch?.(matchingInstance);
+    if (isBusy) {
+      onKill?.();
       return;
     }
+
+    if (matching) {
+      onSelectCluster?.(matching.id);
+      onLaunch?.(matching);
+      return;
+    }
+
     if (!onCreateInstance) return;
 
-    setBusy(true);
+    const payload = {
+      name: (line.name || patch) + " " + loader,
+      version: patch,
+      loader,
+      description: line.description || "",
+      tags: line.tags || [],
+      art: getClusterArt({ version: patch, mc_version: patch }) || line.art
+    };
+
+    setCreatingLineId(line.id);
     try {
-      const created = await onCreateInstance(buildPayload(), { open: false });
+      const created = await onCreateInstance(payload, { open: false });
       if (created?.id) {
         onSelectCluster?.(created.id);
-        // Immediately start download & verification pipeline!
         onLaunch?.(created);
       }
     } finally {
-      setBusy(false);
+      setCreatingLineId(null);
     }
   };
 
-  const handleOpen = async () => {
-    if (matchingInstance) {
-      onSelectCluster?.(matchingInstance.id);
-      onOpenCluster?.(matchingInstance);
+  // Settings gear handler
+  const handleOpenSettings = async (e, line) => {
+    e.stopPropagation();
+    setSelectedLine(line.id);
+    const patch = getPatchForLine(line.id, line.versions);
+    const loader = getLoaderForLine(line.id);
+    const matching = findMatchingInstance(patch, loader);
+
+    if (matching) {
+      onSelectCluster?.(matching.id);
+      onOpenCluster?.(matching, "overview");
       return;
     }
-    if (!selectedVersion || !onCreateInstance) return;
 
-    setBusy(true);
+    if (!onCreateInstance) return;
+
+    const payload = {
+      name: (line.name || patch) + " " + loader,
+      version: patch,
+      loader,
+      description: line.description || "",
+      tags: line.tags || [],
+      art: getClusterArt({ version: patch, mc_version: patch }) || line.art
+    };
+
+    setCreatingLineId(line.id);
     try {
-      await onCreateInstance(buildPayload(), { open: true });
+      const created = await onCreateInstance(payload, { open: true });
+      if (created?.id) {
+        onSelectCluster?.(created.id);
+        onOpenCluster?.(created, "overview");
+      }
     } finally {
-      setBusy(false);
+      setCreatingLineId(null);
     }
   };
 
   return (
     <div className="clusters-view">
       <header className="clusters-header">
-        <div>
-          <h1 className="clusters-title">{t('nav.versions')}</h1>
-          <p className="clusters-subtitle">
-            {loading
-              ? t('versions.loadingManifest')
-              : manifest?.offline
-                ? t('versions.cachedManifest')
-                : t('versions.subtitle')}
-          </p>
-        </div>
+        <h1 className="clusters-title">CHANGE VERSION</h1>
 
         <div className="clusters-header-actions">
           <button
             type="button"
-            className={'clusters-chip ' + (includeSnapshots ? 'active' : '')}
-            onClick={() => setIncludeSnapshots((value) => !value)}
+            className={"clusters-chip " + (includeSnapshots ? "active" : "")}
+            onClick={() => setIncludeSnapshots((v) => !v)}
+            title="Toggle snapshot builds"
           >
-            <NativeIcon name="sparkles" size={14} />
-            <span>{t('versions.snapshots')}</span>
+            <NativeIcon name="sparkles" size={13} />
+            <span>{t("versions.snapshots")}</span>
           </button>
 
-          <button type="button" className="sub-btn brand-btn" onClick={onOpenNewInstanceModal}>
-            <NativeIcon name="plus" size={15} />
-            <span>{t('instances.new')}</span>
+          <button
+            type="button"
+            className="clusters-new-btn"
+            onClick={onOpenNewInstanceModal}
+            title="Create custom instance"
+          >
+            <NativeIcon name="plus" size={14} />
+            <span>{t("instances.new")}</span>
           </button>
         </div>
       </header>
 
       {loading && !lines.length ? (
         <div className="clusters-loading">
-          <NativeIcon name="refresh" size={22} className="is-spinning" />
-          <span>{t('versions.fetching')}</span>
+          <NativeIcon name="refresh" size={24} className="is-spinning" />
+          <span>{t("versions.fetching")}</span>
         </div>
       ) : (
-        <div className="clusters-body-grid">
-          <div className="clusters-cards-scroll">
+        <div className="clusters-grid-container">
+          <div className="clusters-cards-grid">
             {lines.map((line) => {
-              const installed = installedByLine.get(line.id) || 0;
+              const isSelected = line.id === selectedLine;
+              const patch = getPatchForLine(line.id, line.versions);
+              const loader = getLoaderForLine(line.id);
+              const matching = findMatchingInstance(patch, loader);
+              const loaderIcon = getLoaderIcon(loader);
+              const isDropdownOpen = openDropdownLine === line.id;
+              const cardArt =
+                getClusterArt({ version: patch, mc_version: patch }) || line.art || ART_ASSETS.default;
+
+              const isBusyThisVersion =
+                (Boolean(launcherState?.busy) &&
+                  (launcherState?.instanceId === matching?.id ||
+                    launcherState?.instance?.version === patch)) ||
+                creatingLineId === line.id;
+
               return (
-                <button
+                <div
                   key={line.id}
-                  type="button"
-                  className={'cluster-group-card ' + (line.id === selectedLine ? 'selected' : '')}
+                  className={"version-card" + (isSelected ? " is-selected" : "")}
                   onClick={() => setSelectedLine(line.id)}
                 >
-                  <Art src={line.art} className="cluster-group-art" />
-                  <span className="cluster-group-grad" />
+                  {/* Background Artwork */}
+                  <div className="version-card-art-wrap">
+                    <Art src={cardArt} className="version-card-art" />
+                    <div className="version-card-scrim" />
+                  </div>
 
-                  {installed > 0 && (
-                    <span className="cluster-group-badge">
-                      <NativeIcon name="check" size={11} />
-                      <span>{t('versions.installedCount', { count: installed })}</span>
-                    </span>
-                  )}
+                  {/* Top-Left Patch Dropdown Pill */}
+                  <div
+                    className="version-patch-dropdown-container"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className={"version-patch-chip" + (isDropdownOpen ? " is-open" : "")}
+                      onClick={() =>
+                        setOpenDropdownLine((prev) => (prev === line.id ? null : line.id))
+                      }
+                      title="Select patch version"
+                    >
+                      <span>{patch}</span>
+                      <NativeIcon
+                        name={isDropdownOpen ? "chevron-up" : "chevron-down"}
+                        size={10}
+                        className="version-patch-chevron"
+                      />
+                    </button>
 
-                  <span className="cluster-group-info">
-                    <span className="cluster-group-name">{line.name}</span>
-                    <span className="cluster-group-meta">
-                      {t('versions.buildCount', { count: line.versions.length })}
-                    </span>
-                  </span>
-                </button>
+                    {isDropdownOpen && (
+                      <div className="version-patch-menu">
+                        {line.versions.map((v) => (
+                          <button
+                            key={v.id}
+                            type="button"
+                            className={
+                              "version-patch-item" + (v.id === patch ? " is-active" : "")
+                            }
+                            onClick={() => handleSelectPatch(line.id, v.id)}
+                          >
+                            <span>{v.id}</span>
+                            {v.id === patch && <NativeIcon name="check" size={11} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Centered Big Version Number */}
+                  <div className="version-card-center-numeral">
+                    <span>{line.id}</span>
+                  </div>
+
+                  {/* Bottom Action Footer */}
+                  <div className="version-card-footer">
+                    <div className="version-footer-left">
+                      <button
+                        type="button"
+                        className="version-loader-btn"
+                        onClick={(e) => handleCycleLoader(e, line.id, patch)}
+                        title={"Modloader: " + loader + " (Click to switch)"}
+                      >
+                        <img src={loaderIcon} alt={loader} className="version-loader-img" />
+                      </button>
+                    </div>
+
+                    <div className="version-footer-right">
+                      <button
+                        type="button"
+                        className="version-gear-btn"
+                        onClick={(e) => handleOpenSettings(e, line)}
+                        title="Manage mods & instance settings"
+                      >
+                        <NativeIcon name="settings" size={13} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className={
+                          "version-launch-btn" +
+                          (isBusyThisVersion ? " is-busy" : "") +
+                          (isSelected ? " is-active-launch" : "")
+                        }
+                        onClick={(e) => handleLaunchClick(e, line)}
+                        disabled={isBusyThisVersion}
+                        title={matching ? "Launch " + matching.name : "Install & Launch " + patch}
+                      >
+                        {isBusyThisVersion ? (
+                          <>
+                            <NativeIcon name="refresh" size={12} className="is-spinning" />
+                            <span>LAUNCHING</span>
+                          </>
+                        ) : (
+                          <span>LAUNCH</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
-
-          {activeLine && (
-            <aside className="cluster-detail-sidebar">
-              <div className="sidebar-art-banner">
-                <Art src={sidebarArt} className="sidebar-art-img" />
-              </div>
-
-              <div className="sidebar-content-col">
-                <h2 className="sidebar-heading">{versionBanner?.title || activeLine.name}</h2>
-
-                <div className="sidebar-tags-row">
-                  {activeLine.tags.map((tag) => (
-                    <span key={tag} className="sidebar-tag-pill">
-                      {tag}
-                    </span>
-                  ))}
-                  {selectedMeta?.releaseTime && (
-                    <span className="sidebar-tag-pill subtle">
-                      {formatReleaseDate(selectedMeta.releaseTime, locale)}
-                    </span>
-                  )}
-                </div>
-
-                <p className="sidebar-desc">
-                  {versionBanner?.shortText || activeLine.description}
-                </p>
-
-                <div className="sidebar-selector-row">
-                  <label className="sidebar-selector-label">{t('versions.version')}</label>
-                  <Dropdown
-                    value={selectedVersion}
-                    options={versionOptions}
-                    onChange={setSelectedVersion}
-                    placeholder={t('versions.selectVersion')}
-                  />
-                </div>
-
-                <div className="sidebar-selector-row">
-                  <label className="sidebar-selector-label">{t('versions.modLoader')}</label>
-                  <Dropdown value={loader} options={loaderOptions} onChange={setLoader} />
-                </div>
-
-                {!loaderReady && (
-                  <p className="sidebar-note warn">
-                    <NativeIcon name="alert" size={13} />
-                    <span>
-                      {availability?.reasonKey
-                        ? t(availability.reasonKey, availability.reasonVars)
-                        : t('versions.loaderNoBuildYet', { loader, version: selectedVersion })}
-                    </span>
-                  </p>
-                )}
-
-                {isInstalledOnDisk ? (
-                  <p className="sidebar-note success">
-                    <NativeIcon name="check-circle" size={13} />
-                    <span>
-                      {matchingInstance
-                        ? t('versions.alreadyInstalled', { name: matchingInstance.name })
-                        : t('versions.installedVersion', { version: selectedVersion })}
-                    </span>
-                  </p>
-                ) : matchingInstance ? (
-                  <p className="sidebar-note">
-                    <NativeIcon name="info" size={13} />
-                    <span>
-                      {t('versions.configuredAs', { name: matchingInstance.name })}
-                      {' — '}
-                      {t(INSTALL_REASON_KEYS[installInfo?.reason] || 'versions.filesPending')}
-                    </span>
-                  </p>
-                ) : null}
-
-                <div className="sidebar-actions-row">
-                  <LaunchActionButton
-                    className="sidebar-play-btn"
-                    size="sm"
-                    instance={{ id: matchingInstance?.id, version: selectedVersion, loader }}
-                    launcherState={isBusyThisVersion ? launcherState : null}
-                    isInstalled={isInstalledOnDisk}
-                    installLabel={matchingInstance ? t('versions.installAndPlay') : null}
-                    onLaunch={handlePrimary}
-                    onKill={onKill}
-                  />
-
-                  <button
-                    type="button"
-                    className="sidebar-view-btn"
-                    onClick={handleOpen}
-                    disabled={busy || isBusyThisVersion || !selectedVersion || !loaderReady}
-                    title={matchingInstance ? t('versions.openInstance') : t('versions.createAndOpen')}
-                  >
-                    <NativeIcon name="arrow-right" size={16} />
-                  </button>
-                </div>
-              </div>
-            </aside>
-          )}
         </div>
       )}
     </div>

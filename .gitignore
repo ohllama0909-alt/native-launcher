@@ -21,3 +21,6 @@ npm-debug.log*
 # os
 .DS_Store
 Thumbs.db
+
+# test screenshots
+screenshot-*.png

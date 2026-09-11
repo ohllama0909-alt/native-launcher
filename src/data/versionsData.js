@@ -160,6 +160,9 @@ export const RELEASE_LINES = [
     versions: [
       { version: '1.21.11', name: 'Mounts of Mayhem', artKey: 'Mounts_Mayhem', art: MountsMayhemArt, loader: 'Fabric' },
       { version: '1.21.10', name: 'The Copper Age', artKey: 'Copper_Age', art: CopperAgeArt, loader: 'Fabric' },
+      { version: '1.21.9', name: 'Tricky Trials', artKey: 'Tricky_Trials', art: TrickyTrialsArt, loader: 'Fabric' },
+      { version: '1.21.8', name: 'Tricky Trials', artKey: 'Tricky_Trials', art: TrickyTrialsArt, loader: 'Fabric' },
+      { version: '1.21.7', name: 'Tricky Trials', artKey: 'Tricky_Trials', art: TrickyTrialsArt, loader: 'Fabric' },
       { version: '1.21.4', name: 'Garden Awakens', artKey: 'Tricky_Trials', art: TrickyTrialsArt, loader: 'Fabric' },
       { version: '1.21.1', name: 'Tricky Trials', artKey: 'Tricky_Trials', art: TrickyTrialsArt, loader: 'Fabric' },
       { version: '1.21', name: 'Tricky Trials Launch', artKey: 'Tricky_Trials', art: TrickyTrialsArt, loader: 'Fabric' }
@@ -322,6 +325,19 @@ export const RELEASE_LINES = [
     tags: ['Bountiful', 'Monuments', 'PvP'],
     versions: [
       { version: '1.8.9', name: 'The Bountiful Update', artKey: 'Bountiful_Update', art: BountifulUpdateArt, loader: 'Forge' }
+    ]
+  },
+  {
+    id: '1.7',
+    major: 7,
+    name: 'The Update that Changed the World',
+    artKey: 'Classic_Legacy',
+    art: ClassicLegacyArt,
+    description: "Biomes overhaul, stained glass, dark oak and acacia trees, red sand, new flowers, and improved fishing.",
+    tags: ['Biomes', 'Legacy', 'PvP'],
+    versions: [
+      { version: '1.7.10', name: 'The Update that Changed the World', artKey: 'Classic_Legacy', art: ClassicLegacyArt, loader: 'Forge' },
+      { version: '1.7.2', name: 'The Update that Changed the World', artKey: 'Classic_Legacy', art: ClassicLegacyArt, loader: 'Forge' }
     ]
   },
   {
