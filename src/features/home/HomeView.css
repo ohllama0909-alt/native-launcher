@@ -8,7 +8,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: space-between;
   overflow: hidden;
 }
 
@@ -319,7 +319,7 @@
   position: absolute;
   z-index: 2;
   right: clamp(44px, 9vw, 138px);
-  top: 18%;
+  top: 22%;
   width: 230px;
   height: 350px;
   display: flex;
@@ -413,29 +413,31 @@
 .home-topbar {
   position: relative;
   z-index: 2;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px;
-  padding: 12px var(--home-padding) 0;
+  padding: 26px var(--home-padding) 0;
   animation: home-top-in 0.4s var(--ease-out) both;
 }
 
 .home-greeting {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
 .home-greeting-text {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--fg-muted);
+  line-height: 1.2;
 }
 
 .home-greeting-name {
@@ -443,11 +445,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-sans);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--fg-primary-hover);
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+  line-height: 1.2;
 }
 
 .home-quick-actions {
@@ -461,16 +464,18 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 34px;
-  padding: 0 13px;
+  height: 36px;
+  padding: 0 14px;
   border: 1px solid var(--hairline-strong);
   border-radius: var(--radius);
   background: var(--surface-glass);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: var(--fg-primary);
-  font: 650 12px var(--font-sans);
+  font: 600 12.5px var(--font-sans);
   cursor: pointer;
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.15s var(--ease-out);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease);
 }
 
 .home-quick-btn:hover {
@@ -478,6 +483,7 @@
   border-color: var(--brand-border);
   color: var(--fg-primary-hover);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .home-quick-btn.is-primary {
@@ -488,179 +494,6 @@
   box-shadow: 0 14px 30px -16px var(--brand-glow);
   font-size: 13.5px;
   color: var(--fg-on-brand);
-}
-
-.home-info-grid {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(560px, 52%);
-  margin-top: 22px;
-  padding: 0 var(--home-padding);
-  animation: home-top-in 0.45s var(--ease-out) both;
-}
-
-.home-stat-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.home-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 11px 13px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  background: var(--surface-glass);
-  backdrop-filter: blur(var(--blur-glass));
-}
-
-.home-stat-icon {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  margin-bottom: 2px;
-  border-radius: 8px;
-  background: var(--brand-subtle);
-  color: var(--brand-2);
-}
-
-.home-stat-value {
-  font-family: var(--font-sans);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--fg-primary-hover);
-}
-
-.home-stat-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--fg-muted);
-}
-
-.home-card {
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  background: var(--surface-glass);
-  backdrop-filter: blur(var(--blur-glass));
-  overflow: hidden;
-}
-
-.home-card-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--hairline);
-  color: var(--brand-2);
-}
-
-.home-card-head h2 {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--fg-primary);
-}
-
-.home-card-head-hint {
-  margin-left: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  color: var(--fg-muted);
-}
-
-.home-list {
-  margin: 0;
-  padding: 5px;
-  list-style: none;
-}
-
-.home-list-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 6px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s var(--ease);
-}
-
-.home-list-row:hover {
-  background: var(--surface-tint);
-}
-
-.home-list-art {
-  flex: none;
-  width: 46px;
-  height: 34px;
-  border-radius: 8px;
-  object-fit: cover;
-  background: var(--page-sunken);
-}
-
-.home-list-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.home-list-text b {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 650;
-  color: var(--fg-primary);
-}
-
-.home-list-text small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  color: var(--fg-muted);
-}
-
-.home-list-end {
-  margin-left: auto;
-  flex: none;
-  color: var(--fg-muted);
-}
-
-.home-list-row:hover .home-list-end {
-  color: var(--brand-2);
-}
-
-.home-card-empty {
-  margin: 0;
-  padding: 14px;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--fg-muted);
 }
 
 .home-empty-state {
@@ -681,38 +514,15 @@
   }
 }
 
-/* The hero keeps the keyboard shortcuts honest: no dead hints. */
-@media (max-width: 1080px) {
-  .home-info-grid {
-    width: min(520px, 62%);
-  }
-}
-
-/* Short windows would push the hero off-screen — overview content is optional. */
-@media (max-height: 720px) {
-  .home-info-grid {
-    display: none;
-  }
-}
-
 @media (max-width: 860px) {
-  .home-info-grid {
-    width: 100%;
-  }
-
-  /* The companion would sit on top of the overview cards. */
   .home-avatar-companion {
     display: none;
-  }
-
-  .home-stat-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-topbar,
-  .home-info-grid {
+  .home-topbar {
     animation: none;
   }
 }
+

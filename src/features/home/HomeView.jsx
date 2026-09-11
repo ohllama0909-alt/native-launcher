@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Blocks, Clock, Compass, Layers3, Newspaper, Play, Plus, Trophy } from 'lucide-react';
+import { Blocks, Compass, Plus } from 'lucide-react';
 import Icon from '../../components/ui/Icon.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import ContextMenu from '../../components/ui/ContextMenu.jsx';
@@ -35,9 +35,8 @@ export default function HomeView({
   onLaunch,
   onKill
 }) {
-  const { t, formatDuration } = useI18n();
+  const { t } = useI18n();
   const [contextMenu, setContextMenu] = useState(null);
-  const [news, setNews] = useState([]);
   const railRef = useRef(null);
   const cardRefs = useRef({});
 
@@ -50,62 +49,6 @@ export default function HomeView({
     () => instances.findIndex((item) => item.id === cluster?.id),
     [instances, cluster]
   );
-
-  /* ---- home overview data ---------------------------------------- */
-
-  const totals = useMemo(() => {
-    let playtimeSecs = 0;
-    let sessions = 0;
-    let lastPlayed = 0;
-    const byLoader = new Map();
-
-    for (const instance of instances) {
-      playtimeSecs += Number(instance.playtimeSecs) || 0;
-      sessions += Number(instance.sessionCount) || 0;
-      const played = Number(instance.lastPlayed) || 0;
-      if (played > lastPlayed) lastPlayed = played;
-      const loader = loadersOf(instance);
-      byLoader.set(loader, (byLoader.get(loader) || 0) + 1);
-    }
-
-    return {
-      playtimeSecs,
-      sessions,
-      lastPlayed,
-      loaders: [...byLoader.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
-    };
-  }, [instances]);
-
-  const mostPlayed = useMemo(
-    () =>
-      [...instances]
-        .sort((a, b) => (Number(b.playtimeSecs) || 0) - (Number(a.playtimeSecs) || 0))
-        .slice(0, 3),
-    [instances]
-  );
-
-  // Official Minecraft news from the main process. Silently absent in a
-  // browser preview, where the most-played list takes its place.
-  useEffect(() => {
-    let cancelled = false;
-    const api = window.native?.news;
-    if (!api?.list) return undefined;
-
-    api
-      .list()
-      .then((payload) => {
-        if (!cancelled && Array.isArray(payload?.items)) setNews(payload.items.slice(0, 3));
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const openLink = (url) => {
-    if (url) window.native?.openExternal?.(url);
-  };
 
   /* ---- switching -------------------------------------------------- */
 
@@ -225,84 +168,6 @@ export default function HomeView({
             <span>{t('home.allVersions')}</span>
           </button>
         </div>
-      </div>
-
-      {/* Overview: playtime totals + Minecraft news (or most played) */}
-      <div className="home-info-grid">
-        <div className="home-stat-row">
-          <div className="home-stat">
-            <span className="home-stat-icon"><Clock size={14} strokeWidth={2.1} /></span>
-            <span className="home-stat-value">{formatDuration(totals.playtimeSecs)}</span>
-            <span className="home-stat-label">{t('home.statPlaytime')}</span>
-          </div>
-          <div className="home-stat">
-            <span className="home-stat-icon"><Trophy size={14} strokeWidth={2.1} /></span>
-            <span className="home-stat-value">{totals.sessions}</span>
-            <span className="home-stat-label">{t('home.statSessions')}</span>
-          </div>
-          <div className="home-stat">
-            <span className="home-stat-icon"><Layers3 size={14} strokeWidth={2.1} /></span>
-            <span className="home-stat-value">{instances.length}</span>
-            <span className="home-stat-label">
-              {totals.loaders.length
-                ? totals.loaders.map(([loader, count]) => `${loader} ${count}`).join(' · ')
-                : t('home.statInstances')}
-            </span>
-          </div>
-        </div>
-
-        <section className="home-card">
-          <header className="home-card-head">
-            <Newspaper size={14} strokeWidth={2.1} />
-            <h2>{news.length ? t('home.newsTitle') : t('home.mostPlayedTitle')}</h2>
-            <span className="home-card-head-hint">
-              {news.length ? t('home.newsSubtitle') : t('home.mostPlayedHint')}
-            </span>
-          </header>
-
-          {news.length ? (
-            <ul className="home-list">
-              {news.map((item) => (
-                <li key={item.id}>
-                  <button type="button" className="home-list-row" onClick={() => openLink(item.url)}>
-                    {item.image ? <img className="home-list-art" src={item.image} alt="" loading="lazy" /> : null}
-                    <span className="home-list-text">
-                      <b>{item.title}</b>
-                      <small>{item.category}{item.date ? ` · ${item.date}` : ''}</small>
-                    </span>
-                    <ArrowUpRight size={15} strokeWidth={2.1} className="home-list-end" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : mostPlayed.length ? (
-            <ul className="home-list">
-              {mostPlayed.map((instance) => (
-                <li key={instance.id}>
-                  <button
-                    type="button"
-                    className="home-list-row"
-                    onClick={() => {
-                      onSelectCluster(instance.id);
-                      onOpenCluster(instance, 'overview');
-                    }}
-                  >
-                    <img className="home-list-art" src={getClusterArt(instance)} alt="" loading="lazy" />
-                    <span className="home-list-text">
-                      <b>{instance.name}</b>
-                      <small>
-                        {versionOf(instance)} {loadersOf(instance)} · {formatDuration(Number(instance.playtimeSecs) || 0)}
-                      </small>
-                    </span>
-                    <Play size={14} strokeWidth={2.2} className="home-list-end" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="home-card-empty">{t('home.noOverviewYet')}</p>
-          )}
-        </section>
       </div>
 
       {/* Active instance + launch */}
