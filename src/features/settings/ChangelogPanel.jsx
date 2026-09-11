@@ -3,9 +3,11 @@ import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './SettingsPanels.css';
 
-const RELEASES_API =
+const PRIMARY_RELEASES_API =
+  'https://api.github.com/repos/ohllama0909-alt/native-launch/releases?per_page=12';
+const LEGACY_RELEASES_API =
   'https://api.github.com/repos/ohllama0909-alt/native-launcher/releases?per_page=12';
-const RELEASES_PAGE = 'https://github.com/ohllama0909-alt/native-launcher/releases';
+const RELEASES_PAGE = 'https://github.com/ohllama0909-alt/native-launch/releases';
 
 function cleanVersion(tag) {
   return String(tag || '').replace(/^v/i, '');
@@ -60,15 +62,25 @@ export default function ChangelogPanel({ onOpenUpdater }) {
   useEffect(() => {
     let cancelled = false;
 
-    fetch(RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } })
-      .then((response) => {
-        if (!response.ok) throw new Error('unavailable');
-        return response.json();
-      })
-      .then((json) => {
+    const fetchReleases = async () => {
+      try {
+        let res = await fetch(PRIMARY_RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } });
+        let json = res.ok ? await res.json() : null;
+        if (!Array.isArray(json) || json.length === 0) {
+          const fallbackRes = await fetch(LEGACY_RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } });
+          if (fallbackRes.ok) {
+            const fallbackJson = await fallbackRes.json();
+            if (Array.isArray(fallbackJson) && fallbackJson.length > 0) {
+              json = fallbackJson;
+            }
+          }
+        }
         if (cancelled) return;
-        const list = Array.isArray(json) ? json : [];
-        const mapped = list
+        if (!json || !Array.isArray(json)) {
+          setError(t('changelog.error'));
+          return;
+        }
+        const mapped = json
           .filter((entry) => !entry.draft)
           .map((entry) => ({
             id: entry.id,
@@ -82,13 +94,14 @@ export default function ChangelogPanel({ onOpenUpdater }) {
           }));
         setReleases(mapped);
         setOpenId(mapped[0]?.id ?? null);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setError(t('changelog.error'));
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+
+    fetchReleases();
 
     return () => {
       cancelled = true;

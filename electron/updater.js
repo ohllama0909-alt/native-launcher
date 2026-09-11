@@ -14,6 +14,17 @@ autoUpdater.allowDowngrade = false;
 autoUpdater.disableDifferentialDownload = false;
 autoUpdater.fullChangelog = true;
 
+const PRIMARY_FEED = {
+  provider: 'github',
+  owner: 'ohllama0909-alt',
+  repo: 'native-launch'
+};
+const LEGACY_FEED = {
+  provider: 'github',
+  owner: 'ohllama0909-alt',
+  repo: 'native-launcher'
+};
+
 let appRef = null;
 let mainWindow = null;
 let readSettings = null;
@@ -29,6 +40,12 @@ function init({ app, getWin, getSettings }, ipcMain) {
   mainWindow = getWin;
   readSettings = getSettings;
   currentStatus = statusWithMeta('idle');
+
+  try {
+    autoUpdater.setFeedURL(PRIMARY_FEED);
+  } catch (err) {
+    log.warn('Could not set autoUpdater initial feed URL:', err);
+  }
 
   ipcMain.handle('updater:status', () => currentStatus);
   ipcMain.handle('updater:check', () => checkForUpdates({ silent: false }));
@@ -157,7 +174,36 @@ async function checkForUpdates({ silent = false } = {}) {
   const previousStatus = currentStatus;
   checkPromise = (async () => {
     try {
-      const result = await autoUpdater.checkForUpdates();
+      let result = null;
+      let primaryError = null;
+      try {
+        autoUpdater.setFeedURL(PRIMARY_FEED);
+        result = await autoUpdater.checkForUpdates();
+      } catch (err) {
+        primaryError = err;
+        log.warn('Primary update feed check (native-launch) failed, trying legacy (native-launcher):', err);
+      }
+
+      // If primary feed had no update or failed, check legacy feed so clients in transition don't miss updates
+      const currentVer = appRef?.getVersion() || '0.0.0';
+      const hasUpdate = result?.updateInfo?.version && result.updateInfo.version !== (result?.currentVersion?.version ?? currentVer);
+      if (!hasUpdate) {
+        try {
+          autoUpdater.setFeedURL(LEGACY_FEED);
+          const legacyResult = await autoUpdater.checkForUpdates();
+          const hasLegacyUpdate = legacyResult?.updateInfo?.version && legacyResult.updateInfo.version !== (legacyResult?.currentVersion?.version ?? currentVer);
+          if (hasLegacyUpdate) {
+            result = legacyResult;
+          } else if (!result && primaryError) {
+            throw primaryError;
+          } else if (!result) {
+            result = legacyResult;
+          }
+        } catch (legacyErr) {
+          if (!result && primaryError) throw primaryError;
+        }
+      }
+
       return {
         ok: true,
         updateAvailable: result?.updateInfo?.version !== result?.currentVersion?.version,

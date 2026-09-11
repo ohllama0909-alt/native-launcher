@@ -4,7 +4,7 @@
   "desktopName": "Noctra Client",
   "version": "3.9.24",
   "description": "Noctra Client — a Minecraft launcher",
-  "homepage": "https://github.com/ohllama0909-alt/native-launcher",
+  "homepage": "https://github.com/ohllama0909-alt/native-launch",
   "author": {
     "name": "Noctra Client",
     "email": "support@noctra.client"
@@ -38,7 +38,7 @@
     "publish": {
       "provider": "github",
       "owner": "ohllama0909-alt",
-      "repo": "native-launcher"
+      "repo": "native-launch"
     },
     "directories": {
       "output": "release",

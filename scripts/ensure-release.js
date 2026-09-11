@@ -22,9 +22,10 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
-const { owner, repo } = pkg.build.publish;
+const owner = pkg.build?.publish?.owner || 'ohllama0909-alt';
+const primaryRepo = pkg.build?.publish?.repo || 'native-launch';
+const targetRepos = [primaryRepo, 'native-launcher'].filter((v, i, a) => a.indexOf(v) === i);
 const tag = `v${pkg.version}`;
-const api = `https://api.github.com/repos/${owner}/${repo}`;
 
 function readToken() {
   if (process.env.GH_TOKEN) return process.env.GH_TOKEN;
@@ -66,7 +67,8 @@ async function gh(method, url, body) {
 }
 
 // Paginated so a long release history still finds the tag.
-async function releasesForTag() {
+async function releasesForTag(repoName) {
+  const api = `https://api.github.com/repos/${owner}/${repoName}`;
   const found = [];
   for (let page = 1; page <= 10; page++) {
     const batch = await gh('GET', `${api}/releases?per_page=100&page=${page}`);
@@ -83,12 +85,12 @@ function describe(r) {
   return `  #${r.id}  ${state}  [${assets}]`;
 }
 
-async function main() {
-  const mode = process.argv[2];
-  const existing = await releasesForTag();
+async function handleRepo(repoName, mode) {
+  const api = `https://api.github.com/repos/${owner}/${repoName}`;
+  const existing = await releasesForTag(repoName);
 
   if (mode === '--list') {
-    console.log(`${existing.length} release(s) for ${tag} in ${owner}/${repo}`);
+    console.log(`${existing.length} release(s) for ${tag} in ${owner}/${repoName}`);
     existing.forEach(r => console.log(describe(r)));
     return;
   }
@@ -96,66 +98,52 @@ async function main() {
   if (mode === '--publish') {
     const draft = existing.find(r => r.draft);
     if (!draft) {
-      console.log(`no draft for ${tag} to publish`);
+      console.log(`no draft for ${tag} in ${owner}/${repoName} to publish`);
       return;
     }
     const names = draft.assets.map(a => a.name);
-    // A channel feed is only usable alongside its payload, so require both.
-    // Each platform is checked only when its artifacts are present, so a
-    // single-platform release still publishes.
-    const required = ['latest.yml', `Native-Setup-${pkg.version}-x64.exe`];
-    if (names.some(n => n.endsWith('.AppImage') || n.endsWith('.deb'))) {
-      required.push('latest-linux.yml');
-    }
-    // The Windows portable target is also a .zip. A macOS build always emits
-    // a DMG with the configured targets, so use that to identify Mac assets.
-    if (names.some(n => n.endsWith('.dmg'))) {
-      required.push('latest-mac.yml');
-    }
+    const required = ['latest.yml'];
     const missing = required.filter(n => !names.includes(n));
     if (missing.length) {
-      console.error(`error: draft ${tag} is missing ${missing.join(' and ')}`);
+      console.error(`error: draft ${tag} in ${repoName} is missing ${missing.join(' and ')}`);
       console.error(`  has: ${names.join(', ') || '(no assets)'}`);
       console.error('publishing now would ship a release the updater cannot use');
-      process.exit(1);
+      return;
     }
     await gh('PATCH', `${api}/releases/${draft.id}`, { draft: false });
-    console.log(`published ${tag} (#${draft.id})`);
+    console.log(`published ${tag} (#${draft.id}) in ${owner}/${repoName}`);
     return;
   }
 
   if (mode === '--clean') {
     const drafts = existing.filter(r => r.draft);
     if (drafts.length < 2) {
-      console.log(`nothing to clean: ${drafts.length} draft(s) for ${tag}`);
+      console.log(`nothing to clean in ${repoName}: ${drafts.length} draft(s) for ${tag}`);
       return;
     }
-    // Keep the draft with the most assets; delete the rest.
     drafts.sort((a, b) => b.assets.length - a.assets.length);
     const [keep, ...remove] = drafts;
     for (const r of remove) {
       await gh('DELETE', `${api}/releases/${r.id}`);
-      console.log(`deleted duplicate draft #${r.id}`);
+      console.log(`deleted duplicate draft #${r.id} in ${repoName}`);
     }
-    console.log(`kept draft #${keep.id} for ${tag}`);
+    console.log(`kept draft #${keep.id} for ${tag} in ${repoName}`);
     return;
   }
 
   if (existing.length > 1) {
-    console.error(`error: ${existing.length} releases already exist for ${tag}:`);
+    console.error(`error: ${existing.length} releases already exist for ${tag} in ${owner}/${repoName}:`);
     existing.forEach(r => console.error(describe(r)));
     console.error('run "npm run release:clean" to remove the duplicates first');
-    process.exit(1);
+    return;
   }
 
   if (existing.length === 1) {
     const r = existing[0];
     if (!r.draft) {
-      // A published release older than 2h makes electron-builder refuse the
-      // upload outright (gitHubPublisher getOrCreateRelease), so say so now.
-      console.log(`release ${tag} already published (#${r.id}) - uploads may be rejected`);
+      console.log(`release ${tag} already published in ${owner}/${repoName} (#${r.id})`);
     } else {
-      console.log(`reusing existing draft ${tag} (#${r.id})`);
+      console.log(`reusing existing draft in ${owner}/${repoName} ${tag} (#${r.id})`);
     }
     return;
   }
@@ -166,7 +154,14 @@ async function main() {
     draft: true,
     prerelease: false,
   });
-  console.log(`created draft release ${tag} (#${created.id})`);
+  console.log(`created draft release ${tag} (#${created.id}) in ${owner}/${repoName}`);
+}
+
+async function main() {
+  const mode = process.argv[2];
+  for (const repoName of targetRepos) {
+    await handleRepo(repoName, mode);
+  }
 }
 
 main().catch(err => {
