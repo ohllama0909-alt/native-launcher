@@ -4,6 +4,7 @@ import { ART_ASSETS, RELEASE_LINES, getClusterArt } from "../../data/versionsDat
 import { bannerFor, getVersionBanners } from "../../lib/patchNotes.js";
 import {
   LOADERS,
+  compareVersions,
   getFabricGameVersions,
   getVersionManifest,
   isReleaseId,
@@ -19,32 +20,51 @@ import "./ClustersView.css";
 const SNAPSHOT_LINE = "snapshots";
 
 /**
- * 9 Canonical Major Releases in the exact order specified by reference mockup c65d:
- * Row 1: 26.1 | 1.21 | 1.20
- * Row 2: 1.19 | 1.16 | 1.13
- * Row 3: 1.12 | 1.8  | 1.7
+ * Canonical Major Releases in order, with 26.2 and 26.1 leading at the top:
+ * Row 1: 26.2 | 26.1 | 1.21
+ * Row 2: 1.20 | 1.19 | 1.18
+ * Row 3: 1.17 | 1.16 | 1.15
+ * Row 4: 1.14 | 1.13 | 1.12
+ * Row 5: 1.11 | 1.10 | 1.9
+ * Row 6: 1.8  | 1.7
  */
 const FEATURED_ORDER = [
+  "26.2",
   "26.1",
   "1.21",
   "1.20",
   "1.19",
+  "1.18",
+  "1.17",
   "1.16",
+  "1.15",
+  "1.14",
   "1.13",
   "1.12",
+  "1.11",
+  "1.10",
+  "1.9",
   "1.8",
   "1.7"
 ];
 
-/** Default patches per card matching mockup c65d */
+/** Default patches per card matching canonical releases */
 const CANONICAL_PATCHES = {
+  "26.2": "26.2",
   "26.1": "26.1.1",
   "1.21": "1.21.7",
   "1.20": "1.20.4",
   "1.19": "1.19.1",
+  "1.18": "1.18.2",
+  "1.17": "1.17.1",
   "1.16": "1.16.5",
+  "1.15": "1.15.2",
+  "1.14": "1.14.4",
   "1.13": "1.13.1",
   "1.12": "1.12.2",
+  "1.11": "1.11.2",
+  "1.10": "1.10.2",
+  "1.9": "1.9.4",
   "1.8": "1.8.9",
   "1.7": "1.7.10"
 };
@@ -202,7 +222,7 @@ export default function ClustersView({
 
     const list = Array.from(buckets.values());
 
-    // 3. Sort: canonical featured order first (0..8), then newer/other versions, then snapshots
+    // 3. Sort: canonical featured order first (0..n), then newer/other versions, then snapshots
     list.sort((a, b) => {
       if (a.id === SNAPSHOT_LINE) return 1;
       if (b.id === SNAPSHOT_LINE) return -1;
@@ -216,10 +236,9 @@ export default function ClustersView({
       if (aFeaturedIdx !== -1) return -1;
       if (bFeaturedIdx !== -1) return 1;
 
-      // For others, numerical descending version sort
-      const aNum = parseFloat(a.id) || 0;
-      const bNum = parseFloat(b.id) || 0;
-      if (bNum !== aNum) return bNum - aNum;
+      // Fallback semver descending comparison
+      const cmp = compareVersions(b.id, a.id);
+      if (cmp !== 0) return cmp;
 
       return String(b.newest || "").localeCompare(String(a.newest || ""));
     });
