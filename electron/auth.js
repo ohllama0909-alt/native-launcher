@@ -203,11 +203,15 @@ async function loginMicrosoft() {
   }
 }
 
-async function getMinecraftSession(accountId) {
+async function getMinecraftSession(accountId, { forceRefresh = false } = {}) {
   try {
     const { accounts, activeId } = readAccounts();
     const acc = accounts.find(a => a.id === (accountId || activeId));
     if (!acc || acc.type !== 'microsoft') return null;
+
+    if (forceRefresh) {
+      delete mcSessions[acc.id];
+    }
 
     const cached = mcSessions[acc.id];
     if (cached && (typeof cached.validate !== 'function' || cached.validate())) {
@@ -242,8 +246,8 @@ async function getMclcAuth() {
   return mc?.mclc?.() || null;
 }
 
-async function getMinecraftAccessToken(accountId) {
-  const mc = await getMinecraftSession(accountId);
+async function getMinecraftAccessToken(accountId, options = {}) {
+  const mc = await getMinecraftSession(accountId, options);
   return mc?.mclc?.().access_token || null;
 }
 

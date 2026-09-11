@@ -384,9 +384,13 @@ function syncWardrobeInBackground(account) {
   void syncWardrobe(account).catch(() => {});
 }
 
-async function minecraftRequest(account, pathname, options = {}) {
-  const token = await deps.auth?.getMinecraftAccessToken?.(account.id);
-  if (!token) throw new Error('Your Microsoft session expired. Sign in again to manage official cosmetics.');
+async function minecraftRequest(account, pathname, options = {}, { forceRefresh = false } = {}) {
+  const token = await deps.auth?.getMinecraftAccessToken?.(account.id, { forceRefresh });
+  if (!token) {
+    const err = new Error('Your Microsoft session expired. Sign in again to manage official cosmetics.');
+    err.code = 'AUTH_EXPIRED';
+    throw err;
+  }
   const response = await fetch(`https://api.minecraftservices.com${pathname}`, {
     ...options,
     headers: { Authorization: `Bearer ${token}`, ...(options.headers || {}) }
@@ -394,13 +398,36 @@ async function minecraftRequest(account, pathname, options = {}) {
   if (!response.ok) {
     let detail = '';
     try { detail = (await response.json())?.errorMessage || ''; } catch {}
-    throw new Error(detail || `Minecraft profile request failed (HTTP ${response.status})`);
+    const err = new Error(detail || `Minecraft profile request failed (HTTP ${response.status})`);
+    err.status = response.status;
+    if (response.status === 401 || response.status === 403) err.code = 'AUTH_EXPIRED';
+    else if (response.status === 402) err.code = 'NO_ENTITLEMENT';
+    else if (response.status === 404) err.code = 'NO_PROFILE';
+    throw err;
   }
   if (response.status === 204) return null;
   return response.json();
 }
 
-const officialProfile = (account) => minecraftRequest(account, '/minecraft/profile');
+/**
+ * Fetch the official Minecraft profile (skins + capes owned by the account).
+ * If the first attempt fails with an auth / stale-token style error, retry once
+ * with a forced token refresh so a re-login isn't required for the common case
+ * of an expired Xbox → MC token exchange.
+ */
+async function officialProfile(account) {
+  try {
+    return await minecraftRequest(account, '/minecraft/profile');
+  } catch (error) {
+    if (error?.code === 'AUTH_EXPIRED' || error?.status === 402) {
+      // 402 is emitted by Mojang when the current MC access token isn't
+      // entitled — refreshing usually resolves it if the account actually
+      // owns Minecraft.
+      return minecraftRequest(account, '/minecraft/profile', {}, { forceRefresh: true });
+    }
+    throw error;
+  }
+}
 
 async function applyOfficialSkin(account, id) {
   const metadata = loadMetadata(account);
@@ -540,7 +567,14 @@ function init(dependencies, ipcMain) {
   deps = dependencies;
   const profileResult = (operation) => async (...args) => {
     try { return { ok: true, profile: await operation(...args) }; }
-    catch (error) { return { ok: false, error: String(error?.message || error) }; }
+    catch (error) {
+      return {
+        ok: false,
+        error: String(error?.message || error),
+        code: error?.code || null,
+        status: error?.status || null
+      };
+    }
   };
 
   ipcMain.handle('wardrobe:get', (_event, account) => publicState(account));
@@ -580,6 +614,10 @@ function init(dependencies, ipcMain) {
   ipcMain.handle('wardrobe:export', (_event, { account, id }) => exportItem(account, id));
   ipcMain.handle('wardrobe:sync', (_event, account) => syncWardrobe(account));
   ipcMain.handle('wardrobe:officialProfile', profileResult((_event, account) => officialProfile(account)));
+  ipcMain.handle('wardrobe:reauthOfficialProfile', profileResult(async (_event, account) => {
+    // Drop any cached MC session and hit the API with a fresh Xbox → MC token.
+    return minecraftRequest(account, '/minecraft/profile', {}, { forceRefresh: true });
+  }));
   ipcMain.handle('wardrobe:applyOfficialSkin', profileResult((_event, { account, id }) => applyOfficialSkin(account, id)));
   ipcMain.handle('wardrobe:activateOfficialCape', profileResult((_event, { account, capeId }) => activateOfficialCape(account, capeId)));
 }

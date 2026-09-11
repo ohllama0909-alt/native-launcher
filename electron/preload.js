@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('native', {
     export: (account, id) => ipcRenderer.invoke('wardrobe:export', { account, id }),
     sync: (account) => ipcRenderer.invoke('wardrobe:sync', account),
     officialProfile: (account) => ipcRenderer.invoke('wardrobe:officialProfile', account),
+    reauthOfficialProfile: (account) => ipcRenderer.invoke('wardrobe:reauthOfficialProfile', account),
     applyOfficialSkin: (account, id) => ipcRenderer.invoke('wardrobe:applyOfficialSkin', { account, id }),
     activateOfficialCape: (account, capeId) => ipcRenderer.invoke('wardrobe:activateOfficialCape', { account, capeId })
   },

@@ -1,5 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, CloudDownload, FlipHorizontal2, GripVertical, Loader, Play, RotateCw, Star, Upload } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  CloudDownload,
+  FileText,
+  FlipHorizontal2,
+  Loader,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCw,
+  Star,
+  Upload,
+  X
+} from 'lucide-react';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
 import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
@@ -10,40 +25,37 @@ import './LockerView.css';
 
 const PAGE_SIZE = { capes: 6, favorites: 4, latest: 6 };
 
-/** One page of a horizontally paged row. */
+/* ── shared helpers ──────────────────────────────────────── */
+
 function usePager(length, size) {
   const [page, setPage] = useState(0);
   const pages = Math.max(1, Math.ceil(length / size));
-
-  useEffect(() => {
-    setPage((current) => Math.min(current, pages - 1));
-  }, [pages]);
-
+  useEffect(() => setPage((p) => Math.min(p, pages - 1)), [pages]);
   return {
     page: Math.min(page, pages - 1),
     pages,
     canBack: page > 0,
     canForward: page < pages - 1,
-    back: () => setPage((current) => Math.max(0, current - 1)),
-    forward: () => setPage((current) => Math.min(pages - 1, current + 1)),
+    back: () => setPage((p) => Math.max(0, p - 1)),
+    forward: () => setPage((p) => Math.min(pages - 1, p + 1)),
     slice: (items) => items.slice(page * size, page * size + size)
   };
 }
 
-function RowHeading({ title, hint, pager, children }) {
+function RowHead({ title, pager, right }) {
   return (
     <header className="locker-row-head">
       <h2>{title}</h2>
-      {hint ? <span className="locker-row-hint">{hint}</span> : null}
+      <span className="locker-row-rule" aria-hidden="true" />
       <div className="locker-row-tools">
-        {children}
+        {right}
         {pager && pager.pages > 1 ? (
           <span className="locker-pager">
             <button type="button" onClick={pager.back} disabled={!pager.canBack} aria-label="Previous">
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
             </button>
             <button type="button" onClick={pager.forward} disabled={!pager.canForward} aria-label="Next">
-              <ChevronRight size={16} />
+              <ChevronRight size={14} />
             </button>
           </span>
         ) : null}
@@ -52,24 +64,7 @@ function RowHeading({ title, hint, pager, children }) {
   );
 }
 
-/** Star toggle used by the favourite and latest cards. */
-function StarButton({ active, onClick, label }) {
-  return (
-    <button
-      type="button"
-      className={`locker-star${active ? ' is-on' : ''}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-      aria-pressed={active}
-      aria-label={label}
-      title={label}
-    >
-      <Star size={13} strokeWidth={2.2} fill={active ? 'currentColor' : 'none'} />
-    </button>
-  );
-}
+/* ── component ──────────────────────────────────────────── */
 
 export default function LockerView({
   account,
@@ -80,11 +75,12 @@ export default function LockerView({
   const { t } = useI18n();
   const [wardrobe, setWardrobe] = useState(null);
   const [official, setOfficial] = useState(null);
-  const [officialError, setOfficialError] = useState('');
+  const [officialState, setOfficialState] = useState({ loading: false, error: null });
   const [busy, setBusy] = useState('');
   const [dragging, setDragging] = useState(false);
   const [menu, setMenu] = useState(null);
   const [spin, setSpin] = useState(false);
+  const [pending, setPending] = useState(null); // { file, dataUrl, model, name, kind }
   const viewerRef = useRef(null);
   const dragDepth = useRef(0);
   const fileInput = useRef(null);
@@ -103,35 +99,42 @@ export default function LockerView({
   );
 
   const load = useCallback(async () => {
-    if (!signedIn) {
-      setWardrobe(null);
-      return;
-    }
+    if (!signedIn) return setWardrobe(null);
     apply(await window.native?.wardrobe?.get(account));
   }, [account, signedIn, apply]);
 
-  const loadOfficial = useCallback(async () => {
-    if (!isMicrosoft) {
-      setOfficial(null);
-      setOfficialError('');
-      return;
-    }
-    const result = await window.native?.wardrobe?.officialProfile(account);
-    if (!result?.ok) throw new Error(result?.error || t('locker.officialFailed'));
-    setOfficial(result.profile);
-    setOfficialError('');
-  }, [account, isMicrosoft, t]);
+  const loadOfficial = useCallback(
+    async ({ force = false } = {}) => {
+      if (!isMicrosoft) {
+        setOfficial(null);
+        setOfficialState({ loading: false, error: null });
+        return;
+      }
+      setOfficialState({ loading: true, error: null });
+      const call = force
+        ? window.native?.wardrobe?.reauthOfficialProfile
+        : window.native?.wardrobe?.officialProfile;
+      const result = await call?.(account);
+      if (result?.ok) {
+        setOfficial(result.profile);
+        setOfficialState({ loading: false, error: null });
+      } else {
+        setOfficial(null);
+        setOfficialState({
+          loading: false,
+          error: {
+            status: result?.status || null,
+            code: result?.code || null,
+            message: result?.error || t('locker.officialFailed')
+          }
+        });
+      }
+    },
+    [account, isMicrosoft, t]
+  );
 
-  useEffect(() => {
-    load().catch(() => setWardrobe(null));
-  }, [load]);
-
-  useEffect(() => {
-    loadOfficial().catch((error) => {
-      setOfficial(null);
-      setOfficialError(error.message);
-    });
-  }, [loadOfficial]);
+  useEffect(() => { load().catch(() => setWardrobe(null)); }, [load]);
+  useEffect(() => { loadOfficial().catch(() => {}); }, [loadOfficial]);
 
   const run = async (key, task, { okMessage, title, fallback } = {}) => {
     setBusy(key);
@@ -147,19 +150,17 @@ export default function LockerView({
     }
   };
 
+  /* ── derived state ─────────────────────────────────────── */
+
   const items = wardrobe?.items || [];
-  const skins = useMemo(() => items.filter((item) => item.kind === 'skin'), [items]);
-  const localCapes = useMemo(() => items.filter((item) => item.kind === 'cape'), [items]);
-  const favorites = useMemo(() => items.filter((item) => item.favorite), [items]);
-  const latest = useMemo(
-    () => [...skins].sort((a, b) => b.createdAt - a.createdAt),
-    [skins]
-  );
+  const skins = useMemo(() => items.filter((i) => i.kind === 'skin'), [items]);
+  const localCapes = useMemo(() => items.filter((i) => i.kind === 'cape'), [items]);
+  const favorites = useMemo(() => items.filter((i) => i.favorite), [items]);
+  const latest = useMemo(() => [...skins].sort((a, b) => b.createdAt - a.createdAt), [skins]);
   const activeSkin = wardrobe?.active?.skin || null;
   const activeCape = wardrobe?.active?.cape || null;
-
-  // One "none" tile plus the local capes, then the player's official capes.
   const officialCapes = isMicrosoft ? official?.capes || [] : [];
+
   const capeTiles = useMemo(
     () => [
       { id: '__none__', kind: 'none' },
@@ -173,35 +174,52 @@ export default function LockerView({
   const favoritePager = usePager(favorites.length, PAGE_SIZE.favorites);
   const latestPager = usePager(latest.length, PAGE_SIZE.latest);
 
-  /* ---- actions ---- */
+  /* ── upload flow with edit popup ───────────────────────── */
 
-  const uploadFiles = async (files, kind = 'skin') => {
+  const stageUpload = async (files, kind = 'skin') => {
     const file = files?.[0];
     if (!file) return;
     if (!/\.png$/i.test(file.name) && file.type !== 'image/png') {
       onNotify?.(t('locker.uploadTitle'), t('locker.uploadNotPng'));
       return;
     }
-    await run(
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const model = kind === 'skin' ? await detectSkinModel(dataUrl) : 'classic';
+      setPending({
+        kind,
+        dataUrl,
+        fileName: file.name,
+        name: file.name.replace(/\.png$/i, ''),
+        model
+      });
+    } catch (error) {
+      onNotify?.(t('locker.uploadTitle'), error?.message || t('locker.actionFailed'));
+    }
+  };
+
+  const confirmUpload = () =>
+    run(
       'upload',
       async () => {
-        const dataUrl = await readFileAsDataUrl(file);
-        const model = kind === 'skin' ? await detectSkinModel(dataUrl) : 'classic';
-        const next = await window.native?.wardrobe?.upload(account, kind, dataUrl, {
-          name: file.name.replace(/\.png$/i, ''),
-          model
+        if (!pending) return null;
+        const next = await window.native?.wardrobe?.upload(account, pending.kind, pending.dataUrl, {
+          name: pending.name,
+          model: pending.model
         });
         apply(next);
+        setPending(null);
         return next;
       },
-      { okMessage: t('locker.uploadDone', { name: file.name.replace(/\.png$/i, '') }), title: t('locker.uploadTitle') }
+      { okMessage: t('locker.uploadDone', { name: pending?.name || 'skin' }), title: t('locker.uploadTitle') }
     );
-  };
 
   const browseFor = (kind) => {
     pendingKind.current = kind;
     fileInput.current?.click();
   };
+
+  /* ── mutations ─────────────────────────────────────────── */
 
   const applyItem = (id) =>
     run(`apply-${id}`, async () => apply(await window.native?.wardrobe?.apply(account, id)), {
@@ -220,15 +238,14 @@ export default function LockerView({
     });
 
   const exportItem = (item) =>
-    run(`export-${item.id || 'active'}`, async () => {
-      const result = await window.native?.wardrobe?.export(account, item?.id || null);
-      if (result?.canceled) return null;
-      return result;
-    }, {
-      okMessage: t('locker.exported'),
-      title: t('locker.title'),
-      fallback: t('locker.exportFailed')
-    });
+    run(
+      `export-${item?.id || 'active'}`,
+      async () => {
+        const result = await window.native?.wardrobe?.export(account, item?.id || null);
+        return result?.canceled ? null : result;
+      },
+      { okMessage: t('locker.exported'), title: t('locker.title'), fallback: t('locker.exportFailed') }
+    );
 
   const setModel = (model) =>
     run('model', async () => apply(await window.native?.wardrobe?.setModel(account, model)), {
@@ -288,12 +305,12 @@ export default function LockerView({
           ? [{ label: t('locker.publish'), icon: 'rocket', action: () => publishSkin(item) }]
           : []),
         { label: t('locker.export'), icon: 'download', action: () => exportItem(item) },
-        { label: t('common.remove'), icon: 'trash', action: () => removeItem(item) }
+        { label: t('common.remove') || 'Remove', icon: 'trash', action: () => removeItem(item) }
       ]
     });
   };
 
-  /* ---- drag & drop ---- */
+  /* ── drag & drop ───────────────────────────────────────── */
 
   const onDragEnter = (event) => {
     event.preventDefault();
@@ -309,19 +326,16 @@ export default function LockerView({
     event.preventDefault();
     dragDepth.current = 0;
     setDragging(false);
-    uploadFiles(event.dataTransfer?.files, 'skin');
+    stageUpload(event.dataTransfer?.files, 'skin');
   };
 
-  /* ---- signed-out state ---- */
+  /* ── signed-out state ──────────────────────────────────── */
 
   if (!signedIn) {
     return (
       <div className="locker-view">
         <header className="locker-head">
-          <div>
-            <h1>{t('locker.title')}</h1>
-            <p>{t('locker.subtitle')}</p>
-          </div>
+          <h1>{t('locker.title')}</h1>
         </header>
         <div className="locker-signed-out">
           <span className="locker-signed-out-icon"><NativeIcon name="user" size={26} /></span>
@@ -329,12 +343,14 @@ export default function LockerView({
           <p>{t('locker.noAccountBody')}</p>
           <button type="button" className="locker-btn is-primary" onClick={onOpenAccountSwitcher}>
             <NativeIcon name="user" size={16} />
-            <span>{t('account.accounts')}</span>
+            <span>{t('account.accounts') || 'Accounts'}</span>
           </button>
         </div>
       </div>
     );
   }
+
+  /* ── main render ───────────────────────────────────────── */
 
   return (
     <div
@@ -345,16 +361,12 @@ export default function LockerView({
       onDrop={onDrop}
     >
       <header className="locker-head">
-        <div>
-          <h1>{t('locker.title')}</h1>
-          <p>{t('locker.subtitle')}</p>
-        </div>
-
+        <h1>{t('locker.title')}</h1>
         <div className="locker-head-actions">
-          <button type="button" className="locker-account-chip" onClick={onOpenAccountSwitcher} title={t('account.switch')}>
-            <PlayerAvatar account={account} kind="avatar" size={28} />
+          <button type="button" className="locker-account-chip" onClick={onOpenAccountSwitcher} title={t('account.switch') || 'Switch'}>
+            <PlayerAvatar account={account} kind="avatar" size={26} />
             <span>{account?.name}</span>
-            <NativeIcon name="chevron-down" size={14} />
+            <NativeIcon name="chevron-down" size={13} />
           </button>
           <button
             type="button"
@@ -363,34 +375,52 @@ export default function LockerView({
             disabled={Boolean(busy)}
             title={t('locker.syncHint')}
           >
-            <CloudDownload size={16} strokeWidth={2.1} className={busy === 'sync' ? 'locker-spin' : ''} />
+            <CloudDownload size={14} className={busy === 'sync' ? 'locker-spin' : ''} />
             <span>{t('locker.sync')}</span>
           </button>
         </div>
       </header>
 
-      <div className="locker-grid">
-        {/* ---------------- current skin ---------------- */}
-        <section className="locker-stage">
-          <h2 className="locker-section-title">{t('locker.currentSkin')}</h2>
-
-          <div className="locker-stage-card">
-            <span className="locker-grip" aria-hidden="true"><GripVertical size={14} /></span>
-
-            <div className="locker-stage-viewer">
+      <div className="locker-top">
+        {/* ─── Current skin ──────────────────────────────── */}
+        <section className="locker-block locker-current">
+          <h2 className="locker-block-title">{t('locker.currentSkin')}</h2>
+          <div className="locker-stage-card locker-current-card">
+            <div className="locker-current-viewer">
               <SkinViewer3D
                 account={account}
-                width={264}
-                height={352}
+                width={220}
+                height={300}
                 animation={null}
                 autoRotate={spin}
                 onViewer={(viewer) => { viewerRef.current = viewer; }}
                 className="locker-canvas"
               />
             </div>
-
-            <div className="locker-stage-bar">
-              <div className="locker-model-toggle" role="group" aria-label={t('locker.model')}>
+            <div className="locker-current-bar">
+              <button
+                type="button"
+                className={spin ? 'is-on' : ''}
+                onClick={() => setSpin((v) => !v)}
+                title={t('locker.spin')}
+                aria-label={t('locker.spin')}
+              >
+                <RotateCw size={13} strokeWidth={2.2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const viewer = viewerRef.current;
+                  if (!viewer?.playerWrapper) return;
+                  viewer.playerWrapper.rotation.y += Math.PI;
+                  viewer.render();
+                }}
+                title={t('locker.flip')}
+                aria-label={t('locker.flip')}
+              >
+                <FlipHorizontal2 size={13} strokeWidth={2.2} />
+              </button>
+              <div className="locker-current-model">
                 <button
                   type="button"
                   className={wardrobe?.model !== 'slim' ? 'active' : ''}
@@ -408,75 +438,23 @@ export default function LockerView({
                   {t('locker.modelSlim')}
                 </button>
               </div>
-
-              <div className="locker-stage-tools">
-                <button
-                  type="button"
-                  className={spin ? 'is-on' : ''}
-                  onClick={() => setSpin((value) => !value)}
-                  title={t('locker.spin')}
-                  aria-label={t('locker.spin')}
-                  aria-pressed={spin}
-                >
-                  <RotateCw size={16} strokeWidth={2.2} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const viewer = viewerRef.current;
-                    if (!viewer?.playerWrapper) return;
-                    viewer.playerWrapper.rotation.y += Math.PI;
-                    viewer.render();
-                  }}
-                  title={t('locker.flip')}
-                  aria-label={t('locker.flip')}
-                >
-                  <FlipHorizontal2 size={16} strokeWidth={2.2} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => exportItem(activeSkin)}
-                  disabled={!activeSkin || Boolean(busy)}
-                  title={t('locker.export')}
-                  aria-label={t('locker.export')}
-                >
-                  <NativeIcon name="download" size={17} />
-                </button>
-                <button
-                  type="button"
-                  className="is-accent"
-                  onClick={() => (isMicrosoft ? publishSkin(activeSkin) : exportItem(activeSkin))}
-                  disabled={!activeSkin || Boolean(busy)}
-                  title={isMicrosoft ? t('locker.publish') : t('locker.export')}
-                  aria-label={isMicrosoft ? t('locker.publish') : t('locker.export')}
-                >
-                  <Play size={16} strokeWidth={2.4} />
-                </button>
-              </div>
+              <button
+                type="button"
+                className="is-accent"
+                onClick={() => (isMicrosoft ? publishSkin(activeSkin) : exportItem(activeSkin))}
+                disabled={!activeSkin || Boolean(busy)}
+                title={isMicrosoft ? t('locker.publish') : t('locker.export')}
+                aria-label={isMicrosoft ? t('locker.publish') : t('locker.export')}
+              >
+                <Play size={13} strokeWidth={2.4} fill="currentColor" />
+              </button>
             </div>
-
-            {officialError && isMicrosoft ? (
-              <p className="locker-note is-error">
-                <NativeIcon name="alert" size={13} />
-                <span>{officialError}</span>
-              </p>
-            ) : (
-              <p className="locker-note">
-                <NativeIcon name="info" size={13} />
-                <span>
-                  {activeSkin
-                    ? t('locker.activeSkinNote', { name: activeSkin.name })
-                    : t('locker.noSkinNote')}
-                </span>
-              </p>
-            )}
           </div>
         </section>
 
-        {/* ---------------- upload ---------------- */}
-        <section className="locker-upload">
-          <h2 className="locker-section-title">{t('locker.uploadSkin')}</h2>
-
+        {/* ─── Upload ───────────────────────────────────── */}
+        <section className="locker-block locker-upload">
+          <h2 className="locker-block-title">{t('locker.uploadSkin')}</h2>
           <div
             className="locker-dropzone"
             role="button"
@@ -489,38 +467,30 @@ export default function LockerView({
               }
             }}
           >
-            {busy === 'upload' ? (
-              <Loader size={24} strokeWidth={2} className="locker-spin" />
-            ) : (
-              <Upload size={24} strokeWidth={1.9} />
-            )}
-            <strong>{t('locker.dropTitle')}</strong>
-            <span>{t('locker.dropHint')}</span>
+            <span className="locker-dropzone-plus">
+              {busy === 'upload' ? <Loader size={18} className="locker-spin" /> : <Plus size={18} strokeWidth={2.2} />}
+            </span>
+            <span className="locker-dropzone-caption">{t('locker.dropTitle')}</span>
+            <span className="locker-dropzone-hint">{t('locker.dropHint')}</span>
           </div>
-
           <button
             type="button"
-            className="locker-btn is-ghost"
+            className="locker-linkbtn"
             onClick={() => browseFor('cape')}
             disabled={Boolean(busy)}
           >
-            <NativeIcon name="image" size={15} />
-            <span>{t('locker.uploadCape')}</span>
+            {t('locker.uploadCape')}
           </button>
         </section>
 
-        {/* ---------------- capes ---------------- */}
-        <section className="locker-capes">
-          <RowHeading title={t('locker.capes')} pager={capePager} />
+        {/* ─── Capes ─────────────────────────────────────── */}
+        <section className="locker-block locker-capes">
+          <RowHead title={t('locker.capes')} pager={capePager} />
 
           <div className="locker-cape-row">
-            {capeTiles.length === 1 && !isMicrosoft ? (
-              <p className="locker-empty-inline">{t('locker.noCapes')}</p>
-            ) : null}
-
             {capePager.slice(capeTiles).map((tile) => {
               if (tile.kind === 'none') {
-                const active = !activeCape && !officialCapes.some((cape) => cape.state === 'ACTIVE');
+                const active = !activeCape && !officialCapes.some((c) => c.state === 'ACTIVE');
                 return (
                   <button
                     key={tile.id}
@@ -530,11 +500,10 @@ export default function LockerView({
                     disabled={Boolean(busy)}
                     title={t('locker.noCapeOption')}
                   >
-                    <NativeIcon name="close" size={18} />
+                    <X size={18} />
                   </button>
                 );
               }
-
               if (tile.kind === 'local') {
                 const active = activeCape?.id === tile.item.id;
                 return (
@@ -551,13 +520,12 @@ export default function LockerView({
                   </button>
                 );
               }
-
-              const activeCapeId = officialCapes.find((cape) => cape.state === 'ACTIVE')?.id;
+              const activeOfficialId = officialCapes.find((c) => c.state === 'ACTIVE')?.id;
               return (
                 <button
                   key={tile.id}
                   type="button"
-                  className={`locker-cape is-official${activeCapeId === tile.cape.id ? ' is-active' : ''}`}
+                  className={`locker-cape is-official${activeOfficialId === tile.cape.id ? ' is-active' : ''}`}
                   onClick={() => activateCape(tile.cape.id)}
                   disabled={Boolean(busy)}
                   title={tile.cape.alias || t('locker.officialCape')}
@@ -566,42 +534,40 @@ export default function LockerView({
                 </button>
               );
             })}
-
-            {busy?.startsWith('cape-') ? <span className="locker-cape-loading"><NativeIcon name="loader" size={16} className="locker-spin" /></span> : null}
+            {busy?.startsWith('cape-') ? (
+              <span className="locker-cape-loading"><Loader size={14} className="locker-spin" /></span>
+            ) : null}
           </div>
 
-          <p className="locker-cloud-note">
-            <span>{t('locker.cloudNote')}</span>
-            <CloudDownload size={14} strokeWidth={2} />
-          </p>
+          {officialState.error && isMicrosoft ? (
+            <OfficialError error={officialState.error} onRetry={() => loadOfficial({ force: true })} t={t} />
+          ) : (
+            <p className="locker-cloud-note">
+              <span>{t('locker.cloudNote')}</span>
+              <CloudDownload size={12} strokeWidth={2} />
+            </p>
+          )}
         </section>
       </div>
 
-      {/* ---------------- favourites ---------------- */}
+      {/* ─── Favorites ─────────────────────────────────── */}
       <section className="locker-row">
-        <RowHeading title={t('locker.favorites')} pager={favoritePager} />
-        <div className="locker-favorite-grid">
+        <RowHead title={t('locker.favorites')} pager={favoritePager} />
+        <div className="locker-fav-grid">
           {favoritePager.slice(favorites).map((item) => (
-            <article
+            <SkinCard
               key={item.id}
-              className={`locker-card${item.active ? ' is-active' : ''}`}
+              item={item}
+              active={item.id === activeSkin?.id}
               onClick={() => applyItem(item.id)}
               onContextMenu={(event) => openMenu(event, item)}
-            >
-              <StarButton active onClick={() => toggleFavorite(item)} label={t('locker.unfavorite')} />
-              <div className="locker-card-art">
-                {item.url ? <img src={item.url} alt="" /> : <NativeIcon name="user" size={30} />}
-              </div>
-              <footer>
-                <span className="locker-card-name" title={item.name}>{item.name}</span>
-                <span className="locker-card-age">{item.ageDays}d</span>
-              </footer>
-            </article>
+              onFavorite={() => toggleFavorite(item)}
+              t={t}
+            />
           ))}
-
           {favorites.length === 0
             ? Array.from({ length: PAGE_SIZE.favorites }).map((_, index) => (
-                <span key={`empty-${index}`} className="locker-card is-placeholder" aria-hidden="true">
+                <span key={`fav-empty-${index}`} className="locker-fav-card is-placeholder" aria-hidden="true">
                   {index === 0 ? <em>{t('locker.favoritesHint')}</em> : null}
                 </span>
               ))
@@ -609,31 +575,25 @@ export default function LockerView({
         </div>
       </section>
 
-      {/* ---------------- latest ---------------- */}
+      {/* ─── Latest ────────────────────────────────────── */}
       <section className="locker-row">
-        <RowHeading title={t('locker.latest')} pager={latestPager} />
+        <RowHead title={t('locker.latest')} pager={latestPager} />
         <div className="locker-latest-grid">
           {latestPager.slice(latest).map((item) => (
-            <article
+            <SkinCard
               key={item.id}
-              className={`locker-card is-compact${item.active ? ' is-active' : ''}`}
+              compact
+              item={item}
+              active={item.id === activeSkin?.id}
               onClick={() => applyItem(item.id)}
               onContextMenu={(event) => openMenu(event, item)}
-            >
-              <StarButton
-                active={item.favorite}
-                onClick={() => toggleFavorite(item)}
-                label={item.favorite ? t('locker.unfavorite') : t('locker.favorite')}
-              />
-              <div className="locker-card-art">
-                {item.url ? <img src={item.url} alt="" /> : <NativeIcon name="user" size={26} />}
-              </div>
-            </article>
+              onFavorite={() => toggleFavorite(item)}
+              t={t}
+            />
           ))}
-
           {latest.length === 0
             ? Array.from({ length: PAGE_SIZE.latest }).map((_, index) => (
-                <span key={`empty-${index}`} className="locker-card is-compact is-placeholder" aria-hidden="true">
+                <span key={`latest-empty-${index}`} className="locker-fav-card is-compact is-placeholder" aria-hidden="true">
                   {index === 0 ? <em>{t('locker.latestHint')}</em> : null}
                 </span>
               ))
@@ -641,24 +601,31 @@ export default function LockerView({
         </div>
       </section>
 
+      <p className="locker-footer-note">{t('locker.footerNote')}</p>
+
       <input
         ref={fileInput}
         type="file"
         accept="image/png,.png"
         className="locker-file-input"
         onChange={(event) => {
-          uploadFiles(event.target.files, pendingKind.current);
+          stageUpload(event.target.files, pendingKind.current);
           event.target.value = '';
         }}
       />
 
       {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          title={menu.title}
-          items={menu.items}
-          onClose={() => setMenu(null)}
+        <ContextMenu x={menu.x} y={menu.y} title={menu.title} items={menu.items} onClose={() => setMenu(null)} />
+      )}
+
+      {pending && (
+        <SkinEditor
+          pending={pending}
+          busy={busy === 'upload'}
+          onChange={setPending}
+          onClose={() => setPending(null)}
+          onSave={confirmUpload}
+          t={t}
         />
       )}
 
@@ -668,6 +635,147 @@ export default function LockerView({
           <strong>{t('locker.dropTitle')}</strong>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/* ── skin card ─────────────────────────────────────────── */
+
+function SkinCard({ item, active, compact, onClick, onContextMenu, onFavorite, t }) {
+  return (
+    <article
+      className={`locker-fav-card${compact ? ' is-compact' : ''}${active ? ' is-active' : ''}`}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      title={item.name}
+    >
+      <button
+        type="button"
+        className={`locker-star${item.favorite ? ' is-on' : ''}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onFavorite();
+        }}
+        aria-pressed={item.favorite}
+        aria-label={item.favorite ? t('locker.unfavorite') : t('locker.favorite')}
+      >
+        <Star size={12} strokeWidth={2.2} fill={item.favorite ? 'currentColor' : 'none'} />
+      </button>
+      <div className="locker-fav-art">
+        {item.url ? <img src={item.url} alt="" /> : <NativeIcon name="user" size={28} />}
+      </div>
+      {!compact && (
+        <footer>
+          <span className="locker-fav-name">{item.name}</span>
+          <span className="locker-fav-age">{item.ageDays}d</span>
+        </footer>
+      )}
+    </article>
+  );
+}
+
+/* ── skin editor popup ─────────────────────────────────── */
+
+function SkinEditor({ pending, busy, onChange, onClose, onSave, t }) {
+  return (
+    <div className="locker-modal-scrim" onClick={onClose}>
+      <div className="locker-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="locker-modal-close" onClick={onClose} aria-label={t('common.clear') || 'Close'}>
+          <X size={14} />
+        </button>
+
+        <div className="locker-modal-preview">
+          <img src={pending.dataUrl} alt="" />
+        </div>
+
+        <div className="locker-modal-form">
+          <label className="locker-field">
+            <span>{t('locker.fieldName')}</span>
+            <input
+              type="text"
+              value={pending.name}
+              onChange={(event) => onChange({ ...pending, name: event.target.value })}
+              maxLength={40}
+              autoFocus
+            />
+          </label>
+
+          <label className="locker-field">
+            <span>{t('locker.fieldFile')}</span>
+            <div className="locker-field-static">
+              <FileText size={13} strokeWidth={2} />
+              <span>{pending.fileName}</span>
+            </div>
+          </label>
+
+          {pending.kind === 'skin' ? (
+            <div className="locker-field">
+              <span>{t('locker.model')}</span>
+              <div className="locker-radio-group">
+                <label className={`locker-radio${pending.model !== 'slim' ? ' is-checked' : ''}`}>
+                  <input
+                    type="radio"
+                    name="skin-model"
+                    checked={pending.model !== 'slim'}
+                    onChange={() => onChange({ ...pending, model: 'classic' })}
+                  />
+                  <span className="locker-radio-dot" />
+                  {t('locker.modelWide') || 'Wide'}
+                </label>
+                <label className={`locker-radio${pending.model === 'slim' ? ' is-checked' : ''}`}>
+                  <input
+                    type="radio"
+                    name="skin-model"
+                    checked={pending.model === 'slim'}
+                    onChange={() => onChange({ ...pending, model: 'slim' })}
+                  />
+                  <span className="locker-radio-dot" />
+                  {t('locker.modelSlim')}
+                </label>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="locker-modal-actions">
+            <button
+              type="button"
+              className="locker-btn is-primary"
+              onClick={onSave}
+              disabled={busy || !pending.name.trim()}
+            >
+              {busy ? <Loader size={13} className="locker-spin" /> : <NativeIcon name="check" size={13} />}
+              <span>{t('locker.save') || 'Save'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── official-profile error card ───────────────────────── */
+
+function OfficialError({ error, onRetry, t }) {
+  const is402 = error.status === 402 || error.code === 'NO_ENTITLEMENT';
+  const isAuth = error.status === 401 || error.status === 403 || error.code === 'AUTH_EXPIRED';
+  const title = is402
+    ? t('locker.error402Title')
+    : isAuth
+    ? t('locker.error401Title')
+    : t('locker.errorGenericTitle');
+  const body = is402 ? t('locker.error402Body') : isAuth ? t('locker.error401Body') : error.message;
+
+  return (
+    <div className={`locker-error-card${is402 ? ' is-warn' : ' is-error'}`}>
+      <span className="locker-error-icon"><AlertTriangle size={14} strokeWidth={2.1} /></span>
+      <div className="locker-error-copy">
+        <strong>{title}</strong>
+        <p>{body}</p>
+      </div>
+      <button type="button" className="locker-linkbtn is-inline" onClick={onRetry}>
+        <RefreshCw size={11} strokeWidth={2.2} />
+        <span>{t('locker.retry')}</span>
+      </button>
     </div>
   );
 }

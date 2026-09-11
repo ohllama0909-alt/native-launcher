@@ -21,7 +21,7 @@ export default function App() {
   const activeAccount = accounts.find(a => a.id === activeId) ?? null;
   // Cosmetics decorate the account; they must never overwrite its identity
   // (`active.skinId` is a skin id, not an account id).
-  const cosmetics = wardrobe?.accountId === activeAccount?.id ? wardrobe.active : null;
+  const cosmetics = (activeAccount && wardrobe && wardrobe.accountId === activeAccount.id) ? wardrobe.active : null;
   const account = activeAccount
     ? {
         ...activeAccount,
