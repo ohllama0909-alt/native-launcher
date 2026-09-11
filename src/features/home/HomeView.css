@@ -101,20 +101,26 @@
 .cluster-settings-btn {
   display: grid;
   place-items: center;
-  width: 50px;
-  height: 50px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-glass);
-  backdrop-filter: blur(var(--blur-glass));
-  color: var(--fg-primary-hover);
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #ffffff;
   cursor: pointer;
-  transition: background 0.16s var(--ease), transform 0.16s var(--ease);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cluster-settings-btn:hover {
-  background: var(--surface-tint-hover);
+  background: rgba(255, 255, 255, 0.16);
   transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.cluster-settings-btn:active {
+  transform: scale(0.96);
 }
 
 /* ---------- switcher ---------- */
@@ -307,7 +313,7 @@
   transform: translateY(-3px);
 }
 
-/* ---------- 3D home companion ---------- */
+/* ---------- 3D home companion & Apple-style nametag ---------- */
 
 .home-avatar-companion {
   position: absolute;
@@ -320,23 +326,62 @@
   flex-direction: column;
   align-items: center;
   pointer-events: none;
-  filter: drop-shadow(0 22px 20px rgba(0, 0, 0, .45));
+  filter: drop-shadow(0 24px 28px rgba(0, 0, 0, .5));
 }
 
-.home-avatar-viewer { margin-top: -16px; }
-.home-avatar-name {
+.home-avatar-nametag {
   position: relative;
   z-index: 2;
   margin-bottom: -12px;
-  padding: 5px 13px;
-  border: 1px solid rgba(255, 255, 255, .18);
-  border-radius: var(--radius-sm);
-  background: var(--page-overlay);
-  backdrop-filter: blur(var(--blur-glass));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
-  color: var(--fg-primary-hover);
-  font: 650 12px var(--font-sans);
-  text-shadow: 0 1px 4px #000;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  background: rgba(18, 18, 22, 0.72);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  pointer-events: auto;
+}
+
+.home-avatar-nametag:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.16) inset;
+}
+
+.home-nametag-dot {
+  flex: none;
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.85);
+  animation: nametag-pulse 2.2s infinite ease-in-out;
+}
+
+@keyframes nametag-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(0.88); }
+}
+
+.home-avatar-name {
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.home-avatar-viewer {
+  margin-top: -16px;
 }
 
 @media (max-width: 1000px) { .home-avatar-companion { right: 14px; transform: scale(.9); transform-origin: top right; } }

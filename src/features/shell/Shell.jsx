@@ -69,6 +69,10 @@ export default function Shell({
 
   const handleLaunch = (cluster) => {
     if (!cluster) return;
+    if (!account || account.id === 'guest' || accounts.length === 0) {
+      setAccountSwitcherOpen(true);
+      return;
+    }
     launcher.launch(cluster, account);
     notify(
       t('notify.launching'),

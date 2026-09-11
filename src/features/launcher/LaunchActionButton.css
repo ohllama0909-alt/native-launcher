@@ -1,101 +1,144 @@
 /* ============================================================
-   Launch action — install · download · verify · launch · stop
-   One control, five states, shared by the hero, instance cards
-   and the version picker. Progress is painted twice: a ring
-   around the icon and a track along the bottom edge.
+   Launch action — Modern Clean Apple Design
+   Pill-shaped, refined typography, subtle depth, high contrast.
    ============================================================ */
 
 .launch-action {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  height: 54px;
-  min-width: 196px;
-  padding: 0 22px 0 11px;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  min-width: 172px;
+  padding: 0 24px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 15px;
-  background: var(--launch-gradient, linear-gradient(135deg, #48c1b7, #27877f));
-  box-shadow:
-    0 16px 34px -18px var(--launch-shadow, rgba(58, 168, 159, 0.85)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  color: var(--fg-on-brand);
-  font: 650 14.5px var(--font-sans);
-  letter-spacing: 0.005em;
+  border-radius: 9999px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
   cursor: pointer;
-  transition: transform 0.16s var(--ease-out), box-shadow 0.16s var(--ease), filter 0.16s var(--ease);
-}
-
-.launch-action:hover:not(:disabled) {
-  transform: translateY(-2px);
-  filter: brightness(1.07);
-}
-
-.launch-action:active:not(:disabled) {
-  transform: translateY(0) scale(0.986);
+  user-select: none;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .launch-action:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline: 2px solid rgba(255, 255, 255, 0.85);
   outline-offset: 3px;
 }
 
 .launch-action:disabled {
-  opacity: 1;
+  opacity: 0.9;
   cursor: progress;
 }
 
-/* ---------- icon tile + progress ring ---------- */
+/* ---------- States ---------- */
+
+/* Launch: Clean Apple High-Contrast Solid White */
+.launch-action.is-launch {
+  background: #ffffff;
+  color: #0b0b0e;
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.launch-action.is-launch:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.93);
+  transform: translateY(-1.5px);
+  box-shadow:
+    0 7px 22px rgba(0, 0, 0, 0.32),
+    0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.launch-action.is-launch:active:not(:disabled) {
+  transform: scale(0.975);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+/* Install & Download: Clean Apple Accent Blue */
+.launch-action.is-install,
+.launch-action.is-download {
+  background: #0071e3;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 4px 16px rgba(0, 113, 227, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.launch-action.is-install:hover:not(:disabled),
+.launch-action.is-download:hover:not(:disabled) {
+  background: #0077ed;
+  transform: translateY(-1.5px);
+  box-shadow:
+    0 7px 22px rgba(0, 113, 227, 0.48),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.launch-action.is-install:active:not(:disabled),
+.launch-action.is-download:active:not(:disabled) {
+  transform: scale(0.975);
+  background: #0064c8;
+}
+
+/* Stop: Clean Apple System Red */
+.launch-action.is-stop {
+  background: #ff3b30;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 4px 16px rgba(255, 59, 48, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.launch-action.is-stop:hover:not(:disabled) {
+  background: #ff453a;
+  transform: translateY(-1.5px);
+  box-shadow: 0 7px 22px rgba(255, 59, 48, 0.48);
+}
+
+.launch-action.is-stop:active:not(:disabled) {
+  transform: scale(0.975);
+  background: #e03228;
+}
+
+/* Busy / Verifying / Progress: Translucent Frosted Glass */
+.launch-action.is-verify,
+.launch-action.is-progress {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- Icon ---------- */
 
 .launch-action-icon {
-  position: relative;
   flex: none;
-  width: 34px;
-  height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 11px;
-  background: rgba(0, 0, 0, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: transform 0.2s ease;
 }
 
-.launch-action-icon > svg {
-  position: relative;
-  z-index: 2;
+.launch-action:hover:not(:disabled) .launch-action-icon {
+  transform: scale(1.06);
 }
 
-.launch-action.is-download .launch-action-icon::after,
-.launch-action.is-verify .launch-action-icon::after,
-.launch-action.is-progress .launch-action-icon::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 15px;
-  background: conic-gradient(
-    from -90deg,
-    rgba(255, 255, 255, 0.95) var(--progress, 0%),
-    rgba(255, 255, 255, 0.16) var(--progress, 0%)
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
-  pointer-events: none;
-}
-
-/* Indeterminate phases (preparing, launching) get a travelling arc. */
-.launch-action.is-progress .launch-action-icon::after {
-  background: conic-gradient(from 0deg, transparent 0 62%, rgba(255, 255, 255, 0.95) 84%, transparent 96%);
-  animation: launch-ring-spin 1.05s linear infinite;
-}
-
-/* ---------- text ---------- */
+/* ---------- Text ---------- */
 
 .launch-action-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1px;
   min-width: 0;
+  line-height: 1.15;
 }
 
 .launch-action-label {
@@ -111,81 +154,37 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.72;
 }
 
-.launch-action.has-sub .launch-action-icon {
-  margin-top: -1px;
-}
-
-/* ---------- bottom track ---------- */
+/* ---------- Progress Track ---------- */
 
 .launch-action-track {
   position: absolute;
   inset: auto 0 0 0;
-  height: 3px;
-  background: rgba(0, 0, 0, 0.24);
+  height: 2.5px;
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .launch-action-fill {
   display: block;
   height: 100%;
   width: var(--progress, 0%);
-  border-radius: 0 3px 3px 0;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
-  transition: width 0.2s linear;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  transition: width 0.2s ease-out;
 }
 
-/* ---------- states ---------- */
-
-.launch-action.is-install {
-  background: var(--brand-gradient, linear-gradient(135deg, #8f438f, #bf72c0));
-  box-shadow:
-    0 16px 34px -18px var(--launch-shadow, rgba(185, 91, 187, 0.85)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
-
-.launch-action.is-download,
-.launch-action.is-verify,
-.launch-action.is-progress {
-  background: var(--info-gradient, linear-gradient(135deg, #3d86d8, #234f88));
-  box-shadow:
-    0 16px 34px -18px rgba(66, 145, 235, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
-
-.launch-action.is-stop {
-  background: var(--danger-gradient, linear-gradient(135deg, #e0525d, #a3222d));
-  box-shadow:
-    0 16px 34px -18px rgba(239, 68, 78, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-/* Busy states breathe so the button never looks frozen. */
-.launch-action.is-download .launch-action-icon,
-.launch-action.is-verify .launch-action-icon,
-.launch-action.is-progress .launch-action-icon {
-  animation: launch-icon-breathe 1.6s var(--ease) infinite;
-}
-
-/* ---------- sizes ---------- */
+/* ---------- Sizes ---------- */
 
 .launch-action.size-md {
-  height: 40px;
-  min-width: 124px;
-  gap: 8px;
-  padding: 0 14px 0 6px;
-  border-radius: 12px;
-  font-size: 13px;
-}
-
-.launch-action.size-md .launch-action-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
+  height: 38px;
+  min-width: 120px;
+  gap: 7px;
+  padding: 0 18px;
+  font-size: 13.5px;
 }
 
 .launch-action.size-md .launch-action-sub {
@@ -193,33 +192,26 @@
 }
 
 .launch-action.size-sm {
-  height: 38px;
+  height: 32px;
   min-width: 0;
-  gap: 7px;
-  padding: 0 12px 0 5px;
-  border-radius: 11px;
+  gap: 6px;
+  padding: 0 14px;
   font-size: 12.5px;
 }
 
-.launch-action.size-sm .launch-action-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-}
-
 .launch-action.size-sm .launch-action-label {
-  max-width: 150px;
+  max-width: 140px;
 }
 
 .launch-action.size-sm .launch-action-sub {
   display: none;
 }
 
-/* Icon-only variant, used by the compact instance list. */
+/* Icon-only variant */
 .launch-action.is-icon-only {
   min-width: 0;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   justify-content: center;
 }
@@ -228,24 +220,13 @@
   display: none;
 }
 
-/* ---------- animation ---------- */
-
-@keyframes launch-ring-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes launch-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Busy spinner, scoped so the button never depends on page-level .spin rules. */
+/* Spinner */
 .launch-action .spin {
   animation: launch-spin 1s linear infinite;
 }
 
-@keyframes launch-icon-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+@keyframes launch-spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -253,11 +234,6 @@
   .launch-action-fill {
     transition: none;
   }
-
-  .launch-action.is-download .launch-action-icon,
-  .launch-action.is-verify .launch-action-icon,
-  .launch-action.is-progress .launch-action-icon,
-  .launch-action.is-progress .launch-action-icon::after,
   .launch-action .spin {
     animation: none;
   }

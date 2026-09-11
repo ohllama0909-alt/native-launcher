@@ -167,55 +167,28 @@ export default function App() {
 
   return (
     <div className={`window-frame${isMaximized ? ' maximized' : ''}`}>
-      {startup.onboarding ? (
-        accounts.length === 0 ? (
-          <AccountSwitcherModal
-            open
-            firstRun
-            accounts={accounts}
-            activeId={activeId}
-            onAddMicrosoft={handleAddMicrosoft}
-            onAddOffline={handleAddOffline}
-            onSwitchAccount={handleSwitchAccount}
-          />
-        ) : (
-          <OnboardingFlow
-            isMaximized={isMaximized}
-            accounts={accounts}
-            activeId={activeId}
-            initialLanguage={startup.settings?.onboarding?.language}
-            onAddMicrosoft={handleAddMicrosoft}
-            onAddOffline={handleAddOffline}
-            onSwitchAccount={handleSwitchAccount}
-            onComplete={handleOnboardingComplete}
-          />
-        )
-      ) : (
-        <>
-          <UpdateCenter
-            open={updateOpen}
-            onClose={() => setUpdateOpen(false)}
-            status={updater.status}
-            onCheck={updater.check}
-            onDownload={updater.download}
-            onCancel={updater.cancel}
-            onInstall={updater.install}
-          />
-          <Shell
-            isMaximized={isMaximized}
-            account={account}
-            accounts={accounts}
-            activeId={activeId}
-            onAddMicrosoft={handleAddMicrosoft}
-            onAddOffline={handleAddOffline}
-            onSwitchAccount={handleSwitchAccount}
-            onRemoveAccount={handleRemoveAccount}
-            onWardrobeChanged={(value) => setWardrobe({ ...value, accountId: activeAccount?.id })}
-            updateStatus={updater.status}
-            onOpenUpdater={() => setUpdateOpen(true)}
-          />
-        </>
-      )}
+      <UpdateCenter
+        open={updateOpen}
+        onClose={() => setUpdateOpen(false)}
+        status={updater.status}
+        onCheck={updater.check}
+        onDownload={updater.download}
+        onCancel={updater.cancel}
+        onInstall={updater.install}
+      />
+      <Shell
+        isMaximized={isMaximized}
+        account={account}
+        accounts={accounts}
+        activeId={activeId}
+        onAddMicrosoft={handleAddMicrosoft}
+        onAddOffline={handleAddOffline}
+        onSwitchAccount={handleSwitchAccount}
+        onRemoveAccount={handleRemoveAccount}
+        onWardrobeChanged={(value) => setWardrobe({ ...value, accountId: activeAccount?.id })}
+        updateStatus={updater.status}
+        onOpenUpdater={() => setUpdateOpen(true)}
+      />
     </div>
   );
 }
