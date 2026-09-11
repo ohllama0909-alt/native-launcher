@@ -1,14 +1,5 @@
 /* ============================================================
    Noctra Client — login / account switch screen
-
-   Layout follows the reference design 1:1: titlebar, centred
-   column (mark, wordmark, Microsoft, GitHub, socials, legal) and
-   a full-bleed artwork panel on the right.
-
-   Every surface, border, radius and accent comes from the
-   Settings → Appearance theme, so switching the theme restyles
-   this screen too. The Microsoft mark and the white "Sign in"
-   button keep their brand colours on purpose.
    ============================================================ */
 
 .account-login-screen {
@@ -16,74 +7,88 @@
   inset: 0;
   z-index: 1000;
   overflow: hidden;
-  background: var(--page);
-  color: var(--fg-primary);
+  background: rgba(2, 1, 2, 1);
+  color: var(--fg-primary, rgba(255, 255, 255, 0.9));
   font-family: var(--font-sans);
 }
 
-.account-login-titlebar {
+.account-login-frame {
   position: absolute;
-  z-index: 3;
+  inset: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  background: var(--surface-0, rgba(14, 11, 14, 0.98));
+  overflow: hidden;
+}
+
+.account-login-frame.is-maximized {
+  inset: 0;
+  border-radius: 0;
+  border: none;
+}
+
+.account-login-drag-bar {
+  position: absolute;
   inset: 0 0 auto 0;
-  height: var(--navbar-height, 39px);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--page-sunken);
-  border-bottom: 1px solid var(--hairline);
+  height: 40px;
+  z-index: 50;
   -webkit-app-region: drag;
 }
 
 .account-login-build {
-  height: 100%;
+  position: absolute;
+  left: 23px;
+  top: 14px;
+  z-index: 51;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-left: 22px;
-  color: var(--fg-muted);
-  font-size: 10.5px;
-  font-weight: 700;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(210, 210, 210, 0.42);
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .account-login-build .native-mark {
-  filter: grayscale(1) brightness(.6);
-  border-radius: 0 !important;
+  filter: grayscale(1) brightness(0.7);
+  opacity: 0.7;
 }
 
-.account-login-build i {
-  width: 1px;
-  height: 10px;
-  margin: 0 4px;
-  background: var(--hairline-strong);
-}
-
-.account-login-build small {
-  color: var(--fg-muted);
-  font-size: inherit;
+.account-login-dot {
+  color: rgba(210, 210, 210, 0.22);
 }
 
 .account-login-controls {
-  height: 100%;
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  z-index: 52;
   display: flex;
+  align-items: center;
+  gap: 4px;
   -webkit-app-region: no-drag;
 }
 
 .account-login-controls button {
-  width: 42px;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  color: var(--fg-secondary);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--fg-secondary, rgba(210, 210, 210, 0.65));
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 
 .account-login-controls button:hover {
-  background: var(--surface-tint);
-  color: var(--fg-primary-hover);
+  background: var(--surface-hover, rgba(255, 255, 255, 0.1));
+  color: #fff;
 }
 
 .account-login-controls .close:hover {
-  background: var(--danger);
+  background: var(--danger, rgba(225, 75, 75, 1));
   color: var(--fg-on-danger, #fff);
 }
 
@@ -91,97 +96,107 @@
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(430px, 1fr) minmax(0, 1fr);
+  grid-template-columns: 1fr 1fr;
 }
 
 /* ---------- left panel ---------- */
 
 .account-login-panel {
   position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  min-width: 0;
-  padding: 58px 48px 30px;
-  background: var(--page);
-  border-right: 1px solid var(--hairline);
-}
-
-.account-login-content {
-  width: min(354px, 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.account-login-logo {
-  align-self: center;
-  margin-bottom: 14px;
-}
-
-.account-login-logo .native-mark {
-  width: 72px !important;
-  height: 72px !important;
-  border-radius: 0 !important;
-  filter: grayscale(1) brightness(3);
-}
-
-.account-login-content h1 {
-  margin: 0 0 30px;
-  text-align: center;
-  font-size: 35px;
-  line-height: 1;
-  font-weight: 400;
-  letter-spacing: -.035em;
-  color: var(--fg-primary-hover);
-}
-
-.account-login-content h1 strong {
-  font-weight: 800;
-}
-
-.account-login-microsoft,
-.account-login-github,
-.account-login-home {
-  width: 100%;
-  height: 54px;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  border-radius: var(--radius);
-  font-size: 15px;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 40px 24px;
+  background: radial-gradient(ellipse 62% 62% at 64% 44%, rgba(160, 81, 162, 0.055), transparent 72%);
+}
+
+.account-login-content {
+  width: min(304px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.account-login-logo {
+  margin-bottom: 3px;
+  transform: translate(2px, 4px);
+}
+
+.account-login-logo .native-mark {
+  width: 80px !important;
+  height: 80px !important;
+  object-fit: contain;
+}
+
+.account-login-content h1 {
+  margin: 3px 0 24px;
+  text-align: center;
+  font-size: 38px;
+  line-height: 46px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--fg-primary-hover, rgba(242, 242, 242, 1));
+  white-space: nowrap;
+}
+
+.account-login-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.account-login-microsoft,
+.account-login-github {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
   transition: transform .15s var(--ease-out), filter .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease);
 }
 
-/* Microsoft keeps its brand colours; the accent never touches this button. */
 .account-login-microsoft {
   background: #f1f0f1;
   color: #121112;
-}
-
-.account-login-microsoft strong,
-.account-login-github strong {
-  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .account-login-microsoft:hover:not(:disabled) {
-  filter: brightness(1.08);
+  filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
+.account-login-microsoft:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
 .account-login-microsoft:disabled {
-  opacity: .6;
+  opacity: 0.85;
   cursor: wait;
 }
 
+.account-login-microsoft .account-login-btn-lead {
+  position: absolute;
+  left: 44px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
 .account-login-ms-mark {
-  width: 20px;
-  height: 20px;
+  position: absolute;
+  left: 154px;
+  width: 24px;
+  height: 24px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
-  margin-left: 2px;
 }
 
 .account-login-ms-mark i:nth-child(1) { background: #f35325; }
@@ -189,86 +204,154 @@
 .account-login-ms-mark i:nth-child(3) { background: #05a6f0; }
 .account-login-ms-mark i:nth-child(4) { background: #ffba08; }
 
-.account-login-github {
-  margin-top: 12px;
-  border: 1px solid var(--hairline-strong);
-  background: var(--component-bg);
-  color: var(--fg-primary);
+.account-login-microsoft .account-login-btn-brand {
+  position: absolute;
+  left: 184px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.account-login-github svg { order: -1; margin-right: 2px; }
-.account-login-github span { order: -2; margin-right: 8px; }
-.account-login-github strong { margin-left: 2px; }
+.account-login-btn-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.account-login-github {
+  border: 1px solid rgba(210, 210, 210, 0.13);
+  background: rgba(10, 8, 10, 0.72);
+  color: rgba(237, 237, 237, 1);
+}
 
 .account-login-github:hover {
-  border-color: var(--brand-border);
-  background: var(--component-bg-hover);
+  border-color: rgba(210, 210, 210, 0.25);
+  background: var(--surface-hover, rgba(30, 28, 30, 0.8));
   transform: translateY(-1px);
 }
 
-.account-login-offline-toggle {
-  height: 37px;
-  margin-top: 12px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  background: var(--component-bg);
-  color: var(--fg-secondary);
-  font-size: 12px;
-  transition: border-color .15s var(--ease), color .15s var(--ease);
+.account-login-github:active {
+  transform: scale(0.985);
 }
 
-.account-login-offline-toggle:hover {
-  border-color: var(--brand-border);
-  color: var(--fg-primary-hover);
+.account-login-github .account-login-btn-lead {
+  position: absolute;
+  left: 44px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.account-login-gh-mark {
+  position: absolute;
+  left: 163px;
+  width: 23px;
+  height: 23px;
+}
+
+.account-login-github .account-login-btn-brand {
+  position: absolute;
+  left: 193px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+}
+
+.account-login-secondary-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.account-login-sec-btn {
+  flex: 1;
+  height: 32px;
+  border: 1px solid rgba(210, 210, 210, 0.1);
+  border-radius: 8px;
+  background: rgba(10, 8, 10, 0.5);
+  color: rgba(210, 210, 210, 0.6);
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color .15s var(--ease), color .15s var(--ease), background .15s var(--ease);
+}
+
+.account-login-sec-btn:hover {
+  border-color: rgba(210, 210, 210, 0.25);
+  color: rgba(242, 242, 242, 1);
+  background: rgba(25, 23, 25, 0.7);
 }
 
 .account-login-offline {
   display: flex;
   gap: 7px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .account-login-offline input {
   min-width: 0;
   flex: 1;
-  height: 39px;
-  padding: 0 11px;
-  border: 1px solid var(--component-border);
-  border-radius: var(--radius-sm);
-  background: var(--page-sunken);
-  color: var(--fg-primary-hover);
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(210, 210, 210, 0.15);
+  border-radius: 8px;
+  background: rgba(10, 8, 10, 0.85);
+  color: rgba(242, 242, 242, 1);
+  font-size: 13px;
 }
 
 .account-login-offline input:focus {
   outline: none;
-  border-color: var(--brand-border);
+  border-color: var(--brand-border, rgba(160, 81, 162, 0.8));
 }
 
 .account-login-offline > button {
   padding: 0 14px;
-  border-radius: var(--radius-sm);
-  background: var(--brand-gradient);
-  color: var(--fg-on-brand);
-  font-weight: 700;
+  border-radius: 8px;
+  background: var(--brand-gradient, rgba(160, 81, 162, 0.9));
+  color: var(--fg-on-brand, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  transition: filter .15s var(--ease);
+}
+
+.account-login-offline > button:hover:not(:disabled) {
+  filter: brightness(1.1);
 }
 
 .account-login-error {
-  margin: 8px 0 0;
-  color: var(--danger);
-  font-size: 11px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid rgba(225, 75, 75, 0.24);
+  background: rgba(225, 75, 75, 0.08);
+  padding: 8px 12px;
   text-align: center;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--danger, rgba(225, 75, 75, 1));
 }
 
 .account-login-home {
-  margin-top: 12px;
-  border: 1px solid var(--brand-border);
-  background: var(--brand-subtle);
-  color: var(--brand-soft);
-  font-weight: 700;
+  margin-top: 4px;
+  height: 36px;
+  border: 1px solid rgba(210, 210, 210, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 8, 10, 0.5);
+  color: rgba(210, 210, 210, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: border-color .15s var(--ease), color .15s var(--ease);
 }
 
 .account-login-home:hover {
-  background: var(--brand-subtle-hover);
+  border-color: rgba(210, 210, 210, 0.25);
+  color: #fff;
 }
 
 /* ---------- socials + legal ---------- */
@@ -277,37 +360,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-top: 22px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .account-login-social button {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  background: var(--component-bg);
-  color: var(--fg-secondary);
+  border: 1px solid rgba(210, 210, 210, 0.13);
+  border-radius: 11px;
+  background: rgba(10, 8, 10, 0.72);
+  color: rgba(237, 237, 237, 1);
   transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), transform .15s var(--ease-out);
 }
 
 .account-login-social button:hover {
-  background: var(--brand-subtle);
-  border-color: var(--brand-border);
-  color: var(--fg-primary-hover);
+  border-color: var(--border-strong, rgba(210, 210, 210, 0.3));
+  background: var(--surface-hover, rgba(30, 28, 30, 0.8));
+  color: #fff;
   transform: translateY(-1px);
+}
+
+.account-login-social button:active {
+  transform: scale(0.95);
 }
 
 .account-login-content footer {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 9px;
-  margin-top: 26px;
-  color: var(--fg-muted);
-  font-size: 9.5px;
+  gap: 7px;
+  margin-top: 31px;
+  color: rgba(210, 210, 210, 0.27);
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -318,30 +406,13 @@
 }
 
 .account-login-content footer button:hover {
-  color: var(--brand-soft);
-}
-
-.account-login-content footer i {
-  width: 2px;
-  height: 2px;
-  border-radius: 50%;
-  background: currentColor;
+  color: var(--text-primary, rgba(242, 242, 242, 1));
 }
 
 /* ---------- account list ---------- */
 
 .account-login-existing {
-  margin: -10px 0 14px;
-}
-
-.account-login-existing > span {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--fg-muted);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  margin: -6px 0 6px;
 }
 
 .account-login-list {
@@ -353,71 +424,68 @@
 }
 
 .account-login-item {
-  min-height: 43px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 4px 7px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  background: var(--component-bg);
+  padding: 4px 8px;
+  border: 1px solid rgba(210, 210, 210, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 8, 10, 0.6);
   cursor: pointer;
   transition: background .15s var(--ease), border-color .15s var(--ease);
 }
 
 .account-login-item:hover {
-  background: var(--component-bg-hover);
+  background: rgba(30, 28, 30, 0.8);
 }
 
 .account-login-item.active {
-  border-color: var(--brand-border);
-  background: var(--brand-subtle);
+  border-color: var(--brand-border, rgba(160, 81, 162, 0.8));
+  background: var(--brand-subtle, rgba(160, 81, 162, 0.15));
 }
 
-.account-login-item > span {
+.account-login-item-text {
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.account-login-item > span strong {
+.account-login-item-text strong {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
-  color: var(--fg-primary);
+  color: rgba(242, 242, 242, 1);
 }
 
-.account-login-item > span small {
-  color: var(--fg-muted);
-  font-size: 9px;
+.account-login-item-text small {
+  color: rgba(210, 210, 210, 0.45);
+  font-size: 10px;
 }
 
-.account-login-item > svg {
-  color: var(--brand-soft);
-}
-
-.account-login-item > button {
-  width: 25px;
-  height: 25px;
+.account-login-item-remove {
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
-  color: var(--fg-muted);
+  color: rgba(210, 210, 210, 0.4);
   transition: color .15s var(--ease);
 }
 
-.account-login-item > button:hover {
-  color: var(--danger);
+.account-login-item-remove:hover {
+  color: var(--danger, rgba(225, 75, 75, 1));
 }
 
 /* ---------- artwork ---------- */
 
 .account-login-art {
+  position: relative;
   min-width: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--page-sunken);
+  border-left: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
 
 .account-login-art img {
@@ -425,20 +493,18 @@
   height: 100%;
   display: block;
   object-fit: cover;
-  object-position: center;
 }
 
 /* ---------- responsive ---------- */
 
 @media (max-height: 740px) {
-  .account-login-panel { padding-top: 46px; padding-bottom: 16px; }
-  .account-login-logo .native-mark { width: 58px !important; height: 58px !important; }
-  .account-login-content h1 { margin-bottom: 20px; font-size: 30px; }
+  .account-login-panel { padding-top: 30px; padding-bottom: 16px; }
+  .account-login-logo .native-mark { width: 64px !important; height: 64px !important; }
+  .account-login-content h1 { margin-bottom: 16px; font-size: 32px; }
   .account-login-microsoft,
-  .account-login-github,
-  .account-login-home { height: 49px; }
-  .account-login-social { margin-top: 15px; }
-  .account-login-content footer { margin-top: 15px; }
+  .account-login-github { height: 50px; }
+  .account-login-social { margin-top: 12px; }
+  .account-login-content footer { margin-top: 20px; }
 }
 
 @media (max-width: 860px) {
@@ -449,7 +515,7 @@
     opacity: .18;
   }
   .account-login-panel {
-    background: var(--page-overlay);
+    background: rgba(14, 11, 14, 0.95);
     border-right: 0;
   }
 }

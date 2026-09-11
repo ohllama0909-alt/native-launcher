@@ -12,6 +12,7 @@ import {
   versionLine
 } from "../../lib/mojang.js";
 import { useI18n } from "../../i18n/I18nProvider.jsx";
+import InstancePickerModal from "./InstancePickerModal.jsx";
 import vanillaIcon from "../../assets/icons/vanilla.png";
 import fabricIcon from "../../assets/icons/fabric.png";
 import forgeIcon from "../../assets/icons/forge.jpg";
@@ -140,6 +141,14 @@ export default function ClustersView({
   const [openDropdownLine, setOpenDropdownLine] = useState(null);
   const [includeSnapshots, setIncludeSnapshots] = useState(false);
   const [creatingLineId, setCreatingLineId] = useState(null);
+  const [instancePicker, setInstancePicker] = useState({
+    open: false,
+    mode: "launch",
+    line: null,
+    patch: "",
+    loader: "",
+    matches: []
+  });
 
   // Close patch dropdown on click outside
   useEffect(() => {
@@ -278,15 +287,18 @@ export default function ClustersView({
     return "Fabric";
   };
 
-  // Find matching instance from instances array
-  const findMatchingInstance = (patch, loader) => {
-    return (
-      instances.find(
-        (inst) =>
-          (inst.version === patch || inst.mc_version === patch) &&
-          (inst.loader || "Vanilla").toLowerCase() === loader.toLowerCase()
-      ) || null
+  // Find all matching instances from instances array
+  const findMatchingInstances = (patch, loader) => {
+    return instances.filter(
+      (inst) =>
+        (inst.version === patch || inst.mc_version === patch) &&
+        (inst.loader || "Vanilla").toLowerCase() === loader.toLowerCase()
     );
+  };
+
+  // Find matching instance from instances array (first match)
+  const findMatchingInstance = (patch, loader) => {
+    return findMatchingInstances(patch, loader)[0] || null;
   };
 
   // Cycle loader on icon click
@@ -314,15 +326,28 @@ export default function ClustersView({
     setSelectedLine(line.id);
     const patch = getPatchForLine(line.id, line.versions);
     const loader = getLoaderForLine(line.id);
-    const matching = findMatchingInstance(patch, loader);
+    const matches = findMatchingInstances(patch, loader);
+    const matching = matches[0] || null;
 
     const isBusy =
       Boolean(launcherState?.busy) &&
-      (launcherState?.instanceId === matching?.id ||
+      (matches.some((m) => m.id === launcherState?.instanceId) ||
         launcherState?.instance?.version === patch);
 
     if (isBusy) {
       onKill?.();
+      return;
+    }
+
+    if (matches.length > 1) {
+      setInstancePicker({
+        open: true,
+        mode: "launch",
+        line,
+        patch,
+        loader,
+        matches
+      });
       return;
     }
 
@@ -361,7 +386,20 @@ export default function ClustersView({
     setSelectedLine(line.id);
     const patch = getPatchForLine(line.id, line.versions);
     const loader = getLoaderForLine(line.id);
-    const matching = findMatchingInstance(patch, loader);
+    const matches = findMatchingInstances(patch, loader);
+    const matching = matches[0] || null;
+
+    if (matches.length > 1) {
+      setInstancePicker({
+        open: true,
+        mode: "settings",
+        line,
+        patch,
+        loader,
+        matches
+      });
+      return;
+    }
 
     if (matching) {
       onSelectCluster?.(matching.id);
@@ -386,6 +424,47 @@ export default function ClustersView({
       if (created?.id) {
         onSelectCluster?.(created.id);
         onOpenCluster?.(created, "overview");
+      }
+    } finally {
+      setCreatingLineId(null);
+    }
+  };
+
+  // Instance picker callbacks
+  const handlePickerSelect = (inst) => {
+    setInstancePicker((prev) => ({ ...prev, open: false }));
+    onSelectCluster?.(inst.id);
+    if (instancePicker.mode === "settings") {
+      onOpenCluster?.(inst, "overview");
+    } else {
+      onLaunch?.(inst);
+    }
+  };
+
+  const handlePickerCreateNew = async () => {
+    const { line, patch, loader, mode, matches } = instancePicker;
+    setInstancePicker((prev) => ({ ...prev, open: false }));
+    if (!line || !onCreateInstance) return;
+
+    const payload = {
+      name: `${line.name || patch} ${loader} (${matches.length + 1})`,
+      version: patch,
+      loader,
+      description: line.description || "",
+      tags: line.tags || [],
+      art: getClusterArt({ version: patch, mc_version: patch }) || line.art
+    };
+
+    setCreatingLineId(line.id);
+    try {
+      const created = await onCreateInstance(payload, { open: mode === "settings" });
+      if (created?.id) {
+        onSelectCluster?.(created.id);
+        if (mode === "settings") {
+          onOpenCluster?.(created, "overview");
+        } else {
+          onLaunch?.(created);
+        }
       }
     } finally {
       setCreatingLineId(null);
@@ -432,7 +511,9 @@ export default function ClustersView({
               const isSelected = line.id === selectedLine;
               const patch = getPatchForLine(line.id, line.versions);
               const loader = getLoaderForLine(line.id);
-              const matching = findMatchingInstance(patch, loader);
+              const matches = findMatchingInstances(patch, loader);
+              const matching = matches[0] || null;
+              const hasMultiple = matches.length > 1;
               const loaderIcon = getLoaderIcon(loader);
               const isDropdownOpen = openDropdownLine === line.id;
               const cardArt =
@@ -440,7 +521,7 @@ export default function ClustersView({
 
               const isBusyThisVersion =
                 (Boolean(launcherState?.busy) &&
-                  (launcherState?.instanceId === matching?.id ||
+                  (matches.some((m) => m.id === launcherState?.instanceId) ||
                     launcherState?.instance?.version === patch)) ||
                 creatingLineId === line.id;
 
@@ -524,7 +605,11 @@ export default function ClustersView({
                         type="button"
                         className="version-gear-btn"
                         onClick={(e) => handleOpenSettings(e, line)}
-                        title="Manage mods & instance settings"
+                        title={
+                          hasMultiple
+                            ? `Configure instance (${matches.length} available)`
+                            : "Manage mods & instance settings"
+                        }
                       >
                         <NativeIcon name="settings" size={13} />
                       </button>
@@ -538,7 +623,13 @@ export default function ClustersView({
                         }
                         onClick={(e) => handleLaunchClick(e, line)}
                         disabled={isBusyThisVersion}
-                        title={matching ? "Launch " + matching.name : "Install & Launch " + patch}
+                        title={
+                          hasMultiple
+                            ? `Choose instance to launch (${matches.length} available)`
+                            : matching
+                            ? "Launch " + matching.name
+                            : "Install & Launch " + patch
+                        }
                       >
                         {isBusyThisVersion ? (
                           <>
@@ -546,7 +637,7 @@ export default function ClustersView({
                             <span>LAUNCHING</span>
                           </>
                         ) : (
-                          <span>LAUNCH</span>
+                          <span>{hasMultiple ? `LAUNCH (${matches.length})` : "LAUNCH"}</span>
                         )}
                       </button>
                     </div>
@@ -557,6 +648,17 @@ export default function ClustersView({
           </div>
         </div>
       )}
+
+      <InstancePickerModal
+        open={instancePicker.open}
+        mode={instancePicker.mode}
+        version={instancePicker.patch}
+        loader={instancePicker.loader}
+        instances={instancePicker.matches}
+        onClose={() => setInstancePicker((prev) => ({ ...prev, open: false }))}
+        onSelect={handlePickerSelect}
+        onCreateNew={handlePickerCreateNew}
+      />
     </div>
   );
 }

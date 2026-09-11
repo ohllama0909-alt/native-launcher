@@ -12,9 +12,9 @@ export function skinTextureUrl(account) {
 }
 
 export function capeTextureUrl(account) {
+  if (!account || account?.capeUrl === null || account?.capeUrl === false || account?.hasCape === false) return null;
   if (account?.capeUrl) return account.capeUrl;
-  const id = skinIdentifier(account) || FALLBACK_SKIN;
-  return SKIN_SERVICE + CAPE_PATH + encodeURIComponent(id);
+  return null;
 }
 
 /**
@@ -65,6 +65,23 @@ export default function SkinViewer3D({
         viewer.zoom = 0.82;
         viewer.autoRotate = autoRotate;
         viewer.autoRotateSpeed = 0.7;
+
+        // Position cape at z = -2.5 so it rests cleanly behind the outer jacket layer (z = -2.25)
+        // avoiding severe z-fighting and texture clipping on the character's back
+        const applyCapeOffset = () => {
+          if (viewer.playerObject?.cape) {
+            viewer.playerObject.cape.position.z = -2.5;
+          }
+        };
+        applyCapeOffset();
+
+        if (viewer.playerObject?.resetJoints) {
+          const origResetJoints = viewer.playerObject.resetJoints.bind(viewer.playerObject);
+          viewer.playerObject.resetJoints = () => {
+            origResetJoints();
+            applyCapeOffset();
+          };
+        }
 
         if (viewer.controls) {
           viewer.controls.enableZoom = false;
@@ -117,16 +134,34 @@ export default function SkinViewer3D({
       }).catch(() => {});
     });
 
-    viewer.loadCape(capeTextureUrl(account)).then(() => {
-      if (viewer.renderPaused) viewer.render();
-    }).catch(() => {
+    const capeUrl = capeTextureUrl(account);
+    if (capeUrl) {
+      viewer.loadCape(capeUrl).then(() => {
+        if (viewer.playerObject?.cape) {
+          viewer.playerObject.cape.position.z = -2.5;
+          viewer.playerObject.cape.visible = true;
+        }
+        if (viewer.renderPaused) viewer.render();
+      }).catch(() => {
+        try {
+          viewer.loadCape(null);
+          if (viewer.playerObject?.cape) {
+            viewer.playerObject.cape.visible = false;
+          }
+          if (viewer.renderPaused) viewer.render();
+        } catch {
+          /* no cape is fine */
+        }
+      });
+    } else {
       try {
         viewer.loadCape(null);
+        if (viewer.playerObject?.cape) {
+          viewer.playerObject.cape.visible = false;
+        }
         if (viewer.renderPaused) viewer.render();
-      } catch {
-        /* no cape is fine */
-      }
-    });
+      } catch {}
+    }
   }, [skinUrl, account, ready]);
 
   /* ---- live auto-rotate toggle ---- */

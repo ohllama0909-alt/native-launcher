@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Shell from './features/shell/Shell.jsx';
 import UpdateCenter from './features/updater/UpdateCenter.jsx';
 import useUpdater from './features/updater/useUpdater.js';
@@ -22,14 +22,15 @@ export default function App() {
   // Cosmetics decorate the account; they must never overwrite its identity
   // (`active.skinId` is a skin id, not an account id).
   const cosmetics = (activeAccount && wardrobe && wardrobe.accountId === activeAccount.id) ? wardrobe.active : null;
-  const account = activeAccount
-    ? {
-        ...activeAccount,
-        ...cosmetics,
-        id: activeAccount.id,
-        isMicrosoft: activeAccount.type === 'microsoft'
-      }
-    : GUEST;
+  const account = useMemo(() => {
+    if (!activeAccount) return GUEST;
+    return {
+      ...activeAccount,
+      ...cosmetics,
+      id: activeAccount.id,
+      isMicrosoft: activeAccount.type === 'microsoft'
+    };
+  }, [activeAccount, cosmetics]);
 
   useEffect(() => {
     let cancelled = false;

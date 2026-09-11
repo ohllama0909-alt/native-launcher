@@ -384,8 +384,29 @@ function syncWardrobeInBackground(account) {
   void syncWardrobe(account).catch(() => {});
 }
 
+function normalizeOfficialProfile(profile) {
+  if (!profile) return profile;
+  const capes = (profile.capes || []).map(cape => {
+    let alias = cape.alias || cape.name || '';
+    if (!alias && cape.id) {
+      alias = cape.id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+    return {
+      ...cape,
+      alias: alias || 'Official Cape',
+      url: cape.url ? cape.url.replace(/^http:\/\//, 'https://') : cape.url
+    };
+  });
+  const skins = (profile.skins || []).map(skin => ({
+    ...skin,
+    url: skin.url ? skin.url.replace(/^http:\/\//, 'https://') : skin.url
+  }));
+  return { ...profile, capes, skins };
+}
+
 async function minecraftRequest(account, pathname, options = {}, { forceRefresh = false } = {}) {
-  const token = await deps.auth?.getMinecraftAccessToken?.(account.id, { forceRefresh });
+  const accountId = typeof account === 'string' ? account : account?.id;
+  const token = await deps.auth?.getMinecraftAccessToken?.(accountId, { forceRefresh });
   if (!token) {
     const err = new Error('Your Microsoft session expired. Sign in again to manage official cosmetics.');
     err.code = 'AUTH_EXPIRED';
@@ -411,22 +432,89 @@ async function minecraftRequest(account, pathname, options = {}, { forceRefresh 
 
 /**
  * Fetch the official Minecraft profile (skins + capes owned by the account).
- * If the first attempt fails with an auth / stale-token style error, retry once
- * with a forced token refresh so a re-login isn't required for the common case
- * of an expired Xbox → MC token exchange.
+ * Tries the cached profile from MSMC first, then api.minecraftservices.com,
+ * and falls back to Mojang session server if required.
  */
-async function officialProfile(account) {
-  try {
-    return await minecraftRequest(account, '/minecraft/profile');
-  } catch (error) {
-    if (error?.code === 'AUTH_EXPIRED' || error?.status === 402) {
-      // 402 is emitted by Mojang when the current MC access token isn't
-      // entitled — refreshing usually resolves it if the account actually
-      // owns Minecraft.
-      return minecraftRequest(account, '/minecraft/profile', {}, { forceRefresh: true });
+async function officialProfile(account, { forceRefresh = false } = {}) {
+  const accountId = typeof account === 'string' ? account : account?.id;
+  const isMicrosoft = account?.type === 'microsoft' || account?.isMicrosoft;
+
+  // 1. For Microsoft accounts, query the official Minecraft services profile API directly.
+  // This endpoint returns ALL owned capes (both ACTIVE and INACTIVE) and skins.
+  if (isMicrosoft || !deps.auth?.isOffline?.(accountId)) {
+    try {
+      const res = await minecraftRequest(account, '/minecraft/profile', {}, { forceRefresh });
+      if (res && (res.capes || res.skins)) {
+        return normalizeOfficialProfile(res);
+      }
+    } catch (error) {
+      if (!forceRefresh && (error?.code === 'AUTH_EXPIRED' || error?.status === 401)) {
+        try {
+          const refreshed = await minecraftRequest(account, '/minecraft/profile', {}, { forceRefresh: true });
+          if (refreshed && (refreshed.capes || refreshed.skins)) {
+            return normalizeOfficialProfile(refreshed);
+          }
+        } catch {}
+      }
     }
-    throw error;
   }
+
+  // 2. Fallback to cached profile from MSMC if services API is unreachable
+  try {
+    const cached = await deps.auth?.getMinecraftProfile?.(accountId);
+    if (cached?.capes?.length || cached?.skins?.length) {
+      return normalizeOfficialProfile(cached);
+    }
+  } catch {}
+
+  // 3. Fallback to Mojang session server by UUID (or username lookup)
+  let rawUuid = account?.uuid || (typeof account === 'string' && account.length > 20 ? account : null);
+  let cleanUuid = rawUuid ? String(rawUuid).replace(/-/g, '') : '';
+
+  if (!cleanUuid && account?.name && account.name !== 'guest') {
+    try {
+      const mojangRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(account.name)}`);
+      if (mojangRes.ok) {
+        const udata = await mojangRes.json();
+        if (udata?.id) cleanUuid = udata.id;
+      }
+    } catch {}
+  }
+
+  if (cleanUuid) {
+    try {
+      const sessionRes = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${cleanUuid}`);
+      if (sessionRes.ok) {
+        const data = await sessionRes.json();
+        const texturesProp = data?.properties?.find(p => p.name === 'textures');
+        if (texturesProp?.value) {
+          const parsed = JSON.parse(Buffer.from(texturesProp.value, 'base64').toString('utf8'));
+          const capes = [];
+          if (parsed?.textures?.CAPE?.url) {
+            capes.push({
+              id: 'official-session-cape',
+              state: 'ACTIVE',
+              url: parsed.textures.CAPE.url.replace(/^http:\/\//, 'https://'),
+              alias: 'Minecraft cape'
+            });
+          }
+          return {
+            id: data.id,
+            name: data.name,
+            skins: parsed?.textures?.SKIN ? [{
+              id: 'official-skin',
+              state: 'ACTIVE',
+              url: parsed.textures.SKIN.url.replace(/^http:\/\//, 'https://'),
+              variant: parsed.textures.SKIN.metadata?.model === 'slim' ? 'SLIM' : 'CLASSIC'
+            }] : [],
+            capes
+          };
+        }
+      }
+    } catch {}
+  }
+
+  throw new Error('Could not fetch official Minecraft cosmetics. Please check your connection or sign in again.');
 }
 
 async function applyOfficialSkin(account, id) {
@@ -437,16 +525,21 @@ async function applyOfficialSkin(account, id) {
   const form = new FormData();
   form.append('variant', item.model === 'slim' ? 'SLIM' : 'CLASSIC');
   form.append('file', new Blob([fs.readFileSync(filePath)], { type: 'image/png' }), `${item.name || 'skin'}.png`);
-  return minecraftRequest(account, '/minecraft/profile/skins', { method: 'PUT', body: form });
+  await minecraftRequest(account, '/minecraft/profile/skins', { method: 'PUT', body: form });
+  return officialProfile(account, { forceRefresh: true });
 }
 
 async function activateOfficialCape(account, capeId) {
-  if (!capeId) return minecraftRequest(account, '/minecraft/profile/capes/active', { method: 'DELETE' });
-  return minecraftRequest(account, '/minecraft/profile/capes/active', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ capeId })
-  });
+  if (!capeId) {
+    await minecraftRequest(account, '/minecraft/profile/capes/active', { method: 'DELETE' });
+  } else {
+    await minecraftRequest(account, '/minecraft/profile/capes/active', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capeId })
+    });
+  }
+  return officialProfile(account, { forceRefresh: true });
 }
 
 /** Save the active (or given) skin/cape PNG somewhere the user chooses. */
@@ -615,8 +708,7 @@ function init(dependencies, ipcMain) {
   ipcMain.handle('wardrobe:sync', (_event, account) => syncWardrobe(account));
   ipcMain.handle('wardrobe:officialProfile', profileResult((_event, account) => officialProfile(account)));
   ipcMain.handle('wardrobe:reauthOfficialProfile', profileResult(async (_event, account) => {
-    // Drop any cached MC session and hit the API with a fresh Xbox → MC token.
-    return minecraftRequest(account, '/minecraft/profile', {}, { forceRefresh: true });
+    return officialProfile(account, { forceRefresh: true });
   }));
   ipcMain.handle('wardrobe:applyOfficialSkin', profileResult((_event, { account, id }) => applyOfficialSkin(account, id)));
   ipcMain.handle('wardrobe:activateOfficialCape', profileResult((_event, { account, capeId }) => activateOfficialCape(account, capeId)));

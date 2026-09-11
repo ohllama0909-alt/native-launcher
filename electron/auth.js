@@ -206,7 +206,12 @@ async function loginMicrosoft() {
 async function getMinecraftSession(accountId, { forceRefresh = false } = {}) {
   try {
     const { accounts, activeId } = readAccounts();
-    const acc = accounts.find(a => a.id === (accountId || activeId));
+    const targetId = typeof accountId === 'object' ? (accountId?.id || accountId?.uuid) : accountId;
+    const acc = accounts.find(a => 
+      a.id === (targetId || activeId) || 
+      (targetId && a.uuid === targetId) || 
+      (targetId && a.name?.toLowerCase() === targetId?.toLowerCase())
+    );
     if (!acc || acc.type !== 'microsoft') return null;
 
     if (forceRefresh) {
@@ -249,6 +254,14 @@ async function getMclcAuth() {
 async function getMinecraftAccessToken(accountId, options = {}) {
   const mc = await getMinecraftSession(accountId, options);
   return mc?.mclc?.().access_token || null;
+}
+
+async function getMinecraftProfile(accountId, options = {}) {
+  const mc = await getMinecraftSession(accountId, options);
+  if (mc?.profile) {
+    return mc.profile;
+  }
+  return null;
 }
 
 function init(dependencies, ipcMain) {
@@ -371,4 +384,4 @@ function init(dependencies, ipcMain) {
   });
 }
 
-module.exports = { init, getMclcAuth, getMinecraftAccessToken };
+module.exports = { init, getMclcAuth, getMinecraftAccessToken, getMinecraftProfile };

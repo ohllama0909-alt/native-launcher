@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Blocks, Compass, Home, Layers3, Minus, Settings, UserRound, X } from 'lucide-react';
+import { Bell, Blocks, Compass, Home, Layers3, Minus, Settings, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
@@ -9,7 +9,6 @@ import './AppNavbar.css';
 /** Primary destinations, in the order they appear in the rail. */
 export const NAV_ITEMS = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
-  { id: 'accounts', labelKey: 'nav.locker', icon: UserRound },
   { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
   { id: 'versions', labelKey: 'nav.versions', icon: Blocks },
   { id: 'browse', labelKey: 'nav.browse', icon: Compass }

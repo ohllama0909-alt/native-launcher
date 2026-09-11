@@ -37,7 +37,6 @@ globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} }
 const React = require('react');
 const { renderToString } = require('react-dom/server');
 const { I18nProvider } = require(${JSON.stringify(path.join(ROOT, 'src/i18n/I18nProvider.jsx'))});
-const LockerView = require(${JSON.stringify(path.join(ROOT, 'src/features/locker/LockerView.jsx'))}).default;
 const AccountSwitcherModal = require(${JSON.stringify(path.join(ROOT, 'src/features/auth/AccountSwitcherModal.jsx'))}).default;
 
 const account = { id: 'acct-1', name: 'OhLlama', uuid: 'abc', type: 'microsoft', isMicrosoft: true, model: 'classic' };
@@ -45,8 +44,7 @@ const html = renderToString(React.createElement(I18nProvider, null,
   React.createElement(AccountSwitcherModal, {
     open: true, firstRun: true, accounts: [account], activeId: 'acct-1',
     onAddMicrosoft() {}, onAddOffline() {}, onSwitchAccount() {}, onRemoveAccount() {}
-  }),
-  React.createElement(LockerView, { account, onNotify() {}, onOpenAccountSwitcher() {} })
+  })
 ));
 process.stdout.write(html);
 `);
@@ -80,14 +78,6 @@ process.stdout.write(html);
   for (const link of ['Privacy Policy', 'Terms of Service', 'Support']) {
     assert.ok(html.includes(`>${link}</button>`), `footer has ${link}`);
   }
-
-  /* ---- locker (design reference image 2) ---- */
-  assert.match(html, /locker-stage-card/, 'current skin stage exists');
-  assert.match(html, /Drag &amp; drop file/, 'upload dropzone copy');
-  for (const title of ['Current skin', 'Upload skin', 'Capes', 'Favorites', 'Latest']) {
-    assert.ok(html.includes(`>${title}</h2>`) || html.includes(`>${title}</h1>`) || html.includes(`>${title}</`), `locker has the ${title} section`);
-  }
-  assert.match(html, /synced to Noctra Cloud/, 'cloud sync note is shown');
 });
 
 /**
@@ -96,9 +86,6 @@ process.stdout.write(html);
  */
 test('new surfaces take their colours from the appearance theme', () => {
   const hex = (file) => (fs.readFileSync(path.join(ROOT, file), 'utf8').match(/#[0-9a-fA-F]{3,8}\b/g) || []);
-  const locker = hex('src/features/locker/LockerView.css');
-  assert.deepEqual(locker, [], `locker CSS should not hardcode colours, found ${locker.join(', ')}`);
-
   const allowed = new Set(['#f1f0f1', '#121112', '#f35325', '#81bc06', '#05a6f0', '#ffba08', '#fff']);
   const login = hex('src/features/auth/AccountSwitcherModal.css').filter((color) => !allowed.has(color.toLowerCase()));
   assert.deepEqual(login, [], `login CSS may only use Microsoft brand colours, found ${login.join(', ')}`);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Github, Minus, X } from 'lucide-react';
+import { ArrowLeft, Github, Minus, Square, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import BrandIcon from '../../components/ui/BrandIcon.jsx';
@@ -12,7 +12,6 @@ import './AccountSwitcherModal.css';
 
 const OFFLINE_NAME = /^[A-Za-z0-9_]{3,16}$/;
 
-/* Placeholder destinations — drop the real invite/feed URLs in here. */
 const COMMUNITY = {
   discord: 'https://discord.gg/noctra',
   x: 'https://x.com/noctraclient',
@@ -37,12 +36,18 @@ export default function AccountSwitcherModal({
   const { t } = useI18n();
   const [offlineName, setOfflineName] = useState('');
   const [showOffline, setShowOffline] = useState(false);
+  const [showAccounts, setShowAccounts] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     if (open) preloadAccountAvatars(accounts, 128);
   }, [open, accounts]);
+
+  useEffect(() => {
+    window.native?.onMaximizedChange?.(setIsMaximized);
+  }, []);
 
   useEffect(() => {
     if (!open || firstRun) return undefined;
@@ -57,6 +62,7 @@ export default function AccountSwitcherModal({
     if (!open) {
       setOfflineName('');
       setShowOffline(false);
+      setShowAccounts(false);
       setError('');
     }
   }, [open]);
@@ -91,6 +97,7 @@ export default function AccountSwitcherModal({
       const result = await onAddOffline?.(name);
       if (result && !result.ok) throw new Error(result.error || t('error.offlineAccount'));
       setOfflineName('');
+      setShowOffline(false);
     } catch (err) {
       setError(err?.message || t('error.offlineAccount'));
     } finally {
@@ -100,143 +107,214 @@ export default function AccountSwitcherModal({
 
   return (
     <div className="account-login-screen" role="dialog" aria-modal="true" aria-label={t('account.accounts')}>
-      <header className="account-login-titlebar">
+      <div className={`account-login-frame${isMaximized ? ' is-maximized' : ''}`}>
+        <div className="account-login-drag-bar" />
+
+        {/* Titlebar branding */}
         <div className="account-login-build">
           <Logo height={11} variant="mark" />
           <span>Noctra Client</span>
-          <i />
-          <small>Build {window.native?.version || packageInfo.version}</small>
+          <span className="account-login-dot">·</span>
+          <small>Build {window.native?.version || packageInfo.version || '0.9.2'}</small>
         </div>
+
+        {/* Window controls */}
         <div className="account-login-controls">
-          <button type="button" onClick={() => window.native?.minimize()} aria-label={t('window.minimize')}><Minus size={14} /></button>
-          <button type="button" onClick={() => window.native?.maximize()} aria-label={t('window.maximize')}><NativeIcon name="maximize" size={12} /></button>
-          <button type="button" className="close" onClick={() => window.native?.close()} aria-label={t('common.close')}><X size={15} /></button>
+          <button type="button" onClick={() => window.native?.minimize()} aria-label={t('window.minimize')}>
+            <Minus size={13} />
+          </button>
+          <button type="button" onClick={() => window.native?.maximize()} aria-label={t('window.maximize')}>
+            <Square size={11} />
+          </button>
+          <button type="button" className="close" onClick={() => window.native?.close()} aria-label={t('common.close')}>
+            <X size={14} />
+          </button>
         </div>
-      </header>
 
-      <div className="account-login-layout">
-        <section className="account-login-panel">
-          <div className="account-login-content">
-            <Logo height={72} variant="mark" className="account-login-logo" />
-            <h1>Noctra <strong>Client</strong></h1>
+        <div className="account-login-layout">
+          {/* Left Hero Form Column */}
+          <section className="account-login-panel">
+            <div className="account-login-content">
+              <Logo height={80} variant="mark" className="account-login-logo" />
+              <h1 className="account-login-title">
+                Noctra <strong>Client</strong>
+              </h1>
 
-            {accounts.length > 0 && (
-              <div className="account-login-existing">
-                <span>{t('account.switch')}</span>
-                <div className="account-login-list">
-                  {accounts.map((account) => {
-                    const active = account.id === activeId;
-                    return (
-                      <div
-                        key={account.id}
-                        className={`account-login-item ${active ? 'active' : ''}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => onSwitchAccount?.(account.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') onSwitchAccount?.(account.id);
-                        }}
-                      >
-                        <PlayerAvatar account={account} kind="avatar" size={34} />
-                        <span>
-                          <strong>{account.name}</strong>
-                          <small>{t(account.type === 'offline' ? 'account.offline' : 'account.microsoft')}</small>
-                        </span>
-                        {active && <NativeIcon name="check-circle" size={17} />}
-                        <button
-                          type="button"
-                          title={t('account.remove')}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onRemoveAccount?.(account.id);
-                          }}
-                        >
-                          <NativeIcon name="trash" size={14} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <button type="button" className="account-login-microsoft" onClick={handleAddMicrosoft} disabled={busy}>
-              <span>{busy ? t('account.securing') : t('account.logInWith')}</span>
-              <span className="account-login-ms-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-              <strong>Microsoft</strong>
-            </button>
-
-            <button type="button" className="account-login-github" onClick={() => openExternal('https://github.com/ohllama0909-alt/native-launcher')}>
-              <span>{t('account.viewCode')}</span>
-              <Github size={21} />
-              <strong>GitHub</strong>
-            </button>
-
-            <button type="button" className="account-login-offline-toggle" onClick={() => setShowOffline((value) => !value)}>
-              {showOffline ? t('common.close') : t('account.offline')}
-            </button>
-
-            {showOffline && (
-              <div className="account-login-offline">
-                <input
-                  value={offlineName}
-                  maxLength={16}
-                  autoFocus
-                  placeholder={t('account.offlineUsername')}
-                  onChange={(event) => {
-                    setOfflineName(event.target.value);
-                    setError('');
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') handleAddOffline();
-                  }}
-                />
-                <button type="button" onClick={handleAddOffline} disabled={busy || !offlineName.trim()}>
-                  {t('account.addButton')}
+              {/* Action buttons stack */}
+              <div className="account-login-actions">
+                <button
+                  type="button"
+                  className="account-login-microsoft"
+                  onClick={handleAddMicrosoft}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <span className="account-login-btn-loading">
+                      <NativeIcon name="refresh" size={18} className="is-spinning" />
+                      <span>{t('account.securing') || 'Waiting for Microsoft...'}</span>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="account-login-btn-lead">{t('account.logInWith')}</span>
+                      <span className="account-login-ms-mark" aria-hidden="true">
+                        <i /><i /><i /><i />
+                      </span>
+                      <strong className="account-login-btn-brand">Microsoft</strong>
+                    </>
+                  )}
                 </button>
+
+                <button
+                  type="button"
+                  className="account-login-github"
+                  onClick={() => openExternal('https://github.com/ohllama0909-alt/native-launcher')}
+                >
+                  <span className="account-login-btn-lead">{t('account.viewCode')}</span>
+                  <Github size={23} className="account-login-gh-mark" />
+                  <strong className="account-login-btn-brand">GitHub</strong>
+                </button>
+
+                {/* Existing accounts switcher toggle / offline drawer */}
+                <div className="account-login-secondary-actions">
+                  {accounts.length > 0 && (
+                    <button
+                      type="button"
+                      className="account-login-sec-btn"
+                      onClick={() => setShowAccounts((v) => !v)}
+                    >
+                      <span>{showAccounts ? t('common.close') : `${t('account.switch')} (${accounts.length})`}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="account-login-sec-btn"
+                    onClick={() => setShowOffline((v) => !v)}
+                  >
+                    <span>{showOffline ? t('common.close') : t('account.offline')}</span>
+                  </button>
+                </div>
+
+                {/* Existing accounts drawer */}
+                {showAccounts && accounts.length > 0 && (
+                  <div className="account-login-existing">
+                    <div className="account-login-list">
+                      {accounts.map((acc) => {
+                        const active = acc.id === activeId;
+                        return (
+                          <div
+                            key={acc.id}
+                            className={`account-login-item ${active ? 'active' : ''}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
+                              onSwitchAccount?.(acc.id);
+                              setShowAccounts(false);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                onSwitchAccount?.(acc.id);
+                                setShowAccounts(false);
+                              }
+                            }}
+                          >
+                            <PlayerAvatar account={acc} kind="avatar" size={28} />
+                            <div className="account-login-item-text">
+                              <strong>{acc.name}</strong>
+                              <small>{acc.type === 'offline' ? 'Offline' : 'Microsoft'}</small>
+                            </div>
+                            {active && <NativeIcon name="check-circle" size={15} />}
+                            <button
+                              type="button"
+                              className="account-login-item-remove"
+                              title={t('account.remove')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveAccount?.(acc.id);
+                              }}
+                            >
+                              <NativeIcon name="trash" size={13} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Offline input form */}
+                {showOffline && (
+                  <div className="account-login-offline">
+                    <input
+                      value={offlineName}
+                      maxLength={16}
+                      autoFocus
+                      placeholder={t('account.offlineUsername')}
+                      onChange={(e) => {
+                        setOfflineName(e.target.value);
+                        setError('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddOffline();
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddOffline}
+                      disabled={busy || !offlineName.trim()}
+                    >
+                      {t('account.addButton')}
+                    </button>
+                  </div>
+                )}
+
+                {error && <div role="alert" className="account-login-error">{error}</div>}
+
+                {accounts.length > 0 && !firstRun && (
+                  <button type="button" className="account-login-home" onClick={onClose}>
+                    <ArrowLeft size={16} />
+                    <span>{t('account.backHome')}</span>
+                  </button>
+                )}
               </div>
-            )}
 
-            {error && <p className="account-login-error">{error}</p>}
+              {/* Social links row */}
+              <div className="account-login-social" role="group" aria-label={t('account.community') || 'Community'}>
+                {['Discord', 'X', 'Instagram', 'YouTube', 'Patreon'].map((brand) => (
+                  <button
+                    key={brand}
+                    type="button"
+                    title={brand}
+                    aria-label={brand}
+                    className="account-login-social-btn"
+                    onClick={() => openExternal(COMMUNITY[brand.toLowerCase()])}
+                  >
+                    <BrandIcon name={brand.toLowerCase()} size={20} />
+                  </button>
+                ))}
+              </div>
 
-            {accounts.length > 0 && !firstRun && (
-              <button type="button" className="account-login-home" onClick={onClose}>
-                <ArrowLeft size={17} />
-                <span>{t('account.backHome')}</span>
-              </button>
-            )}
-
-            <div className="account-login-social" role="group" aria-label={t('account.community')}>
-              <button type="button" title="Discord" aria-label="Discord" onClick={() => openExternal(COMMUNITY.discord)}>
-                <BrandIcon name="discord" size={19} />
-              </button>
-              <button type="button" title="X" aria-label="X" onClick={() => openExternal(COMMUNITY.x)}>
-                <BrandIcon name="x" size={17} />
-              </button>
-              <button type="button" title="Instagram" aria-label="Instagram" onClick={() => openExternal(COMMUNITY.instagram)}>
-                <BrandIcon name="instagram" size={19} />
-              </button>
-              <button type="button" title="YouTube" aria-label="YouTube" onClick={() => openExternal(COMMUNITY.youtube)}>
-                <BrandIcon name="youtube" size={21} />
-              </button>
-              <button type="button" title="Patreon" aria-label="Patreon" onClick={() => openExternal(COMMUNITY.patreon)}>
-                <BrandIcon name="patreon" size={18} />
-              </button>
+              {/* Legal navigation */}
+              <footer>
+                <button type="button" onClick={() => openExternal(`${LEGAL}/privacy`)}>
+                  Privacy Policy
+                </button>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={() => openExternal(`${LEGAL}/terms`)}>
+                  Terms of Service
+                </button>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={() => openExternal(`${LEGAL}/support`)}>
+                  Support
+                </button>
+              </footer>
             </div>
+          </section>
 
-            <footer>
-              <button type="button" onClick={() => openExternal(`${LEGAL}/privacy`)}>{t('account.privacy')}</button>
-              <i />
-              <button type="button" onClick={() => openExternal(`${LEGAL}/terms`)}>{t('account.terms')}</button>
-              <i />
-              <button type="button" onClick={() => openExternal(`${LEGAL}/support`)}>{t('account.support')}</button>
-            </footer>
-          </div>
-        </section>
-
-        <aside className="account-login-art" aria-hidden="true">
-          <img src={loginSide} alt="" />
-        </aside>
+          {/* Right Artwork Panel */}
+          <aside className="account-login-art" aria-hidden="true">
+            <img src={loginSide} alt="A purple-lit Minecraft cavern with the Noctra mark" />
+          </aside>
+        </div>
       </div>
     </div>
   );
