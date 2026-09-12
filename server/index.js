@@ -9,16 +9,13 @@ server.listen(PORT, HOST).then(() => {
   console.log(`[Noctra DB] SQLite database mounted at ${db.DB_PATH}`);
 });
 
-process.on('SIGTERM', () => {
-  console.log('[Noctra Server] SIGTERM received. Closing database and shutting down...');
+function shutdown(signal) {
+  console.log(`[Noctra Server] ${signal} received. Closing database and shutting down...`);
   db.closeDb();
   process.exit(0);
-});
+}
 
-process.on('SIGINT', () => {
-  console.log('[Noctra Server] SIGINT received. Closing database and shutting down...');
-  db.closeDb();
-  process.exit(0);
-});
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
 
 module.exports = { server, db };

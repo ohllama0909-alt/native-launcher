@@ -8,28 +8,30 @@ function formatTime(timestamp) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export default function ActiveChatOverlay({
-  friend,
-  messages = [],
-  loading = false,
-  onSendMessage,
-  onClose,
-  onOpenRelay
-}) {
+export default function ActiveChatOverlay({ friend, messages = [], loading = false, onSendMessage, onClose, onOpenRelay }) {
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length]);
+
+  useEffect(() => {
+    setInput('');
+    setSending(false);
+  }, [friend?.id]);
 
   if (!friend) return null;
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    onSendMessage(input.trim());
-    setInput('');
+    const content = input.trim();
+    if (!content || sending) return;
+    setSending(true);
+    const result = await onSendMessage(content);
+    if (result?.ok) setInput('');
+    setSending(false);
   };
 
   const avatarUrl = friend.uuid
@@ -38,72 +40,40 @@ export default function ActiveChatOverlay({
 
   return (
     <div className="active-chat-overlay" onClick={(e) => e.stopPropagation()}>
-      {/* Header */}
       <div className="chat-overlay-header">
         <div className="chat-overlay-friend-info">
           <div className="chat-overlay-avatar-wrap">
-            <img
-              src={avatarUrl}
-              alt={friend.name}
-              className="chat-overlay-avatar"
-              onError={(e) => {
-                e.currentTarget.src = 'https://mc-heads.net/avatar/MHF_Steve/64';
-              }}
-            />
+            <img src={avatarUrl} alt={friend.name} className="chat-overlay-avatar" onError={(e) => { e.currentTarget.src = 'https://mc-heads.net/avatar/MHF_Steve/64'; }} />
             <span className={`chat-status-dot ${friend.status}`} />
           </div>
           <div className="chat-overlay-text">
             <span className="chat-friend-name">{friend.nickname || friend.name}</span>
-            <span className="chat-friend-activity">
-              {friend.activity || (friend.status === 'in-game' ? 'In-game' : friend.status === 'online' ? 'Online' : 'Offline')}
-            </span>
+            <span className="chat-friend-activity">{friend.activity || (friend.status === 'in-game' ? 'In-game' : friend.status === 'online' ? 'Online' : 'Offline')}</span>
           </div>
         </div>
-
         <div className="chat-overlay-header-actions">
           {onOpenRelay && (
-            <button
-              type="button"
-              className="chat-open-relay-btn"
-              onClick={onOpenRelay}
-              title="Open full Noctra Relay communication hub"
-            >
-              <ExternalLink size={13} />
-              <span>Open Relay</span>
+            <button type="button" className="chat-open-relay-btn" onClick={onOpenRelay} title="Open full Noctra Relay communication hub">
+              <span>Open Relay</span><ExternalLink size={13} />
             </button>
           )}
-          <button
-            type="button"
-            className="chat-close-btn"
-            onClick={onClose}
-            aria-label="Close fast-chat"
-          >
-            <X size={15} />
-          </button>
+          <button type="button" className="chat-close-btn" onClick={onClose} aria-label="Close fast-chat"><X size={15} /></button>
         </div>
       </div>
 
-      {/* Messages Stream */}
-      <div className="chat-overlay-messages">
+      <div className="chat-overlay-messages" aria-live="polite">
         {messages.length === 0 && !loading && (
-          <div className="chat-overlay-empty">
-            <p>No messages yet with <b>{friend.nickname || friend.name}</b></p>
-            <span>Say hello!</span>
-          </div>
+          <div className="chat-overlay-empty"><p>No messages yet with <b>{friend.nickname || friend.name}</b></p><span>Say hello!</span></div>
         )}
-
         {messages.map((msg) => {
           const isMe = msg.senderId !== friend.id;
           return (
-            <div
-              key={msg.id}
-              className={`chat-message-row ${isMe ? 'is-outgoing' : 'is-incoming'}`}
-            >
+            <div key={msg.id} className={`chat-message-row ${isMe ? 'is-outgoing' : 'is-incoming'}`}>
               <div className="chat-bubble">
                 <p className="chat-bubble-text">{msg.content}</p>
                 <div className="chat-bubble-meta">
                   <span className="chat-time">{formatTime(msg.createdAt)}</span>
-                  {isMe && <CheckCheck size={12} className="chat-receipt-icon" />}
+                  {isMe && <CheckCheck size={12} className="chat-receipt-icon" aria-label={msg.isRead ? 'Read' : 'Delivered'} />}
                 </div>
               </div>
             </div>
@@ -112,43 +82,12 @@ export default function ActiveChatOverlay({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Bar */}
       <form onSubmit={handleSend} className="chat-overlay-footer">
-        <input
-          type="text"
-          className="chat-message-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={`Type Message to ${friend.nickname || friend.name}...`}
-          maxLength={2000}
-          autoFocus
-        />
-
+        <input type="text" className="chat-message-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Type Message to ${friend.nickname || friend.name}...`} maxLength={2000} autoFocus />
         <div className="chat-footer-buttons">
-          <button
-            type="button"
-            className="chat-action-btn"
-            title="Attach file (coming soon)"
-            disabled
-          >
-            <Paperclip size={15} />
-          </button>
-          <button
-            type="button"
-            className="chat-action-btn"
-            title="Add emoji"
-            onClick={() => setInput(prev => prev + ' 😊')}
-          >
-            <Smile size={15} />
-          </button>
-          <button
-            type="submit"
-            className={`chat-send-btn ${input.trim() ? 'can-send' : ''}`}
-            disabled={!input.trim()}
-            aria-label="Send message"
-          >
-            <Send size={14} />
-          </button>
+          <button type="button" className="chat-action-btn" title="Attach file (coming soon)" disabled><Paperclip size={15} /></button>
+          <button type="button" className="chat-action-btn" title="Add emoji" onClick={() => setInput((prev) => `${prev}${prev ? ' ' : ''}😊`)}><Smile size={15} /></button>
+          <button type="submit" className={`chat-send-btn ${input.trim() ? 'can-send' : ''}`} disabled={!input.trim() || sending} aria-label="Send message"><Send size={14} /></button>
         </div>
       </form>
     </div>
