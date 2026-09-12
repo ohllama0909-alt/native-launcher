@@ -24,3 +24,7 @@ Thumbs.db
 
 # test screenshots
 screenshot-*.png
+
+# database and runtime data
+skin-server/data/
+*.db

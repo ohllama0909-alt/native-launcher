@@ -28,6 +28,11 @@ export default function Shell({
   activeId,
   onAddMicrosoft,
   onAddOffline,
+  onAddNative,
+  onNoctraSendCode,
+  onNoctraResendCode,
+  onNoctraVerifyRegister,
+  onNoctraLogin,
   onSwitchAccount,
   onRemoveAccount,
   onWardrobeChanged,
@@ -142,6 +147,7 @@ export default function Shell({
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
+        isAccountOpen={accountSwitcherOpen}
         account={account}
         notifications={notifications.length}
         onOpenNotifications={() => setNotificationsOpen(true)}
@@ -253,6 +259,11 @@ export default function Shell({
         onSwitchAccount={onSwitchAccount}
         onAddMicrosoft={onAddMicrosoft}
         onAddOffline={onAddOffline}
+        onAddNative={onAddNative}
+        onNoctraSendCode={onNoctraSendCode}
+        onNoctraResendCode={onNoctraResendCode}
+        onNoctraVerifyRegister={onNoctraVerifyRegister}
+        onNoctraLogin={onNoctraLogin}
         onRemoveAccount={onRemoveAccount}
       />
 

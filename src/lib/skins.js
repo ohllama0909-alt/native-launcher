@@ -27,13 +27,18 @@ export function normalizeKind(kind) {
 
 /** Works with an account object, a bare uuid, or a bare username. */
 export function skinIdentifier(account, uuid, name) {
-  const raw =
-    account?.uuid ||
-    account?.id ||
-    uuid ||
-    account?.name ||
-    name ||
-    FALLBACK_SKIN;
+  const rawUuid = account?.uuid || uuid;
+  const rawName = account?.name || name;
+  const rawId = account?.id;
+
+  let raw = FALLBACK_SKIN;
+  if (rawUuid && rawUuid !== 'guest' && !String(rawUuid).startsWith('offline-') && !String(rawUuid).startsWith('native-')) {
+    raw = rawUuid;
+  } else if (rawName && rawName !== 'guest') {
+    raw = rawName;
+  } else if (rawId && rawId !== 'guest' && !String(rawId).startsWith('offline-') && !String(rawId).startsWith('native-')) {
+    raw = rawId;
+  }
 
   const value = String(raw).trim();
   if (!value || value === 'guest') return FALLBACK_SKIN;

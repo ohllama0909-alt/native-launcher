@@ -50,6 +50,43 @@
   color: var(--fg-muted);
 }
 
+/* ---------- Storage Panel Skeletons ---------- */
+@keyframes sp-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.sp-skeleton-pill {
+  border-radius: var(--radius-xs, 4px);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: sp-shimmer 1.8s infinite ease-in-out;
+}
+
+.sp-metric.is-skeleton {
+  pointer-events: none;
+}
+
+.sp-row-head.is-skeleton {
+  cursor: default;
+  background: var(--component-bg);
+  border: 1px solid var(--component-border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* ---------- sections ---------- */
 
 .sp-section-head {
@@ -594,9 +631,9 @@
 .cl-markdown blockquote {
   margin: 8px 0;
   padding: 8px 14px;
-  border-left: 3px solid #0071e3;
+  border-left: 3px solid var(--brand);
   border-radius: 0 8px 8px 0;
-  background: rgba(0, 113, 227, 0.07);
+  background: var(--brand-subtle);
   color: var(--fg-secondary);
 }
 
@@ -639,7 +676,7 @@
 /* Checkboxes */
 .cl-markdown input[type="checkbox"] {
   margin-right: 6px;
-  accent-color: #0071e3;
+  accent-color: var(--brand);
   vertical-align: middle;
 }
 

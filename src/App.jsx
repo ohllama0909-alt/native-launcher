@@ -131,6 +131,42 @@ export default function App() {
     return res;
   };
 
+  const handleAddNative = async (payload) => {
+    const res = await window.native?.accounts?.addNative?.(payload)
+      || await window.native?.accounts?.addOffline?.(typeof payload === 'string' ? payload : payload?.name);
+    if (res?.ok) {
+      await refreshAccounts();
+      if (res.account?.id) setActiveId(res.account.id);
+    }
+    return res;
+  };
+
+  const handleNoctraSendCode = async (payload) => {
+    return await window.native?.accounts?.noctraSendCode?.(payload);
+  };
+
+  const handleNoctraResendCode = async (payload) => {
+    return await window.native?.accounts?.noctraResendCode?.(payload);
+  };
+
+  const handleNoctraVerifyRegister = async (payload) => {
+    const res = await window.native?.accounts?.noctraVerifyRegister?.(payload);
+    if (res?.ok) {
+      await refreshAccounts();
+      if (res.account?.id) setActiveId(res.account.id);
+    }
+    return res;
+  };
+
+  const handleNoctraLogin = async (payload) => {
+    const res = await window.native?.accounts?.noctraLogin?.(payload);
+    if (res?.ok) {
+      await refreshAccounts();
+      if (res.account?.id) setActiveId(res.account.id);
+    }
+    return res;
+  };
+
   const handleSwitchAccount = async (id) => {
     await window.native?.accounts?.setActive(id);
     setActiveId(id);
@@ -183,6 +219,11 @@ export default function App() {
         activeId={activeId}
         onAddMicrosoft={handleAddMicrosoft}
         onAddOffline={handleAddOffline}
+        onAddNative={handleAddNative}
+        onNoctraSendCode={handleNoctraSendCode}
+        onNoctraResendCode={handleNoctraResendCode}
+        onNoctraVerifyRegister={handleNoctraVerifyRegister}
+        onNoctraLogin={handleNoctraLogin}
         onSwitchAccount={handleSwitchAccount}
         onRemoveAccount={handleRemoveAccount}
         onWardrobeChanged={(value) => setWardrobe({ ...value, accountId: activeAccount?.id })}

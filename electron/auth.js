@@ -317,11 +317,108 @@ function init(dependencies, ipcMain) {
     };
   });
 
+function generateOfflinePlayerUuid(username) {
+  const md5 = crypto.createHash('md5').update(`OfflinePlayer:${username}`).digest();
+  md5[6] = (md5[6] & 0x0f) | 0x30; // version 3
+  md5[8] = (md5[8] & 0x3f) | 0x80; // variant 2
+  const hex = md5.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+  ipcMain.handle('accounts:addNative', (_event, payload) => {
+    const rawName = typeof payload === 'string' ? payload : payload?.name;
+    const name = String(rawName || '').trim();
+    const model = payload?.model === 'slim' ? 'slim' : 'classic';
+    if (!name) return { ok: false, error: 'Name is required' };
+    const data = readAccounts();
+    const id = `native-${crypto.randomBytes(4).toString('hex')}`;
+    const uuid = generateOfflinePlayerUuid(name);
+    const account = { id, name, uuid, type: 'noctra', model };
+    data.accounts.push(account);
+    data.activeId = id;
+    saveAccounts(data);
+    return { ok: true, account };
+  });
+
+  const authFetch = async (endpoint, payload) => {
+    const root = String(process.env.NATIVE_WARDROBE_API || 'https://api.nativelaunch.xyz').replace(/\/+$/, '');
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    };
+    try {
+      const res = await fetch(`${root}${endpoint}`, options);
+      return await res.json();
+    } catch (err) {
+      try {
+        const localRes = await fetch(`http://127.0.0.1:3418${endpoint}`, options);
+        return await localRes.json();
+      } catch {
+        return { ok: false, error: 'Could not connect to Noctra Auth server.' };
+      }
+    }
+  };
+
+  ipcMain.handle('accounts:noctraSendCode', async (_event, payload) => {
+    return authFetch('/v1/auth/register/send-code', payload);
+  });
+
+  ipcMain.handle('accounts:noctraResendCode', async (_event, payload) => {
+    return authFetch('/v1/auth/resend-code', payload);
+  });
+
+  ipcMain.handle('accounts:noctraVerifyRegister', async (_event, payload) => {
+    const res = await authFetch('/v1/auth/register/verify', payload);
+    if (res?.ok && res?.account) {
+      const data = readAccounts();
+      const account = {
+        id: res.account.id,
+        name: res.account.name,
+        email: res.account.email,
+        uuid: res.account.uuid,
+        type: 'noctra',
+        model: res.account.model || 'classic',
+        token: res.token
+      };
+      data.accounts = data.accounts.filter(a => a.id !== account.id && a.email !== account.email);
+      data.accounts.push(account);
+      data.activeId = account.id;
+      saveAccounts(data);
+      return { ok: true, account };
+    }
+    return res;
+  });
+
+  ipcMain.handle('accounts:noctraLogin', async (_event, payload) => {
+    const res = await authFetch('/v1/auth/login', payload);
+    if (res?.ok && res?.account) {
+      const data = readAccounts();
+      const account = {
+        id: res.account.id,
+        name: res.account.name,
+        email: res.account.email,
+        uuid: res.account.uuid,
+        type: 'noctra',
+        model: res.account.model || 'classic',
+        token: res.token
+      };
+      data.accounts = data.accounts.filter(a => a.id !== account.id && a.email !== account.email);
+      data.accounts.push(account);
+      data.activeId = account.id;
+      saveAccounts(data);
+      return { ok: true, account };
+    }
+    return res;
+  });
+
   ipcMain.handle('accounts:addOffline', (_event, name) => {
     if (!name?.trim()) return { ok: false, error: 'Name is required' };
+    const cleanName = name.trim();
     const data = readAccounts();
     const id = `offline-${crypto.randomBytes(4).toString('hex')}`;
-    const account = { id, name: name.trim(), uuid: null, type: 'offline' };
+    const uuid = generateOfflinePlayerUuid(cleanName);
+    const account = { id, name: cleanName, uuid, type: 'offline' };
     data.accounts.push(account);
     if (!data.activeId) data.activeId = id;
     saveAccounts(data);

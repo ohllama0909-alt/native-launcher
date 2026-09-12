@@ -16,11 +16,32 @@ function interpolate(value, variables) {
   );
 }
 
+function getInitialLocale() {
+  try {
+    const saved = localStorage.getItem('native.locale');
+    if (saved) return normaliseLocale(saved);
+    const rawSettings = localStorage.getItem('native.settings');
+    if (rawSettings) {
+      const parsed = JSON.parse(rawSettings);
+      if (parsed?.onboarding?.language) return normaliseLocale(parsed.onboarding.language);
+    }
+  } catch {
+    /* fallback to navigator */
+  }
+  return normaliseLocale(typeof navigator !== 'undefined' ? navigator.language : DEFAULT_LOCALE);
+}
+
 export function I18nProvider({ children }) {
-  const [locale, setLocaleState] = useState(() => normaliseLocale(navigator.language));
+  const [locale, setLocaleState] = useState(getInitialLocale);
 
   useEffect(() => {
-    const handleLocale = (event) => setLocaleState(normaliseLocale(event.detail));
+    const handleLocale = (event) => {
+      const next = normaliseLocale(event.detail);
+      setLocaleState(next);
+      try {
+        localStorage.setItem('native.locale', next);
+      } catch {}
+    };
     window.addEventListener(LOCALE_EVENT, handleLocale);
     return () => window.removeEventListener(LOCALE_EVENT, handleLocale);
   }, []);
@@ -30,6 +51,10 @@ export function I18nProvider({ children }) {
       const next = normaliseLocale(nextLocale);
       setLocaleState(next);
       document.documentElement.lang = next;
+      try {
+        localStorage.setItem('native.locale', next);
+      } catch {}
+      window.dispatchEvent(new CustomEvent(LOCALE_EVENT, { detail: next }));
     };
 
     const t = (key, variables = {}) => {
@@ -72,5 +97,8 @@ export function useI18n() {
 export function setApplicationLocale(locale) {
   const next = normaliseLocale(locale);
   document.documentElement.lang = next;
+  try {
+    localStorage.setItem('native.locale', next);
+  } catch {}
   window.dispatchEvent(new CustomEvent(LOCALE_EVENT, { detail: next }));
 }

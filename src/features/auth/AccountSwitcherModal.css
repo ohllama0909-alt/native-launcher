@@ -114,10 +114,22 @@
 }
 
 .account-login-content {
-  width: min(304px, 100%);
+  width: min(336px, 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
+  animation: account-fade-in 0.2s var(--ease-out);
+}
+
+@keyframes account-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .account-login-logo {
@@ -150,21 +162,25 @@
 }
 
 .account-login-microsoft,
-.account-login-github {
+.account-login-native {
   position: relative;
   width: 100%;
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   border-radius: 12px;
-  transition: transform .15s var(--ease-out), filter .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .15s var(--ease-out), filter .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease), box-shadow .15s var(--ease);
 }
 
 .account-login-microsoft {
   background: #f1f0f1;
   color: #121112;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: none;
 }
 
 .account-login-microsoft:hover:not(:disabled) {
@@ -182,21 +198,17 @@
 }
 
 .account-login-microsoft .account-login-btn-lead {
-  position: absolute;
-  left: 44px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 500;
   line-height: 1;
 }
 
 .account-login-ms-mark {
-  position: absolute;
-  left: 154px;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
+  gap: 1.5px;
 }
 
 .account-login-ms-mark i:nth-child(1) { background: #f35325; }
@@ -205,8 +217,6 @@
 .account-login-ms-mark i:nth-child(4) { background: #ffba08; }
 
 .account-login-microsoft .account-login-btn-brand {
-  position: absolute;
-  left: 184px;
   font-size: 18px;
   font-weight: 600;
   line-height: 1;
@@ -221,44 +231,51 @@
   font-weight: 500;
 }
 
-.account-login-github {
-  border: 1px solid rgba(210, 210, 210, 0.13);
-  background: rgba(10, 8, 10, 0.72);
-  color: rgba(237, 237, 237, 1);
+.account-login-native {
+  border: 1px solid var(--brand-border, rgba(210, 210, 210, 0.18));
+  background: var(--brand-subtle, rgba(10, 8, 10, 0.72));
+  color: var(--fg-primary-hover, rgba(237, 237, 237, 1));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-.account-login-github:hover {
-  border-color: rgba(210, 210, 210, 0.25);
+.account-login-native:hover {
+  border-color: var(--brand);
   background: var(--surface-hover, rgba(30, 28, 30, 0.8));
   transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--brand-glow, rgba(0, 0, 0, 0.3));
 }
 
-.account-login-github:active {
+.account-login-native:active {
   transform: scale(0.985);
 }
 
-.account-login-github .account-login-btn-lead {
-  position: absolute;
-  left: 44px;
-  font-size: 18px;
+.account-login-native .account-login-btn-lead {
+  font-size: 17px;
   font-weight: 500;
   line-height: 1;
+  color: rgba(230, 230, 230, 0.9);
 }
 
-.account-login-gh-mark {
-  position: absolute;
-  left: 163px;
-  width: 23px;
-  height: 23px;
+.account-login-native-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
 }
 
-.account-login-github .account-login-btn-brand {
-  position: absolute;
-  left: 193px;
+.account-login-native-mark .native-mark {
+  width: 32px !important;
+  height: 32px !important;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.account-login-native .account-login-btn-brand {
   font-size: 18px;
   font-weight: 600;
   line-height: 1;
   color: #fff;
+  letter-spacing: -0.015em;
 }
 
 .account-login-secondary-actions {
@@ -276,6 +293,7 @@
   color: rgba(210, 210, 210, 0.6);
   font-size: 12px;
   font-weight: 500;
+  cursor: pointer;
   transition: border-color .15s var(--ease), color .15s var(--ease), background .15s var(--ease);
 }
 
@@ -283,43 +301,6 @@
   border-color: rgba(210, 210, 210, 0.25);
   color: rgba(242, 242, 242, 1);
   background: rgba(25, 23, 25, 0.7);
-}
-
-.account-login-offline {
-  display: flex;
-  gap: 7px;
-  margin-top: 4px;
-}
-
-.account-login-offline input {
-  min-width: 0;
-  flex: 1;
-  height: 38px;
-  padding: 0 12px;
-  border: 1px solid rgba(210, 210, 210, 0.15);
-  border-radius: 8px;
-  background: rgba(10, 8, 10, 0.85);
-  color: rgba(242, 242, 242, 1);
-  font-size: 13px;
-}
-
-.account-login-offline input:focus {
-  outline: none;
-  border-color: var(--brand-border, rgba(160, 81, 162, 0.8));
-}
-
-.account-login-offline > button {
-  padding: 0 14px;
-  border-radius: 8px;
-  background: var(--brand-gradient, rgba(160, 81, 162, 0.9));
-  color: var(--fg-on-brand, #fff);
-  font-size: 12px;
-  font-weight: 600;
-  transition: filter .15s var(--ease);
-}
-
-.account-login-offline > button:hover:not(:disabled) {
-  filter: brightness(1.1);
 }
 
 .account-login-error {
@@ -346,6 +327,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  cursor: pointer;
   transition: border-color .15s var(--ease), color .15s var(--ease);
 }
 
@@ -373,6 +355,7 @@
   border-radius: 11px;
   background: rgba(10, 8, 10, 0.72);
   color: rgba(237, 237, 237, 1);
+  cursor: pointer;
   transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), transform .15s var(--ease-out);
 }
 
@@ -402,6 +385,10 @@
 .account-login-content footer button {
   color: inherit;
   font: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
   transition: color .15s var(--ease);
 }
 
@@ -465,17 +452,307 @@
   font-size: 10px;
 }
 
+.account-login-item-text small.is-native {
+  color: var(--brand-soft, var(--brand, rgba(160, 81, 162, 0.9)));
+  font-weight: 600;
+}
+
+.account-login-item-text small.is-ms {
+  color: var(--color-gold, #ffba08);
+  font-weight: 600;
+}
+
 .account-login-item-remove {
   width: 24px;
   height: 24px;
   display: grid;
   place-items: center;
+  border: none;
+  background: none;
+  cursor: pointer;
   color: rgba(210, 210, 210, 0.4);
   transition: color .15s var(--ease);
 }
 
 .account-login-item-remove:hover {
   color: var(--danger, rgba(225, 75, 75, 1));
+}
+
+/* ---------- Dedicated Noctra Auth Form (Login / Register / Verify) ---------- */
+
+.noctra-auth-container {
+  width: min(320px, 100%);
+  display: flex;
+  flex-direction: column;
+  animation: account-fade-in 0.22s var(--ease-out);
+}
+
+.noctra-auth-top {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.noctra-auth-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(210, 210, 210, 0.12);
+  background: rgba(12, 10, 14, 0.6);
+  color: rgba(210, 210, 210, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s var(--ease);
+}
+
+.noctra-auth-back-btn:hover {
+  border-color: rgba(210, 210, 210, 0.25);
+  background: rgba(25, 20, 28, 0.8);
+  color: #fff;
+  transform: translateX(-1px);
+}
+
+.noctra-auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.noctra-auth-badge {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: radial-gradient(circle at center, var(--brand-subtle, rgba(160, 81, 162, 0.25)), rgba(14, 11, 16, 0.6));
+  border: 1px solid var(--brand-border, rgba(160, 81, 162, 0.3));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  margin-bottom: 12px;
+}
+
+.noctra-auth-badge .native-mark {
+  width: 42px !important;
+  height: 42px !important;
+  object-fit: contain;
+}
+
+.noctra-avatar-preview-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  border: 1.5px solid var(--brand-border, rgba(160, 81, 162, 0.4));
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 8, 12, 0.8);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  margin-bottom: 12px;
+}
+
+.noctra-auth-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg-primary-hover, rgba(245, 245, 245, 1));
+}
+
+.noctra-auth-sub {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--fg-secondary, rgba(210, 210, 210, 0.65));
+}
+
+.noctra-verify-email {
+  color: #fff;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.noctra-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.noctra-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.noctra-form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(210, 210, 210, 0.8);
+  letter-spacing: -0.01em;
+}
+
+.noctra-form-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 13px;
+  border: 1px solid rgba(210, 210, 210, 0.16);
+  border-radius: var(--radius-md, 10px);
+  background: rgba(14, 11, 16, 0.85);
+  color: rgba(245, 245, 245, 1);
+  font-size: 13.5px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease), background .15s var(--ease);
+}
+
+.noctra-form-input:focus {
+  outline: none;
+  border-color: var(--brand, rgba(160, 81, 162, 0.9));
+  background: rgba(20, 16, 22, 0.95);
+  box-shadow: 0 0 0 3px var(--brand-subtle, rgba(160, 81, 162, 0.25));
+}
+
+.noctra-model-pills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.noctra-model-pill {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(210, 210, 210, 0.13);
+  border-radius: 8px;
+  background: rgba(14, 11, 16, 0.6);
+  color: rgba(210, 210, 210, 0.7);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .14s var(--ease);
+}
+
+.noctra-model-pill.active {
+  border-color: var(--brand-border, rgba(160, 81, 162, 0.8));
+  background: var(--brand-subtle, rgba(160, 81, 162, 0.22));
+  color: #fff;
+  font-weight: 600;
+}
+
+.noctra-auth-primary-btn {
+  width: 100%;
+  height: 46px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 11px;
+  background: var(--launch-gradient, var(--brand-gradient, var(--brand)));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 12px var(--launch-shadow, var(--brand-glow));
+  transition: transform .14s var(--ease-out), filter .14s var(--ease);
+}
+
+.noctra-auth-primary-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.noctra-auth-primary-btn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.noctra-auth-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.noctra-btn-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.noctra-auth-switch-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(210, 210, 210, 0.6);
+  margin-top: 2px;
+}
+
+.noctra-link-btn {
+  background: none;
+  border: none;
+  color: var(--brand-soft, var(--brand, rgba(190, 110, 220, 1)));
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  transition: color .15s var(--ease);
+}
+
+.noctra-link-btn:hover {
+  text-decoration: underline;
+}
+
+/* 6-Digit OTP Box Row */
+.noctra-otp-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+
+.noctra-otp-box {
+  width: 44px;
+  height: 52px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(210, 210, 210, 0.18);
+  background: rgba(14, 11, 16, 0.9);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  font-family: inherit;
+  transition: all .15s var(--ease);
+}
+
+.noctra-otp-box:focus {
+  outline: none;
+  border-color: var(--brand, rgba(160, 81, 162, 0.9));
+  box-shadow: 0 0 0 3px var(--brand-subtle, rgba(160, 81, 162, 0.25));
+  transform: translateY(-1px);
+}
+
+.noctra-otp-box.filled {
+  border-color: rgba(210, 210, 210, 0.35);
+  background: rgba(22, 18, 26, 0.95);
+}
+
+.noctra-resend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.noctra-countdown-text {
+  font-size: 11.5px;
+  color: rgba(210, 210, 210, 0.48);
 }
 
 /* ---------- artwork ---------- */
@@ -498,13 +775,14 @@
 /* ---------- responsive ---------- */
 
 @media (max-height: 740px) {
-  .account-login-panel { padding-top: 30px; padding-bottom: 16px; }
+  .account-login-panel { padding-top: 24px; padding-bottom: 16px; }
   .account-login-logo .native-mark { width: 64px !important; height: 64px !important; }
   .account-login-content h1 { margin-bottom: 16px; font-size: 32px; }
   .account-login-microsoft,
-  .account-login-github { height: 50px; }
+  .account-login-native { height: 50px; }
   .account-login-social { margin-top: 12px; }
   .account-login-content footer { margin-top: 20px; }
+  .noctra-otp-box { width: 38px; height: 46px; font-size: 19px; }
 }
 
 @media (max-width: 860px) {

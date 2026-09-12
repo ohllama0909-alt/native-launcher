@@ -148,36 +148,48 @@ export default function StoragePanel({ instances = [] }) {
   return (
     <div className="sp-panel">
       <div className="sp-metric-grid">
-        <div className="sp-metric">
-          <span className="sp-metric-label">{t('nav.instances')}</span>
-          <span className="sp-metric-value">{formatNumber(totals.instances)}</span>
-          <span className="sp-metric-sub">{t('storage.fullyInstalled', { count: formatNumber(totals.installed) })}</span>
-        </div>
-        <div className="sp-metric">
-          <span className="sp-metric-label">{t('detail.mods')}</span>
-          <span className="sp-metric-value">{formatNumber(totals.mods)}</span>
-          <span className="sp-metric-sub">{t('storage.tracked')}</span>
-        </div>
-        <div className="sp-metric">
-          <span className="sp-metric-label">{t('storage.worlds')}</span>
-          <span className="sp-metric-value">{formatNumber(totals.worlds)}</span>
-          <span className="sp-metric-sub">{t('storage.acrossInstances')}</span>
-        </div>
-        <div className="sp-metric">
-          <span className="sp-metric-label">{t('storage.packs')}</span>
-          <span className="sp-metric-value">{formatNumber(totals.packs)}</span>
-          <span className="sp-metric-sub">{t('storage.packsDesc')}</span>
-        </div>
-        <div className="sp-metric">
-          <span className="sp-metric-label">{t('stats.playtime')}</span>
-          <span className="sp-metric-value">{formatDuration(totals.playtime)}</span>
-          <span className="sp-metric-sub">{t('storage.recorded')}</span>
-        </div>
-        <div className="sp-metric">
-          <span className="sp-metric-label">{t('storage.localCache')}</span>
-          <span className="sp-metric-value">{formatBytes(totals.cacheBytes, formatNumber)}</span>
-          <span className="sp-metric-sub">{t('storage.cacheDesc')}</span>
-        </div>
+        {loading ? (
+          Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="sp-metric is-skeleton">
+              <div className="sp-skeleton-pill" style={{ width: '45%', height: '10px', marginBottom: '6px' }} />
+              <div className="sp-skeleton-pill" style={{ width: '65%', height: '22px', marginBottom: '6px' }} />
+              <div className="sp-skeleton-pill" style={{ width: '80%', height: '10px' }} />
+            </div>
+          ))
+        ) : (
+          <>
+            <div className="sp-metric">
+              <span className="sp-metric-label">{t('nav.instances')}</span>
+              <span className="sp-metric-value">{formatNumber(totals.instances)}</span>
+              <span className="sp-metric-sub">{t('storage.fullyInstalled', { count: formatNumber(totals.installed) })}</span>
+            </div>
+            <div className="sp-metric">
+              <span className="sp-metric-label">{t('detail.mods')}</span>
+              <span className="sp-metric-value">{formatNumber(totals.mods)}</span>
+              <span className="sp-metric-sub">{t('storage.tracked')}</span>
+            </div>
+            <div className="sp-metric">
+              <span className="sp-metric-label">{t('storage.worlds')}</span>
+              <span className="sp-metric-value">{formatNumber(totals.worlds)}</span>
+              <span className="sp-metric-sub">{t('storage.acrossInstances')}</span>
+            </div>
+            <div className="sp-metric">
+              <span className="sp-metric-label">{t('storage.packs')}</span>
+              <span className="sp-metric-value">{formatNumber(totals.packs)}</span>
+              <span className="sp-metric-sub">{t('storage.packsDesc')}</span>
+            </div>
+            <div className="sp-metric">
+              <span className="sp-metric-label">{t('stats.playtime')}</span>
+              <span className="sp-metric-value">{formatDuration(totals.playtime)}</span>
+              <span className="sp-metric-sub">{t('storage.recorded')}</span>
+            </div>
+            <div className="sp-metric">
+              <span className="sp-metric-label">{t('storage.localCache')}</span>
+              <span className="sp-metric-value">{formatBytes(totals.cacheBytes, formatNumber)}</span>
+              <span className="sp-metric-sub">{t('storage.cacheDesc')}</span>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="sp-section-head">
@@ -188,7 +200,23 @@ export default function StoragePanel({ instances = [] }) {
         </button>
       </div>
 
-      {rows.length === 0 ? (
+      {loading ? (
+        <div className="sp-rows">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="sp-row is-skeleton">
+              <div className="sp-row-head is-skeleton">
+                <div className="sp-skeleton-pill" style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
+                <div className="sp-skeleton-pill" style={{ width: '130px', height: '14px' }} />
+                <div className="sp-skeleton-pill" style={{ width: '56px', height: '18px', borderRadius: '12px' }} />
+                <div className="sp-skeleton-pill" style={{ width: '64px', height: '18px', borderRadius: '12px' }} />
+                <span className="sp-row-spacer" />
+                <div className="sp-skeleton-pill" style={{ width: '60px', height: '12px' }} />
+                <div className="sp-skeleton-pill" style={{ width: '60px', height: '12px' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
         <p className="sp-empty">{t('storage.empty')}</p>
       ) : (
         <div className="sp-rows">

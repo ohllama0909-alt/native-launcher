@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { setApplicationLocale } from '../../i18n/I18nProvider.jsx';
 
 export const DEFAULTS = {
   onboarding: {
@@ -58,12 +59,14 @@ export default function useSettings() {
         const next = deepMerge(DEFAULTS, saved ?? {});
         setSettings(next);
         applyAppearance(next);
+        if (next.onboarding?.language) setApplicationLocale(next.onboarding.language);
       });
     } else {
       const raw = localStorage.getItem('native.settings');
       const next = deepMerge(DEFAULTS, raw ? JSON.parse(raw) : {});
       setSettings(next);
       applyAppearance(next);
+      if (next.onboarding?.language) setApplicationLocale(next.onboarding.language);
     }
     const sync = (event) => setSettings(event.detail);
     window.addEventListener(SETTINGS_EVENT, sync);

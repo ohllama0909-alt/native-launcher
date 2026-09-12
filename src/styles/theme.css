@@ -134,6 +134,10 @@
   --danger-gradient: linear-gradient(135deg, #e0525d, #a3222d);
   --install-gradient: var(--brand-gradient);
   --blur-glass: 14px;
+  --on-accent: var(--fg-on-brand);
+  --bg-panel: var(--component-bg);
+  --bg: var(--page);
+  --online: var(--color-success);
 }
 
 /* ---------- surfaces ---------- */

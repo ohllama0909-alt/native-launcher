@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const authDb = require('./auth-db');
+const { sendVerificationCodeEmail } = require('./mailer');
 
 /**
  * Noctra wardrobe API (CustomSkinLoader "CustomSkinAPI" backend).
@@ -204,6 +206,151 @@ async function handler(req, res) {
         skins: profile.skin ? [profile.skin] : [],
         capes: profile.cape ? [profile.cape] : [],
         profile: customSkinProfile(profile, originOf(req))
+      });
+    }
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400'
+      });
+      return res.end();
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/auth/register/send-code') {
+      const body = await readJson(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const rawUsername = String(body.username || '').trim();
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return send(res, 400, { ok: false, error: 'Please enter a valid email address.' });
+      }
+      if (rawUsername) {
+        try { usernameOf(rawUsername); } catch {
+          return send(res, 400, { ok: false, error: 'Username must be 3-16 letters, numbers, or underscores.' });
+        }
+        if (authDb.getUserByUsername(rawUsername)) {
+          return send(res, 400, { ok: false, error: 'This Minecraft username is already registered.' });
+        }
+      }
+      if (authDb.getUserByEmail(email)) {
+        return send(res, 400, { ok: false, error: 'An account with this email already exists.' });
+      }
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      authDb.saveVerificationCode(email, code);
+
+      try {
+        await sendVerificationCodeEmail(email, code, rawUsername);
+      } catch (err) {
+        console.error('SendGrid email error:', err);
+        return send(res, 500, { ok: false, error: `Could not send verification email: ${err.message}` });
+      }
+
+      return send(res, 200, { ok: true, message: 'Verification code sent.' });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/auth/register/verify') {
+      const body = await readJson(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').trim();
+      const username = usernameOf(body.username);
+      const password = String(body.password || '');
+      const model = body.model === 'slim' ? 'slim' : 'classic';
+
+      if (!password || password.length < 6) {
+        return send(res, 400, { ok: false, error: 'Password must be at least 6 characters long.' });
+      }
+
+      if (!authDb.checkVerificationCode(email, code)) {
+        return send(res, 400, { ok: false, error: 'Invalid or expired verification code.' });
+      }
+
+      if (authDb.getUserByEmail(email)) {
+        return send(res, 400, { ok: false, error: 'An account with this email already exists.' });
+      }
+      if (authDb.getUserByUsername(username)) {
+        return send(res, 400, { ok: false, error: 'This Minecraft username is already taken.' });
+      }
+
+      const user = authDb.createUser({ email, username, password, model });
+      authDb.clearVerificationCode(email);
+      const session = authDb.createSession(user.id);
+
+      return send(res, 200, {
+        ok: true,
+        token: session.token,
+        account: {
+          id: user.id,
+          name: user.username,
+          email: user.email,
+          uuid: user.uuid,
+          type: 'noctra',
+          model: user.model,
+          token: session.token
+        }
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/auth/login') {
+      const body = await readJson(req);
+      const login = String(body.login || body.email || body.username || '').trim();
+      const password = String(body.password || '');
+
+      if (!login || !password) {
+        return send(res, 400, { ok: false, error: 'Username/Email and password are required.' });
+      }
+
+      const user = authDb.getUserByLogin(login);
+      if (!user || !authDb.verifyPassword(password, user.password_hash, user.salt)) {
+        return send(res, 401, { ok: false, error: 'Invalid username/email or password.' });
+      }
+
+      const session = authDb.createSession(user.id);
+      return send(res, 200, {
+        ok: true,
+        token: session.token,
+        account: {
+          id: user.id,
+          name: user.username,
+          email: user.email,
+          uuid: user.uuid,
+          type: 'noctra',
+          model: user.model,
+          token: session.token
+        }
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/auth/resend-code') {
+      const body = await readJson(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const username = String(body.username || '').trim();
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return send(res, 400, { ok: false, error: 'Please enter a valid email address.' });
+      }
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      authDb.saveVerificationCode(email, code);
+
+      try {
+        await sendVerificationCodeEmail(email, code, username);
+      } catch (err) {
+        return send(res, 500, { ok: false, error: `Could not send verification email: ${err.message}` });
+      }
+
+      return send(res, 200, { ok: true, message: 'New code sent.' });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/v1/auth/backup') {
+      const backup = authDb.backupDatabase();
+      const data = fs.readFileSync(backup.path);
+      return send(res, 200, data, {
+        'Content-Type': 'application/x-sqlite3',
+        'Content-Disposition': `attachment; filename="${backup.filename}"`
       });
     }
 

@@ -60,30 +60,30 @@
   background: rgba(255, 255, 255, 0.84);
 }
 
-/* Install & Download: Clean Apple Accent Blue */
+/* Install & Download: Theme-aware Accent Gradient */
 .launch-action.is-install,
 .launch-action.is-download {
-  background: #0071e3;
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--launch-gradient, var(--brand-gradient, var(--brand)));
+  color: var(--fg-on-brand, #ffffff);
+  border-color: rgba(255, 255, 255, 0.22);
   box-shadow:
-    0 4px 16px rgba(0, 113, 227, 0.35),
+    0 4px 16px var(--launch-shadow, var(--brand-glow, rgba(0, 0, 0, 0.25))),
     0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .launch-action.is-install:hover:not(:disabled),
 .launch-action.is-download:hover:not(:disabled) {
-  background: #0077ed;
+  filter: brightness(1.1);
   transform: translateY(-1.5px);
   box-shadow:
-    0 7px 22px rgba(0, 113, 227, 0.48),
+    0 7px 22px var(--launch-shadow, var(--brand-glow, rgba(0, 0, 0, 0.35))),
     0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .launch-action.is-install:active:not(:disabled),
 .launch-action.is-download:active:not(:disabled) {
   transform: scale(0.975);
-  background: #0064c8;
+  filter: brightness(0.95);
 }
 
 /* Stop: Clean Apple System Red */

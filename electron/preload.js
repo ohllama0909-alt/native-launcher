@@ -21,12 +21,17 @@ contextBridge.exposeInMainWorld('native', {
     logout: () => ipcRenderer.invoke('auth:logout')
   },
   accounts: {
-    list:         ()     => ipcRenderer.invoke('accounts:list'),
-    addOffline:   (name) => ipcRenderer.invoke('accounts:addOffline', name),
-    addMicrosoft: ()     => ipcRenderer.invoke('accounts:addMicrosoft'),
-    setActive:    (id)   => ipcRenderer.invoke('accounts:setActive', id),
-    remove:       (id)   => ipcRenderer.invoke('accounts:remove', id),
-    getAvatar:    (uuid) => ipcRenderer.invoke('accounts:getAvatar', uuid)
+    list:                 ()        => ipcRenderer.invoke('accounts:list'),
+    addOffline:           (name)    => ipcRenderer.invoke('accounts:addOffline', name),
+    addNative:            (payload) => ipcRenderer.invoke('accounts:addNative', payload),
+    addMicrosoft:         ()        => ipcRenderer.invoke('accounts:addMicrosoft'),
+    noctraSendCode:       (payload) => ipcRenderer.invoke('accounts:noctraSendCode', payload),
+    noctraResendCode:     (payload) => ipcRenderer.invoke('accounts:noctraResendCode', payload),
+    noctraVerifyRegister: (payload) => ipcRenderer.invoke('accounts:noctraVerifyRegister', payload),
+    noctraLogin:          (payload) => ipcRenderer.invoke('accounts:noctraLogin', payload),
+    setActive:            (id)      => ipcRenderer.invoke('accounts:setActive', id),
+    remove:               (id)      => ipcRenderer.invoke('accounts:remove', id),
+    getAvatar:            (uuid)    => ipcRenderer.invoke('accounts:getAvatar', uuid)
   },
   wardrobe: {
     get: (account) => ipcRenderer.invoke('wardrobe:get', account),

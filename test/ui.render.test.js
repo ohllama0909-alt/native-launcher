@@ -69,8 +69,8 @@ process.stdout.write(html);
   assert.match(html, /Noctra <strong>Client<\/strong>/, 'wordmark is rendered');
   assert.match(html, /account-login-microsoft/, 'Microsoft sign-in button exists');
   assert.match(html, /Log in with/, 'Microsoft button keeps its label');
-  assert.match(html, /account-login-ms-mark/, 'Microsoft four-square mark exists');
-  assert.match(html, /View code/, 'GitHub button label');
+  assert.match(html, /account-login-native/, 'Native Account sign-in button exists');
+  assert.match(html, /(Native|Noctra) Account/, 'Noctra Account button label exists');
   for (const brand of ['Discord', 'X', 'Instagram', 'YouTube', 'Patreon']) {
     assert.ok(html.includes(`aria-label="${brand}"`), `social row has ${brand}`);
   }

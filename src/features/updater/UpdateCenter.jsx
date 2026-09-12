@@ -47,14 +47,14 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
       <section className="update-center" role="dialog" aria-modal="true" aria-labelledby="uc-title">
         <header className="uc-head">
           <div className="uc-brand">
-            <span className="uc-brand-icon"><Rocket size={19} /></span>
+            <span className="uc-brand-icon"><Rocket size={16} /></span>
             <span>
               <small>Noctra Client</small>
               <strong id="uc-title">{t('update.title')}</strong>
             </span>
           </div>
           <button className="uc-close" onClick={onClose} aria-label={t('update.close')}>
-            <X size={17} />
+            <X size={15} />
           </button>
         </header>
 

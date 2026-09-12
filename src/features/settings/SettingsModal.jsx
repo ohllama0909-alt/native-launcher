@@ -29,7 +29,13 @@ const DEFAULT_PREFS = {
 };
 
 const LANGUAGE_NAMES = {
-  en: 'English', es: 'Español', de: 'Deutsch', fr: 'Français', 'pt-BR': 'Português (Brasil)', tr: 'Türkçe'
+  en: 'English',
+  si: 'සිංහල (Sinhala)',
+  es: 'Español',
+  de: 'Deutsch',
+  fr: 'Français',
+  'pt-BR': 'Português (Brasil)',
+  tr: 'Türkçe'
 };
 
 function readPrefs() {
@@ -105,9 +111,14 @@ export default function SettingsModal({
   const wide = activeTab === 'storage' || activeTab === 'changelog';
 
   return (
-    <div className="settings-modal-backdrop" onClick={onClose}>
+    <div
+      className="settings-modal-backdrop"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+      onClick={(event) => event.target === event.currentTarget && onClose()}
+    >
       <div
         className={'settings-shell-container ' + (wide ? 'is-wide' : '')}
+        onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
         <aside className="settings-sidebar">
