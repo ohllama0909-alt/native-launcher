@@ -241,3 +241,27 @@ test('storing an item with an existing name overwrites the file instead of dupli
   }
 });
 
+test('publicState surfaces a cached skin texture when nothing is equipped (avatar fallback path)', () => {
+  const { account, userData } = makeAccount();
+  try {
+    // No wardrobe items means no active skin.
+    let state = wardrobe.publicState(account);
+    assert.equal(state.active.hasSkin, false);
+    assert.equal(state.active.skinUrl, null);
+
+    // warmSkinCache writes the resolved texture to `{userData}/cache/skins/{username}.png`;
+    // simulate that landing on disk (the network fetch itself is not exercised here).
+    const cached = path.join(userData, 'cache', 'skins', 'Notch.png');
+    fs.mkdirSync(path.dirname(cached), { recursive: true });
+    fs.writeFileSync(cached, pngBuffer());
+
+    // The avatar resolver reads back through publicState, which now exposes the
+    // cached texture as a data URL so the account switcher shows the real skin.
+    state = wardrobe.publicState(account);
+    assert.equal(state.active.hasSkin, true);
+    assert.match(state.active.skinUrl, /^data:image\/png;base64,/);
+  } finally {
+    fs.rmSync(userData, { recursive: true, force: true });
+  }
+});
+

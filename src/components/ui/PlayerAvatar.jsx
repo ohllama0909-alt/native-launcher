@@ -1,5 +1,39 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { didAvatarFail, fallbackSkinFor, isAvatarReady, preloadAvatar, skinIdentifier, skinRenderUrl } from '../../lib/skins.js';
+import { didAvatarFail, fallbackSkinFor, isAvatarReady, isLocalIdentity, preloadAvatar, skinIdentifier, skinRenderUrl } from '../../lib/skins.js';
+
+/**
+ * Cache of wardrobe-resolved skin data URLs, keyed by account. Local
+ * (Noctra/offline) accounts have no premium texture on mc-heads, so their real
+ * skin has to be pulled from the wardrobe. Successful lookups are cached module-
+ * wide so reopening the account switcher shows the skin instantly, no flash.
+ */
+const wardrobeSkinCache = new Map(); // key -> { skinUrl }
+const wardrobeSkinPending = new Map(); // key -> Promise<{ skinUrl } | null>
+
+function wardrobeCacheKey(account) {
+  return account?.id || account?.uuid || account?.name || null;
+}
+
+function resolveWardrobeSkin(account) {
+  const key = wardrobeCacheKey(account);
+  if (!key || !window.native?.wardrobe?.avatar) return Promise.resolve(null);
+  if (wardrobeSkinCache.has(key)) return Promise.resolve(wardrobeSkinCache.get(key));
+  if (wardrobeSkinPending.has(key)) return wardrobeSkinPending.get(key);
+
+  const task = window.native.wardrobe.avatar(account)
+    .then((res) => {
+      const skinUrl = res?.skinUrl || null;
+      if (!skinUrl) return null; // a miss isn't cached — the warm cache may fill in shortly
+      const value = { skinUrl };
+      wardrobeSkinCache.set(key, value);
+      return value;
+    })
+    .catch(() => null)
+    .finally(() => wardrobeSkinPending.delete(key));
+
+  wardrobeSkinPending.set(key, task);
+  return task;
+}
 
 /**
  * Renders a player avatar. Uploaded wardrobe textures are cropped locally from
@@ -8,7 +42,17 @@ import { didAvatarFail, fallbackSkinFor, isAvatarReady, preloadAvatar, skinIdent
 export default function PlayerAvatar({ account, uuid, name, kind = 'avatar', size = 32, radius, className = '', title, alt }) {
   const pixels = Math.max(16, Math.round(size));
   const renderSize = Math.min(256, pixels * 2);
-  const directSkinUrl = account?.skinUrl || null;
+
+  // A skin passed in directly (active account, locker previews) is authoritative.
+  const providedSkinUrl = account?.skinUrl || null;
+  // Otherwise, local accounts self-heal their wardrobe skin (the switcher list
+  // hands us raw account records with no skinUrl, which would render as Steve).
+  const shouldResolveWardrobe = !providedSkinUrl && isLocalIdentity(account);
+  const cacheKey = wardrobeCacheKey(account);
+  const [wardrobeSkinUrl, setWardrobeSkinUrl] = useState(() =>
+    (shouldResolveWardrobe && cacheKey ? wardrobeSkinCache.get(cacheKey)?.skinUrl || null : null));
+
+  const directSkinUrl = providedSkinUrl || wardrobeSkinUrl;
   const [directFailed, setDirectFailed] = useState(false);
 
   const identifier = useMemo(() => skinIdentifier(account, uuid, name), [account, uuid, name]);
@@ -16,6 +60,25 @@ export default function PlayerAvatar({ account, uuid, name, kind = 'avatar', siz
   const [resolved, setResolved] = useState(() => (isAvatarReady(url) ? url : null));
 
   useEffect(() => setDirectFailed(false), [directSkinUrl]);
+
+  // Resolve the wardrobe skin for local accounts that arrived without one. A
+  // miss can just be warm-cache latency (the texture is still being fetched
+  // server-side), so retry once shortly after before giving up on Steve.
+  useEffect(() => {
+    if (!shouldResolveWardrobe || !cacheKey) { setWardrobeSkinUrl(null); return undefined; }
+    let cancelled = false;
+    let retry = null;
+    const attempt = (allowRetry) => {
+      resolveWardrobeSkin(account).then((res) => {
+        if (cancelled) return;
+        if (res?.skinUrl) { setWardrobeSkinUrl(res.skinUrl); return; }
+        if (allowRetry) retry = setTimeout(() => attempt(false), 1500);
+      });
+    };
+    attempt(true);
+    return () => { cancelled = true; if (retry) clearTimeout(retry); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey, shouldResolveWardrobe]);
 
   useEffect(() => {
     let cancelled = false;

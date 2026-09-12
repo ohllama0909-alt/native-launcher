@@ -269,74 +269,87 @@ function publicItem(account, item, metadata) {
   };
 }
 
+const warmingSkins = new Map();
+
+/**
+ * Fetch and cache the player's real skin texture to `{cache}/{username}.png`.
+ * Returns a promise that resolves `true` once a texture is on disk (or already
+ * was) and `false` otherwise. Concurrent calls for the same username share one
+ * in-flight fetch so the background warm (from `publicState`) and an awaited
+ * caller (the `wardrobe:avatar` handler) never fetch twice.
+ */
 function warmSkinCache(account) {
-  if (!account?.name || account.name === 'guest' || !deps?.app) return;
+  if (!account?.name || account.name === 'guest' || !deps?.app) return Promise.resolve(false);
   const username = cleanName(account.name, 'Player');
   const target = path.join(cacheDir(), `${username}.png`);
-  if (fs.existsSync(target)) return;
+  if (fs.existsSync(target)) return Promise.resolve(true);
+  if (warmingSkins.has(username)) return warmingSkins.get(username);
 
-  (async () => {
+  const task = (async () => {
+    fs.mkdirSync(cacheDir(), { recursive: true });
+
+    // 1. Try Noctra wardrobe server first
     try {
-      fs.mkdirSync(cacheDir(), { recursive: true });
-
-      // 1. Try Noctra wardrobe server first
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3500);
-        const cslRes = await fetch(`${apiRoot()}/csl/${encodeURIComponent(username)}.json`, { signal: controller.signal });
-        clearTimeout(timeout);
-        if (cslRes.ok) {
-          const data = await cslRes.json();
-          const remoteSkinUrl = data.skin || data.skins?.default || data.skins?.slim;
-          if (remoteSkinUrl) {
-            const tCtrl = new AbortController();
-            const tTimeout = setTimeout(() => tCtrl.abort(), 4000);
-            const texRes = await fetch(remoteSkinUrl, { signal: tCtrl.signal });
-            clearTimeout(tTimeout);
-            if (texRes.ok) {
-              const buf = Buffer.from(await texRes.arrayBuffer());
-              if (buf.length > 24) {
-                writeFileAtomic(target, buf);
-                return;
-              }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      const cslRes = await fetch(`${apiRoot()}/csl/${encodeURIComponent(username)}.json`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (cslRes.ok) {
+        const data = await cslRes.json();
+        const remoteSkinUrl = data.skin || data.skins?.default || data.skins?.slim;
+        if (remoteSkinUrl) {
+          const tCtrl = new AbortController();
+          const tTimeout = setTimeout(() => tCtrl.abort(), 4000);
+          const texRes = await fetch(remoteSkinUrl, { signal: tCtrl.signal });
+          clearTimeout(tTimeout);
+          if (texRes.ok) {
+            const buf = Buffer.from(await texRes.arrayBuffer());
+            if (buf.length > 24) {
+              writeFileAtomic(target, buf);
+              return true;
             }
           }
-        }
-      } catch {}
-
-      // 2. Try Mojang session server or mc-heads
-      let mojangUrl = null;
-      const rawUuid = account.uuid ? String(account.uuid).replace(/-/g, '') : null;
-      if (rawUuid) {
-        try {
-          const sCtrl = new AbortController();
-          const sTimeout = setTimeout(() => sCtrl.abort(), 3500);
-          const sess = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${rawUuid}`, { signal: sCtrl.signal });
-          clearTimeout(sTimeout);
-          if (sess.ok) {
-            const sdata = await sess.json();
-            const texProp = sdata?.properties?.find((p) => p.name === 'textures');
-            if (texProp?.value) {
-              const parsed = JSON.parse(Buffer.from(texProp.value, 'base64').toString('utf8'));
-              mojangUrl = parsed?.textures?.SKIN?.url;
-            }
-          }
-        } catch {}
-      }
-
-      const fetchUrl = mojangUrl || `https://mc-heads.net/skin/${encodeURIComponent(account.uuid || account.name)}`;
-      const fCtrl = new AbortController();
-      const fTimeout = setTimeout(() => fCtrl.abort(), 5000);
-      const res = await fetch(fetchUrl, { signal: fCtrl.signal });
-      clearTimeout(fTimeout);
-      if (res.ok) {
-        const buf = Buffer.from(await res.arrayBuffer());
-        if (buf.length > 24) {
-          writeFileAtomic(target, buf);
         }
       }
     } catch {}
-  })().catch(() => {});
+
+    // 2. Try Mojang session server or mc-heads
+    let mojangUrl = null;
+    const rawUuid = account.uuid ? String(account.uuid).replace(/-/g, '') : null;
+    if (rawUuid) {
+      try {
+        const sCtrl = new AbortController();
+        const sTimeout = setTimeout(() => sCtrl.abort(), 3500);
+        const sess = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${rawUuid}`, { signal: sCtrl.signal });
+        clearTimeout(sTimeout);
+        if (sess.ok) {
+          const sdata = await sess.json();
+          const texProp = sdata?.properties?.find((p) => p.name === 'textures');
+          if (texProp?.value) {
+            const parsed = JSON.parse(Buffer.from(texProp.value, 'base64').toString('utf8'));
+            mojangUrl = parsed?.textures?.SKIN?.url;
+          }
+        }
+      } catch {}
+    }
+
+    const fetchUrl = mojangUrl || `https://mc-heads.net/skin/${encodeURIComponent(account.uuid || account.name)}`;
+    const fCtrl = new AbortController();
+    const fTimeout = setTimeout(() => fCtrl.abort(), 5000);
+    const res = await fetch(fetchUrl, { signal: fCtrl.signal });
+    clearTimeout(fTimeout);
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 24) {
+        writeFileAtomic(target, buf);
+        return true;
+      }
+    }
+    return false;
+  })().catch(() => false).finally(() => warmingSkins.delete(username));
+
+  warmingSkins.set(username, task);
+  return task;
 }
 
 function publicState(account) {
@@ -1125,6 +1138,22 @@ function init(dependencies, ipcMain) {
       } catch {}
     }
     return state;
+  });
+  // Lightweight skin/cape resolver for avatar UIs (the account switcher list,
+  // onboarding, etc.). Local accounts (Noctra/offline) aren't on mc-heads, so
+  // their real texture lives in the wardrobe: return the active skin, warming
+  // the on-disk cache from the Noctra server first when nothing is active yet.
+  ipcMain.handle('wardrobe:avatar', async (_event, account) => {
+    let state = publicState(account);
+    if (!state.active.skinUrl && account?.name && account.name !== 'guest') {
+      try { await warmSkinCache(account); } catch {}
+      state = publicState(account);
+    }
+    return {
+      skinUrl: state.active.skinUrl || null,
+      capeUrl: state.active.capeUrl || null,
+      model: state.active.model || 'classic'
+    };
   });
   ipcMain.handle('wardrobe:pull', (_event, account) => pullRemoteWardrobe(account));
   ipcMain.handle('wardrobe:upload', (_event, payload) => {

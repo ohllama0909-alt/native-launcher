@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld('native', {
   },
   wardrobe: {
     get: (account) => ipcRenderer.invoke('wardrobe:get', account),
+    // Resolves { skinUrl, capeUrl, model } for avatar UIs; self-heals local skins.
+    avatar: (account) => ipcRenderer.invoke('wardrobe:avatar', account),
     // `dataUrl` accepts a raw base64 string or a data: URL from a dropped file.
     upload: (account, kind, dataUrl, options = {}) =>
       ipcRenderer.invoke('wardrobe:upload', { account, kind, dataUrl, ...options }),

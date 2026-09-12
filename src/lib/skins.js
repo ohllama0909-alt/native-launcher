@@ -17,6 +17,19 @@ export function normalizeKind(kind) {
 }
 
 /**
+ * True for accounts whose identity is generated locally (Noctra/offline). Their
+ * UUIDs and usernames aren't premium Mojang accounts, so the public renderer
+ * returns Steve — their real texture must come from the wardrobe instead.
+ */
+export function isLocalIdentity(account) {
+  const rawId = account?.id;
+  return account?.type === 'noctra'
+    || account?.type === 'offline'
+    || String(rawId || '').startsWith('native-')
+    || String(rawId || '').startsWith('offline-');
+}
+
+/**
  * Resolve an account to the identifier understood by the public skin renderer.
  * Microsoft UUIDs are authoritative. Noctra/offline UUIDs are generated locally,
  * so their Minecraft username must be preferred or the renderer returns Steve.
@@ -25,10 +38,7 @@ export function skinIdentifier(account, uuid, name) {
   const rawUuid = account?.uuid || uuid;
   const rawName = account?.name || name;
   const rawId = account?.id;
-  const localIdentity = account?.type === 'noctra'
-    || account?.type === 'offline'
-    || String(rawId || '').startsWith('native-')
-    || String(rawId || '').startsWith('offline-');
+  const localIdentity = isLocalIdentity(account);
 
   let raw = FALLBACK_SKIN;
   if (localIdentity && rawName && rawName !== 'guest') {
