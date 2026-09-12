@@ -36,6 +36,11 @@ export function useSocial(activeAccount) {
       ]);
       if (friendsRes?.friends) {
         setFriends(friendsRes.friends);
+        setActiveChatFriend(prev => {
+          if (!prev?.id) return prev;
+          const fresh = friendsRes.friends.find(f => f.id === prev.id);
+          return fresh ? { ...prev, ...fresh } : prev;
+        });
       }
       if (requestsRes?.requests) {
         setRequests(requestsRes.requests);
@@ -45,11 +50,11 @@ export function useSocial(activeAccount) {
     }
   }, [isNoctra]);
 
-  // Initial fetch and periodic polling
+  // Initial fetch and fast 3.5s periodic polling for real-time presence
   useEffect(() => {
     if (isNoctra) {
       fetchFriendsAndRequests();
-      pollTimerRef.current = setInterval(fetchFriendsAndRequests, 12000);
+      pollTimerRef.current = setInterval(fetchFriendsAndRequests, 3500);
     } else {
       setFriends([]);
       setRequests({ received: [], sent: [] });

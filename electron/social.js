@@ -99,10 +99,12 @@ function setPresence({ status, activity, serverAddress = null }) {
   sendToWindow('social:presenceUpdated', currentPresence);
 
   const account = getActiveNoctraAccount();
-  if (account?.token) {
+  const token = account?.token || account?.sessionToken;
+  if (token) {
     socialFetch('/v1/social/presence', {
       method: 'POST',
-      body: currentPresence
+      body: currentPresence,
+      token
     }).catch(() => {});
   }
 }
@@ -114,17 +116,30 @@ function getPresence() {
 function init(dependencies, ipcMain) {
   deps = dependencies;
 
-  // Start background presence heartbeat
+  // Send initial presence immediately
+  const initialAcc = getActiveNoctraAccount();
+  const initialToken = initialAcc?.token || initialAcc?.sessionToken;
+  if (initialToken) {
+    socialFetch('/v1/social/presence', {
+      method: 'POST',
+      body: currentPresence,
+      token: initialToken
+    }).catch(() => {});
+  }
+
+  // Start background presence heartbeat (10 seconds)
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   heartbeatInterval = setInterval(() => {
     const account = getActiveNoctraAccount();
-    if (account?.token) {
+    const token = account?.token || account?.sessionToken;
+    if (token) {
       socialFetch('/v1/social/presence', {
         method: 'POST',
-        body: currentPresence
+        body: currentPresence,
+        token
       }).catch(() => {});
     }
-  }, 30_000);
+  }, 10_000);
 
   ipcMain.handle('social:getFriends', async () => {
     const cache = readCache();

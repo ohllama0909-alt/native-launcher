@@ -20,7 +20,7 @@ function getPresence(db, userId) {
 
 function getFriends(db, userId) {
   const now = Date.now();
-  const activeThreshold = now - 90_000; // 90 seconds timeout for online presence
+  const activeThreshold = now - 120_000; // 120 seconds timeout for online presence
 
   const stmt = db.prepare(`
     SELECT 
@@ -38,7 +38,25 @@ function getFriends(db, userId) {
       (
         SELECT COUNT(*) FROM messages m 
         WHERE m.sender_id = f.friend_id AND m.receiver_id = f.user_id AND m.is_read = 0
-      ) AS unreadCount
+      ) AS unreadCount,
+      (
+        SELECT content FROM messages m
+        WHERE (m.sender_id = f.friend_id AND m.receiver_id = f.user_id)
+           OR (m.sender_id = f.user_id AND m.receiver_id = f.friend_id)
+        ORDER BY m.created_at DESC LIMIT 1
+      ) AS lastMessageContent,
+      (
+        SELECT created_at FROM messages m
+        WHERE (m.sender_id = f.friend_id AND m.receiver_id = f.user_id)
+           OR (m.sender_id = f.user_id AND m.receiver_id = f.friend_id)
+        ORDER BY m.created_at DESC LIMIT 1
+      ) AS lastMessageTime,
+      (
+        SELECT sender_id FROM messages m
+        WHERE (m.sender_id = f.friend_id AND m.receiver_id = f.user_id)
+           OR (m.sender_id = f.user_id AND m.receiver_id = f.friend_id)
+        ORDER BY m.created_at DESC LIMIT 1
+      ) AS lastMessageSenderId
     FROM friends f
     JOIN users u ON f.friend_id = u.id
     LEFT JOIN presence p ON u.id = p.user_id
@@ -61,7 +79,10 @@ function getFriends(db, userId) {
       activity: isOnline ? (r.activity || 'In Launcher') : null,
       serverAddress: isOnline ? r.serverAddress : null,
       lastSeen: r.lastSeen || r.friendsSince,
-      unreadCount: Number(r.unreadCount || 0)
+      unreadCount: Number(r.unreadCount || 0),
+      lastMessageContent: r.lastMessageContent || null,
+      lastMessageTime: r.lastMessageTime || null,
+      lastMessageSenderId: r.lastMessageSenderId || null
     };
   });
 }

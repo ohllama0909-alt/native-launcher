@@ -7,7 +7,7 @@ import BrowseView from '../browser/BrowseView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import LockerView from '../skins/LockerView.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
-import FriendsDrawer from '../social/FriendsDrawer.jsx';
+import RelayPage from '../social/RelayPage.jsx';
 import ActiveChatOverlay from '../social/ActiveChatOverlay.jsx';
 import FriendContextMenu from '../social/FriendContextMenu.jsx';
 import NicknameModal from '../social/NicknameModal.jsx';
@@ -59,7 +59,6 @@ export default function Shell({
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [friendsDrawerOpen, setFriendsDrawerOpen] = useState(false);
   const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
@@ -182,8 +181,6 @@ export default function Shell({
         updateStatus={updateStatus}
         networkStatus={networkStatus}
         onOpenUpdater={onOpenUpdater}
-        onToggleFriends={() => setFriendsDrawerOpen(!friendsDrawerOpen)}
-        isFriendsOpen={friendsDrawerOpen}
         friendsBadge={social.badgeTotal}
       />
 
@@ -209,6 +206,15 @@ export default function Shell({
           <LockerView
             account={account}
             onWardrobeChanged={onWardrobeChanged}
+            onNotify={notify}
+          />
+        )}
+
+        {currentTab === 'relay' && (
+          <RelayPage
+            account={account}
+            social={social}
+            onJoinServer={handleJoinServer}
             onNotify={notify}
           />
         )}
@@ -312,20 +318,7 @@ export default function Shell({
         onCreate={(values) => handleCreateInstance(values)}
       />
 
-      <FriendsDrawer
-        open={friendsDrawerOpen}
-        onClose={() => setFriendsDrawerOpen(false)}
-        isNoctra={social.isNoctra}
-        friends={social.friends}
-        requests={social.requests}
-        onOpenChat={(friend) => social.setActiveChatFriend(friend)}
-        onOpenContextMenu={(ctx) => social.setContextMenu(ctx)}
-        onSendRequest={social.sendRequest}
-        onRespondRequest={social.respondRequest}
-        onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
-      />
-
-      {social.activeChatFriend && (
+      {currentTab !== 'relay' && social.activeChatFriend && (
         <ActiveChatOverlay
           friend={social.activeChatFriend}
           messages={social.messages}
@@ -333,7 +326,7 @@ export default function Shell({
           onSendMessage={social.sendMessage}
           onClose={() => social.setActiveChatFriend(null)}
           onOpenRelay={() => {
-            notify('Noctra Relay', 'Opening full communication hub…');
+            setCurrentTab('relay');
           }}
         />
       )}
@@ -343,7 +336,10 @@ export default function Shell({
           context={social.contextMenu}
           onClose={() => social.setContextMenu(null)}
           onJoinServer={handleJoinServer}
-          onOpenChat={(friend) => social.setActiveChatFriend(friend)}
+          onOpenChat={(friend) => {
+            social.setActiveChatFriend(friend);
+            setCurrentTab('relay');
+          }}
           onToggleBestFriend={(friend) =>
             social.updateFriend(friend.id, { isBestFriend: !friend.isBestFriend })
           }

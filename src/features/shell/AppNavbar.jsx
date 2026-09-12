@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, Minus, RefreshCw, Settings, User, Users, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, MessageSquare, Minus, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -11,6 +11,7 @@ import './AppNavbar.css';
 export const NAV_ITEMS = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
   { id: 'skins', labelKey: 'nav.locker', icon: User },
+  { id: 'relay', labelKey: 'nav.relay', icon: MessageSquare },
   { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
   { id: 'versions', labelKey: 'nav.versions', icon: Blocks },
   { id: 'browse', labelKey: 'nav.browse', icon: Compass }
@@ -97,8 +98,6 @@ export default function AppNavbar({
   updateStatus = null,
   networkStatus = null,
   onOpenUpdater,
-  onToggleFriends,
-  isFriendsOpen = false,
   friendsBadge = 0
 }) {
   const { t } = useI18n();
@@ -167,9 +166,12 @@ export default function AppNavbar({
             <RailButton
               key={id}
               icon={icon}
+              badge={id === 'relay' ? friendsBadge : 0}
               active={currentTab === id}
               onClick={() => onSelectTab(id)}
               label={t(labelKey)}
+              className={id === 'relay' ? 'rail-relay-btn' : ''}
+              tone={id === 'relay' && friendsBadge > 0 ? 'alert' : null}
             />
           ))}
         </nav>
@@ -179,15 +181,6 @@ export default function AppNavbar({
         <div className="rail-spacer" />
 
         <div className="rail-group">
-          <RailButton
-            icon={Users}
-            badge={friendsBadge}
-            active={isFriendsOpen}
-            onClick={onToggleFriends}
-            label={t('nav.friends') || 'Friends'}
-            tone={friendsBadge > 0 ? 'alert' : null}
-            className="rail-friends-btn"
-          />
           <RailButton
             className="rail-account-btn"
             active={isAccountOpen}
