@@ -32,7 +32,7 @@ for (const [name, hash] of Object.entries(capes)) {
     continue;
   } catch {}
 
-  const response = await fetch(`https://textures.minecraft.net/texture/${hash}`);
+  const response = await fetch('https://textures.minecraft.net/texture/' + hash);
   if (!response.ok) throw new Error(`Could not download ${name}: HTTP ${response.status}`);
   const buffer = Buffer.from(await response.arrayBuffer());
   validatePng(buffer, name);
