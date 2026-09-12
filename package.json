@@ -2,7 +2,7 @@
   "name": "noctra-client",
   "productName": "Noctra Client",
   "desktopName": "Noctra Client",
-  "version": "3.9.37",
+  "version": "3.9.38",
   "description": "Noctra Client — a Minecraft launcher",
   "homepage": "https://github.com/ohllama0909-alt/noctra-client",
   "author": {
@@ -30,7 +30,8 @@
     "publish": "bash scripts/publish-update.sh",
     "release": "bash scripts/build-release.sh && bash scripts/publish-update.sh",
     "update-server": "node update-server.js",
-    "skin-server": "node skin-server/server.js"
+    "server": "node server/index.js",
+    "skin-server": "node server/index.js"
   },
   "build": {
     "appId": "app.noctraclient.desktop",

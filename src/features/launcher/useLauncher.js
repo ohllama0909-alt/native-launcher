@@ -80,7 +80,7 @@ export default function useLauncher() {
     };
   }, []);
 
-  const launch = (instance, account) => {
+  const launch = (instance, account, options = {}) => {
     const api = window.native?.launcher;
     if (!api) {
       setState({ status: 'error', detail: 'Launching only works in the desktop app.', percent: 0 });
@@ -96,7 +96,7 @@ export default function useLauncher() {
     api.launch(instance, {
       username: account?.name ?? 'Player',
       useMicrosoft: Boolean(account?.isMicrosoft)
-    });
+    }, options);
   };
 
   const kill = () => window.native?.launcher?.kill();

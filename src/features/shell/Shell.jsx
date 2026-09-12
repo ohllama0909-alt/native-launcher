@@ -7,6 +7,11 @@ import BrowseView from '../browser/BrowseView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import LockerView from '../skins/LockerView.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
+import FriendsDrawer from '../social/FriendsDrawer.jsx';
+import ActiveChatOverlay from '../social/ActiveChatOverlay.jsx';
+import FriendContextMenu from '../social/FriendContextMenu.jsx';
+import NicknameModal from '../social/NicknameModal.jsx';
+import useSocial from '../social/useSocial.js';
 import SettingsModal from '../settings/SettingsModal.jsx';
 import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
 import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
@@ -54,6 +59,7 @@ export default function Shell({
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [friendsDrawerOpen, setFriendsDrawerOpen] = useState(false);
   const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
@@ -62,6 +68,7 @@ export default function Shell({
 
   const instancesManager = useInstances(initialInstances);
   const launcher = useLauncher();
+  const social = useSocial(account);
 
   const notify = useCallback((title, body) => {
     setNotifications((prev) =>
@@ -77,20 +84,32 @@ export default function Shell({
     );
   }, [locale]);
 
-  const handleLaunch = (cluster) => {
+  const handleLaunch = (cluster, options = {}) => {
     if (!cluster) return;
     if (!account || account.id === 'guest' || accounts.length === 0) {
       setAccountSwitcherOpen(true);
       return;
     }
-    launcher.launch(cluster, account);
+    launcher.launch(cluster, account, options);
     notify(
       t('notify.launching'),
-      t('notify.starting', {
-        name: cluster.name || cluster.mc_version || cluster.version,
-        version: `${cluster.mc_version || cluster.version} ${cluster.mc_loader || cluster.loader}`
-      })
+      options?.quickJoinServer
+        ? `Connecting to ${options.quickJoinServer} with ${cluster.name || cluster.mc_version || cluster.version}…`
+        : t('notify.starting', {
+            name: cluster.name || cluster.mc_version || cluster.version,
+            version: `${cluster.mc_version || cluster.version} ${cluster.mc_loader || cluster.loader}`
+          })
     );
+  };
+
+  const handleJoinServer = (friend) => {
+    if (!friend?.serverAddress) return;
+    const cluster = instancesManager.activeCluster || instancesManager.clusters[0];
+    if (!cluster) {
+      notify('No instance found', 'Please install or create a Minecraft instance first to join.');
+      return;
+    }
+    handleLaunch(cluster, { quickJoinServer: friend.serverAddress });
   };
 
   const handleOpenCluster = (cluster, tab = 'overview') => {
@@ -163,6 +182,9 @@ export default function Shell({
         updateStatus={updateStatus}
         networkStatus={networkStatus}
         onOpenUpdater={onOpenUpdater}
+        onToggleFriends={() => setFriendsDrawerOpen(!friendsDrawerOpen)}
+        isFriendsOpen={friendsDrawerOpen}
+        friendsBadge={social.badgeTotal}
       />
 
       <div className="shell-content-layer">
@@ -289,6 +311,55 @@ export default function Shell({
         onClose={() => setCreateInstanceOpen(false)}
         onCreate={(values) => handleCreateInstance(values)}
       />
+
+      <FriendsDrawer
+        open={friendsDrawerOpen}
+        onClose={() => setFriendsDrawerOpen(false)}
+        isNoctra={social.isNoctra}
+        friends={social.friends}
+        requests={social.requests}
+        onOpenChat={(friend) => social.setActiveChatFriend(friend)}
+        onOpenContextMenu={(ctx) => social.setContextMenu(ctx)}
+        onSendRequest={social.sendRequest}
+        onRespondRequest={social.respondRequest}
+        onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
+      />
+
+      {social.activeChatFriend && (
+        <ActiveChatOverlay
+          friend={social.activeChatFriend}
+          messages={social.messages}
+          loading={social.loadingMessages}
+          onSendMessage={social.sendMessage}
+          onClose={() => social.setActiveChatFriend(null)}
+          onOpenRelay={() => {
+            notify('Noctra Relay', 'Opening full communication hub…');
+          }}
+        />
+      )}
+
+      {social.contextMenu && (
+        <FriendContextMenu
+          context={social.contextMenu}
+          onClose={() => social.setContextMenu(null)}
+          onJoinServer={handleJoinServer}
+          onOpenChat={(friend) => social.setActiveChatFriend(friend)}
+          onToggleBestFriend={(friend) =>
+            social.updateFriend(friend.id, { isBestFriend: !friend.isBestFriend })
+          }
+          onSetNickname={(friend) => social.setNicknameModalFriend(friend)}
+          onUnfriend={(friend) => social.unfriend(friend.id)}
+          onBlock={(friend) => social.block(friend.id)}
+        />
+      )}
+
+      {social.nicknameModalFriend && (
+        <NicknameModal
+          friend={social.nicknameModalFriend}
+          onClose={() => social.setNicknameModalFriend(null)}
+          onSave={(friendId, nickname) => social.updateFriend(friendId, { nickname })}
+        />
+      )}
     </div>
   );
 }

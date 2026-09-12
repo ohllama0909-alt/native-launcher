@@ -80,8 +80,8 @@ contextBridge.exposeInMainWorld('native', {
     onProgress: (callback) => subscribe('modpack:progress', callback)
   },
   launcher: {
-    launch: (instance, account) =>
-      ipcRenderer.send('launcher:launch', { instance, account }),
+    launch: (instance, account, options = {}) =>
+      ipcRenderer.send('launcher:launch', { instance, account, ...options }),
     kill: () => ipcRenderer.send('launcher:kill'),
     onState: (callback) => subscribe('launcher:state', callback),
     onProgress: (callback) => subscribe('launcher:progress', callback),
@@ -111,6 +111,21 @@ contextBridge.exposeInMainWorld('native', {
   },
   server: {
     ping: (address) => ipcRenderer.invoke('server:ping', address)
+  },
+  social: {
+    getFriends: () => ipcRenderer.invoke('social:getFriends'),
+    getRequests: () => ipcRenderer.invoke('social:getRequests'),
+    sendRequest: (targetUsername) => ipcRenderer.invoke('social:sendRequest', targetUsername),
+    respondRequest: (requestId, action) => ipcRenderer.invoke('social:respondRequest', { requestId, action }),
+    getMessages: (friendId, limit) => ipcRenderer.invoke('social:getMessages', { friendId, limit }),
+    sendMessage: (friendId, content) => ipcRenderer.invoke('social:sendMessage', { friendId, content }),
+    updateFriend: (friendId, data) => ipcRenderer.invoke('social:updateFriend', { friendId, ...data }),
+    unfriend: (friendId) => ipcRenderer.invoke('social:unfriend', friendId),
+    block: (targetId) => ipcRenderer.invoke('social:block', targetId),
+    searchUsers: (query) => ipcRenderer.invoke('social:searchUsers', query),
+    getPresence: () => ipcRenderer.invoke('social:getPresence'),
+    setPresence: (payload) => ipcRenderer.invoke('social:setPresence', payload),
+    onPresenceUpdated: (callback) => subscribe('social:presenceUpdated', callback)
   }
 });
 

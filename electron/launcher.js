@@ -9,6 +9,7 @@ const javaMod = require('./java');
 const { downloadFile, fetchJson, writeFileAtomic } = require('./download');
 const installRegistry = require('./installRegistry');
 const wardrobeMod = require('./wardrobe');
+const socialMod = require('./social');
 
 /**
  * Game launch pipeline (main process).
@@ -360,6 +361,18 @@ async function launch({ instance, account }) {
   };
   if (jvmArgs) opts.customArgs = jvmArgs;
 
+  if (payload?.quickJoinServer) {
+    const isModern = (() => {
+      const v = String(instance.version || '');
+      const parts = v.split('.').map(Number);
+      return parts[0] > 1 || (parts[0] === 1 && parts[1] >= 20);
+    })();
+    opts.quickPlay = {
+      type: isModern ? 'multiplayer' : 'legacy',
+      identifier: String(payload.quickJoinServer)
+    };
+  }
+
   try {
     const loader = String(instance.loader || instance.mc_loader || 'Vanilla');
     if (loader === 'Fabric') {
@@ -396,6 +409,11 @@ async function launch({ instance, account }) {
     rememberInstall(instance, opts);
     activeChild = child;
     setState('launching', 'Starting Minecraft…');
+    socialMod.setPresence({
+      status: 'in-game',
+      activity: payload?.quickJoinServer ? 'In-game: Connecting…' : 'In-game: Starting…',
+      serverAddress: payload?.quickJoinServer || null
+    });
     send('launcher:progress', {
       percent: 100,
       detail: 'Starting Minecraft…',
@@ -434,10 +452,12 @@ async function launch({ instance, account }) {
       clearTimeout(runningFallback);
       activeChild = null;
       setState('error', `Minecraft process failed: ${err.message}`);
+      socialMod.setPresence({ status: 'in-launcher', activity: 'In Launcher', serverAddress: null });
     });
     child.on('close', (code) => {
       clearTimeout(runningFallback);
       activeChild = null;
+      socialMod.setPresence({ status: 'in-launcher', activity: 'In Launcher', serverAddress: null });
       if (!childFailed) {
         if (code === 0 || code === null) {
           setState('idle', '');
@@ -554,8 +574,61 @@ function init(dependencies, ipcMain) {
     logTimeout = null;
   };
 
+  const formatServerActivity = (host) => {
+    const lower = String(host || '').toLowerCase();
+    if (lower.includes('hypixel.net')) return 'Hypixel ⚡';
+    if (lower.includes('donut.smp') || lower.includes('donutsmp')) return 'Donut SMP ✓';
+    if (lower.includes('cubecraft')) return 'CubeCraft';
+    if (lower.includes('hive')) return 'The Hive';
+    if (lower.includes('pvp') || lower.includes('minemen')) return 'Minemen Club';
+    if (lower.includes('localhost') || lower === '127.0.0.1') return 'Local Server';
+    const parts = host.split('.');
+    if (parts.length >= 2) {
+      const main = parts[parts.length - 2];
+      return main.charAt(0).toUpperCase() + main.slice(1);
+    }
+    return host;
+  };
+
+  const parseGameLogForPresence = (line) => {
+    const str = String(line || '');
+    const connMatch = str.match(/Connecting to ([a-zA-Z0-9.-]+)(?:,\s*|:)(\d+)/i);
+    if (connMatch) {
+      const host = connMatch[1];
+      const port = connMatch[2];
+      const serverAddress = `${host}:${port}`;
+      const activityName = formatServerActivity(host);
+      socialMod.setPresence({
+        status: 'in-game',
+        activity: `In-game: ${activityName}`,
+        serverAddress
+      });
+      return;
+    }
+
+    if (/(?:Starting integrated server|Loaded \d+ advancements)/i.test(str)) {
+      socialMod.setPresence({
+        status: 'in-game',
+        activity: 'In-game: Singleplayer',
+        serverAddress: null
+      });
+      return;
+    }
+
+    if (/(?:Disconnecting from|Stopping integrated server)/i.test(str)) {
+      socialMod.setPresence({
+        status: 'in-menus',
+        activity: 'In Menus',
+        serverAddress: null
+      });
+      return;
+    }
+  };
+
   const queueLog = (line) => {
-    logBatch.push(String(line));
+    const str = String(line);
+    parseGameLogForPresence(str);
+    logBatch.push(str);
     if (!logTimeout) {
       logTimeout = setTimeout(flushLogs, 100);
     }
