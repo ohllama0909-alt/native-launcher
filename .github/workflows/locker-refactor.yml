@@ -1,39 +1,27 @@
 name: Locker refactor verification
 
 on:
-  push:
-    branches: [refactor/locker-official-capes]
   pull_request:
     paths:
       - 'src/features/skins/**'
       - 'src/assets/capes/**'
       - 'scripts/fetch-official-capes.mjs'
+      - '.github/workflows/locker-refactor.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Download and validate official cape textures
+      - name: Validate official cape textures
         run: node scripts/fetch-official-capes.mjs
-      - name: Commit generated official textures
-        run: |
-          if [ -n "$(git status --porcelain -- src/assets/capes)" ]; then
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git add src/assets/capes
-            git commit -m "chore(locker): add official Minecraft cape textures"
-            git push origin HEAD:${{ github.head_ref || github.ref_name }}
-          fi
       - run: npm ci
       - run: npm test
       - run: npm run build
