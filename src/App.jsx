@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Shell from './features/shell/Shell.jsx';
 import UpdateCenter from './features/updater/UpdateCenter.jsx';
 import useUpdater from './features/updater/useUpdater.js';
+import useNetwork from './features/network/useNetwork.js';
 import OnboardingFlow from './features/onboarding/OnboardingFlow.jsx';
 import AccountSwitcherModal from './features/auth/AccountSwitcherModal.jsx';
 import { setApplicationLocale } from './i18n/I18nProvider.jsx';
@@ -17,6 +18,7 @@ export default function App() {
   const [wardrobe, setWardrobe] = useState(null);
   const autoShownVersion = useRef(null);
   const updater = useUpdater();
+  const network = useNetwork();
 
   const activeAccount = accounts.find(a => a.id === activeId) ?? null;
   // Cosmetics decorate the account; they must never overwrite its identity
@@ -228,6 +230,7 @@ export default function App() {
         onRemoveAccount={handleRemoveAccount}
         onWardrobeChanged={(value) => setWardrobe({ ...value, accountId: activeAccount?.id })}
         updateStatus={updater.status}
+        networkStatus={network.status}
         onOpenUpdater={() => setUpdateOpen(true)}
       />
     </div>

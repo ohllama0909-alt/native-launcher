@@ -121,6 +121,40 @@
   to { transform: rotate(360deg); }
 }
 
+/* ---------- titlebar network pill ----------
+   A read-only connectivity indicator that only renders while the connection is
+   unhealthy (offline / degraded); a healthy connection shows nothing. */
+.noctra-net-pill {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px 0 7px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 20px;
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.noctra-net-pill svg { flex: none; }
+
+/* Offline — the connection is down; a red accent signals lost functionality. */
+.noctra-net-pill.offline {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.14);
+  color: #f0a3a3;
+}
+
+/* Degraded — an interface is up but the internet is unreachable (captive portal,
+   DNS failure); a gold accent marks the softer warning. */
+.noctra-net-pill.degraded {
+  border-color: rgba(230, 179, 63, 0.5);
+  background: rgba(230, 179, 63, 0.13);
+  color: var(--color-gold);
+}
+
 .noctra-wordmark {
   display: flex;
   align-items: center;

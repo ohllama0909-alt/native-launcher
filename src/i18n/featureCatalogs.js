@@ -120,6 +120,15 @@ const en = {
     mostPlayedHint: 'Your top instances',
     noOverviewYet: 'Play an instance and your activity will show up here.',
     emptyBody: 'Create an instance to install a version and start playing.'
+  },
+  network: {
+    online: 'Online',
+    offline: 'Offline',
+    degraded: 'No internet',
+    checking: 'Checking connection…',
+    onlineTooltip: 'Connected to the internet.',
+    offlineTooltip: 'You’re offline. Skins, capes and downloads stay unavailable until your connection returns.',
+    degradedTooltip: 'Connected to a network, but the internet can’t be reached right now.'
   }
 };
 

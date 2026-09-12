@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, Minus, RefreshCw, Settings, User, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, Minus, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -64,6 +64,23 @@ function deriveUpdatePill(status, t) {
   }
 }
 
+/**
+ * Maps the connectivity status to a compact titlebar pill — or null when the
+ * connection is healthy, so the titlebar only speaks up when something is wrong.
+ * `offline` means the browser reports no connection; `degraded` means an
+ * interface is up but our reachability probe could not reach the internet.
+ */
+function deriveNetworkPill(status, t) {
+  switch (status?.state) {
+    case 'offline':
+      return { variant: 'offline', Icon: WifiOff, label: t('network.offline'), tooltip: t('network.offlineTooltip') };
+    case 'degraded':
+      return { variant: 'degraded', Icon: AlertTriangle, label: t('network.degraded'), tooltip: t('network.degradedTooltip') };
+    default:
+      return null;
+  }
+}
+
 export default function AppNavbar({
   currentTab,
   onSelectTab,
@@ -78,11 +95,13 @@ export default function AppNavbar({
   onMaximize,
   onClose,
   updateStatus = null,
+  networkStatus = null,
   onOpenUpdater
 }) {
   const { t } = useI18n();
   const buildVersion = window.native?.version || packageInfo.version;
   const updatePill = deriveUpdatePill(updateStatus, t);
+  const networkPill = deriveNetworkPill(networkStatus, t);
   const settingsStatus = updateStatus?.type === 'available' || updateStatus?.type === 'downloaded' ? 'brand' : null;
   return (
     <>
@@ -91,6 +110,20 @@ export default function AppNavbar({
           <span className="noctra-wordmark"><Logo height={13} variant="mark" /> Noctra Client</span>
           <i />
           <span>Build <b>{buildVersion}</b></span>
+          {networkPill && (
+            <>
+              <i />
+              <span
+                className={`noctra-net-pill ${networkPill.variant}`}
+                role="status"
+                title={networkPill.tooltip}
+                aria-label={networkPill.tooltip}
+              >
+                <networkPill.Icon size={12} strokeWidth={2.3} aria-hidden="true" />
+                <span>{networkPill.label}</span>
+              </span>
+            </>
+          )}
           {updatePill && (
             <>
               <i />

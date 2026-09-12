@@ -39,7 +39,8 @@ export default function Shell({
   onRemoveAccount,
   onWardrobeChanged,
   onOpenUpdater,
-  updateStatus
+  updateStatus,
+  networkStatus
 }) {
   const { locale, t } = useI18n();
   // 'home' | 'instances' | 'versions' | 'browse' | 'stats' | 'accounts' | 'cluster-detail'
@@ -159,6 +160,7 @@ export default function Shell({
         onMaximize={handleMaximize}
         onClose={handleClose}
         updateStatus={updateStatus}
+        networkStatus={networkStatus}
         onOpenUpdater={onOpenUpdater}
       />
 

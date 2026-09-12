@@ -1,13 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Cloud, Download, Eye, EyeOff, Folder, Layers, Pause, Play, Plus, RefreshCw, RotateCcw, Star, Trash2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Cloud, Download, Eye, EyeOff, Folder, Layers, Lock, Pause, Play, Plus, RefreshCw, RotateCcw, Star, Trash2, X } from 'lucide-react';
 import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
 import { CAPE_PRESETS } from './capePresets.js';
+import useOfficialCapes from './useOfficialCapes.js';
 import { detectSkinModel, readFileAsDataUrl } from '../../lib/skins.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './LockerView.css';
 
 const CAPES_PER_PAGE = 5;
 const SKINS_PER_PAGE = 5;
+
+// Collapses "Founder's Cape", "founders", "FOUNDER" … to one comparable token so
+// a bundled preset can be recognized as the same cape the account already owns.
+const normalizeCapeName = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '').replace(/cape$/, '');
 
 export default function LockerView({ account, onWardrobeChanged, onNotify }) {
   const { t } = useI18n();
@@ -67,8 +72,20 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
     if (viewer.renderPaused) viewer.render();
   }, [showLayers, showCape]);
 
+  const official = useOfficialCapes(account);
+  // Microsoft accounts manage their REAL owned Minecraft capes; everyone else
+  // uses the bundled presets. On an official-profile error (e.g. 402 no licence)
+  // we fall back to the preset strip so the user is never left without capes.
+  const officialMode = official.active;
+  const showOfficialCards = officialMode && !official.loading && !official.error;
+
   const currentModel = wardrobe?.model || account?.model || 'classic';
-  const viewerAccount = useMemo(() => ({ ...account, model: currentModel, skinUrl: wardrobe?.active?.skinUrl || null, capeUrl: showCape ? wardrobe?.active?.capeUrl || null : null }), [account, currentModel, wardrobe?.active?.skinUrl, wardrobe?.active?.capeUrl, showCape]);
+  // Official cape equips never touch the local wardrobe, so feed the active
+  // official cape URL straight into the viewer; otherwise use the wardrobe cape.
+  const previewCapeUrl = showCape
+    ? (showOfficialCards ? (official.activeCape?.url || null) : (wardrobe?.active?.capeUrl || null))
+    : null;
+  const viewerAccount = useMemo(() => ({ ...account, model: currentModel, skinUrl: wardrobe?.active?.skinUrl || null, capeUrl: previewCapeUrl, hasCape: Boolean(previewCapeUrl) }), [account, currentModel, wardrobe?.active?.skinUrl, previewCapeUrl]);
 
   const skinItems = useMemo(() => {
     const byId = new Map();
@@ -76,14 +93,44 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
     return [...byId.values()];
   }, [wardrobe]);
 
-  const activeCapeName = useMemo(() => {
-    const activeId = wardrobe?.active?.capeId || wardrobe?.activeCape;
-    return (wardrobe?.capes || wardrobe?.items || []).find((item) => item.kind === 'cape' && item.id === activeId)?.name || null;
-  }, [wardrobe]);
+  // The active custom cape's name, read from the authoritative wardrobe state.
+  // (Previously this looked up a non-existent `active.capeId`, so the picker
+  // never highlighted the equipped preset — the Part 1 "no selection" bug.)
+  const activeCapeName = wardrobe?.active?.cape?.name || null;
 
-  const capePages = Math.max(1, Math.ceil(CAPE_PRESETS.length / CAPES_PER_PAGE));
+  // One unified card model drives the strip in both modes. Official mode lists
+  // the account's owned capes (equippable) followed by the remaining presets as
+  // locked, greyed placeholders; preset mode lists the bundled capes as before.
+  const capeCards = useMemo(() => {
+    if (showOfficialCards) {
+      const none = { key: 'none', kind: 'none', name: t('locker.noCapeOption'), textureUrl: null, active: !official.activeCapeId };
+      const owned = official.capes.map((cape) => ({
+        key: `own:${cape.id}`,
+        kind: 'official',
+        id: cape.id,
+        name: cape.alias || cape.name || 'Cape',
+        textureUrl: cape.url || null,
+        active: cape.state === 'ACTIVE'
+      }));
+      const ownedTokens = new Set(official.capes.map((cape) => normalizeCapeName(cape.alias || cape.name || cape.id)));
+      const locked = CAPE_PRESETS
+        .filter((preset) => preset.textureUrl && !ownedTokens.has(normalizeCapeName(preset.name)))
+        .map((preset) => ({ key: `lock:${preset.id}`, kind: 'locked', name: preset.name, textureUrl: preset.textureUrl, active: false }));
+      return [none, ...owned, ...locked];
+    }
+    return CAPE_PRESETS.map((cape) => ({
+      key: cape.id,
+      kind: cape.id === 'none' ? 'none' : 'preset',
+      name: cape.name,
+      textureUrl: cape.textureUrl,
+      preset: cape,
+      active: cape.id === 'none' ? !wardrobe?.active?.hasCape : activeCapeName === cape.name
+    }));
+  }, [showOfficialCards, official.capes, official.activeCapeId, wardrobe?.active?.hasCape, activeCapeName, t]);
+
+  const capePages = Math.max(1, Math.ceil(capeCards.length / CAPES_PER_PAGE));
   const skinPages = Math.max(1, Math.ceil(skinItems.length / SKINS_PER_PAGE));
-  const visibleCapes = CAPE_PRESETS.slice(capePage * CAPES_PER_PAGE, (capePage + 1) * CAPES_PER_PAGE);
+  const visibleCapes = capeCards.slice(capePage * CAPES_PER_PAGE, (capePage + 1) * CAPES_PER_PAGE);
   const visibleSkins = skinItems.slice(skinPage * SKINS_PER_PAGE, (skinPage + 1) * SKINS_PER_PAGE);
 
   useEffect(() => {
@@ -190,6 +237,18 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
     } catch (error) { onNotify?.(t('locker.title'), error?.message || 'Could not equip cape.'); }
   };
 
+  // Routes a cape card to the right backend: owned Minecraft capes go through the
+  // official profile API, locked (unowned) presets are inert, and everything else
+  // (preset mode, or the Microsoft fallback strip) uploads to the local wardrobe.
+  const handleCapeCardClick = (card) => {
+    if (card.kind === 'locked' || (showOfficialCards && official.busy)) return;
+    if (showOfficialCards) {
+      official.equip(card.kind === 'official' ? card.id : null);
+      return;
+    }
+    applyCape(card.preset);
+  };
+
   return <div className="locker-view" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); processFile(event.dataTransfer?.files?.[0]); }}>
     <header className="locker-header"><div><h1 className="locker-title">{t('locker.title') || 'LOCKER'}</h1><p className="locker-subtitle">{t('locker.subtitle')}</p></div><button type="button" className="locker-sync-btn" onClick={handleCloudSync} disabled={syncing}><Cloud size={14}/><span>{t('locker.cloudNote')}</span><RefreshCw size={13} className={syncing ? 'is-spinning' : ''}/></button></header>
     <div className="locker-workspace">
@@ -203,7 +262,12 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
           {visibleSkins.map((skin) => <article key={skin.id} className={`locker-skin-card ${skin.active ? 'active' : ''}`} onClick={() => applySkin(skin)}><button type="button" className="locker-favourite" onClick={(event) => toggleFavorite(skin, event)} title={skin.favorite ? t('locker.unfavorite') : t('locker.favorite')}><Star size={13} fill={skin.favorite ? 'currentColor' : 'none'}/></button><div className="locker-skin-preview"><SkinViewer3D account={{...account, skinUrl:skin.url, model:skin.model}} width={104} height={142} paused/></div><div className="locker-card-meta"><strong>{skin.name}</strong><small>{skin.ageDays ? `${skin.ageDays}d` : 'new'}</small></div><button type="button" className="locker-remove" onClick={(event) => removeItem(skin,event)}><Trash2 size={13}/></button></article>)}
           {!visibleSkins.length && <div className="locker-empty-skins"><Star size={18}/><span>{t('locker.emptyFavorites')}</span></div>}
         </div></section>
-        <section className="locker-row locker-capes-row"><div className="locker-row-header"><div><span className="locker-kicker">OFFICIAL MINECRAFT</span><h2>{t('locker.capes')}</h2></div><CarouselControls page={capePage} pages={capePages} setPage={setCapePage}/></div><div className="locker-cape-strip">{visibleCapes.map((cape) => { const active = cape.id === 'none' ? !wardrobe?.active?.hasCape : activeCapeName === cape.name; return <button key={cape.id} type="button" className={`locker-cape-card ${active?'active':''}`} onClick={() => applyCape(cape)}>{cape.textureUrl ? <span className="locker-cape-texture" style={{backgroundImage:`url(${cape.textureUrl})`}}/> : <span className="locker-no-cape"><X size={20}/></span>}<span>{cape.name}</span>{active && <Check size={13} className="locker-cape-check"/>}</button>;})}</div></section>
+        <section className="locker-row locker-capes-row"><div className="locker-row-header"><div><span className="locker-kicker">{showOfficialCards ? 'OFFICIAL MINECRAFT' : 'COSMETIC PRESETS'}</span><h2>{t('locker.capes')}</h2></div>{capePages > 1 && <CarouselControls page={capePage} pages={capePages} setPage={setCapePage}/>}</div>
+          {officialMode && official.loading && <div className="locker-cape-status"><span className="locker-loading"/><span>{t('locker.officialLoading')}</span></div>}
+          {officialMode && !official.loading && official.error && <OfficialCapeError error={official.error} onRetry={official.reload} onReauth={official.reauth} busy={official.loading} t={t}/>}
+          {!(officialMode && official.loading) && <div className="locker-cape-strip">{visibleCapes.map((card) => { const locked = card.kind === 'locked'; return <button key={card.key} type="button" className={`locker-cape-card ${card.active?'active':''} ${locked?'locked':''}`.trim()} onClick={() => handleCapeCardClick(card)} disabled={locked || (showOfficialCards && official.busy)} title={locked ? t('locker.officialHint') : card.name}>{card.textureUrl ? <span className="locker-cape-texture" style={{backgroundImage:`url(${card.textureUrl})`}}/> : <span className="locker-no-cape"><X size={20}/></span>}<span>{card.name}</span>{card.active && <Check size={13} className="locker-cape-check"/>}{locked && <Lock size={11} className="locker-cape-lock"/>}</button>;})}</div>}
+          {showOfficialCards && <p className="locker-cape-hint">{t('locker.officialHint')}</p>}
+        </section>
       </main>
     </div>
     <input ref={fileInputRef} type="file" accept="image/png,.png" hidden onChange={(event) => { processFile(event.target.files?.[0]); event.target.value=''; }}/>
@@ -213,6 +277,29 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
 
 function CarouselControls({ page, pages, setPage }) {
   return <div className="locker-carousel-controls"><button type="button" disabled={page<=0} onClick={() => setPage((value)=>Math.max(0,value-1))}><ChevronLeft size={16}/></button><span>{page+1} / {pages}</span><button type="button" disabled={page>=pages-1} onClick={() => setPage((value)=>Math.min(pages-1,value+1))}><ChevronRight size={16}/></button></div>;
+}
+
+/**
+ * Explains why the official Minecraft cape list could not be loaded, choosing
+ * the message by error code: 402 (no game licence), 401/403 (expired Microsoft
+ * session — offer re-auth), or a generic fallback. The preset cape strip renders
+ * below this so the account still has capes to use.
+ */
+function OfficialCapeError({ error, onRetry, onReauth, busy, t }) {
+  const is402 = error?.code === 'NO_ENTITLEMENT' || error?.status === 402;
+  const is401 = error?.code === 'AUTH_EXPIRED' || error?.status === 401 || error?.status === 403;
+  const title = is402 ? t('locker.error402Title') : is401 ? t('locker.error401Title') : t('locker.errorGenericTitle');
+  const body = is402 ? t('locker.error402Body') : is401 ? t('locker.error401Body') : (error?.message || '');
+  return (
+    <div className="locker-cape-error" role="alert">
+      <strong>{title}</strong>
+      {body && <p>{body}</p>}
+      <div className="locker-cape-error-actions">
+        <button type="button" onClick={onRetry} disabled={busy}>{t('locker.retry')}</button>
+        {is401 && <button type="button" onClick={onReauth} disabled={busy}>{t('locker.reauth')}</button>}
+      </div>
+    </div>
+  );
 }
 
 /**
