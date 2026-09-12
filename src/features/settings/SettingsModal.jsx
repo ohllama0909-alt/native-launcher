@@ -57,12 +57,38 @@ export default function SettingsModal({
   const [activeTab, setActiveTab] = useState('launcher');
   const [prefs, setPrefs] = useState(readPrefs);
   const [dataDir, setDataDir] = useState('');
+  const [updates, setUpdates] = useState({ checkOnStartup: true, backgroundChecks: true, autoDownload: false });
 
   useEffect(() => {
     if (window.native?.settings?.dataDir) {
       window.native.settings.dataDir().then(setDataDir).catch(() => {});
     }
   }, []);
+
+  // Load the persisted auto-update preferences whenever the modal opens, so the
+  // toggles reflect exactly what the updater reads live (settings store `updates`).
+  useEffect(() => {
+    if (!open) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stored = window.native?.settings?.load
+          ? await window.native.settings.load()
+          : JSON.parse(localStorage.getItem('native.settings') || '{}');
+        const u = stored?.updates ?? {};
+        if (!cancelled) {
+          setUpdates({
+            checkOnStartup: u.checkOnStartup !== false,
+            backgroundChecks: u.backgroundChecks !== false,
+            autoDownload: u.autoDownload === true
+          });
+        }
+      } catch {
+        /* keep defaults */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -103,6 +129,29 @@ export default function SettingsModal({
         ...current,
         onboarding: { ...(current.onboarding ?? {}), language: nextLocale }
       }));
+    }
+  };
+
+  // Persist one auto-update preference. Mirrors changeLanguage's load-spread-save
+  // so the updater (which reads settings.updates live) picks it up without a restart.
+  const changeUpdateSetting = async (patch) => {
+    setUpdates((prev) => ({ ...prev, ...patch }));
+    try {
+      if (window.native?.settings) {
+        const current = await window.native.settings.load();
+        await window.native.settings.save({
+          ...current,
+          updates: { ...(current?.updates ?? {}), ...patch }
+        });
+      } else {
+        const current = JSON.parse(localStorage.getItem('native.settings') || '{}');
+        localStorage.setItem('native.settings', JSON.stringify({
+          ...current,
+          updates: { ...(current.updates ?? {}), ...patch }
+        }));
+      }
+    } catch {
+      /* ignore persistence failures */
     }
   };
 
@@ -241,6 +290,51 @@ export default function SettingsModal({
                       <Icon name="refresh" size={14} />
                       <span>{t('settings.checkUpdates')}</span>
                     </button>
+                  </div>
+
+                  <div className="settings-row">
+                    <div className="settings-row-info">
+                      <span className="settings-row-title">{t('settings.checkOnStartup')}</span>
+                      <span className="settings-row-desc">{t('settings.checkOnStartupDesc')}</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={updates.checkOnStartup}
+                        onChange={(event) => changeUpdateSetting({ checkOnStartup: event.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+
+                  <div className="settings-row">
+                    <div className="settings-row-info">
+                      <span className="settings-row-title">{t('settings.backgroundChecks')}</span>
+                      <span className="settings-row-desc">{t('settings.backgroundChecksDesc')}</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={updates.backgroundChecks}
+                        onChange={(event) => changeUpdateSetting({ backgroundChecks: event.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+
+                  <div className="settings-row">
+                    <div className="settings-row-info">
+                      <span className="settings-row-title">{t('settings.autoDownload')}</span>
+                      <span className="settings-row-desc">{t('settings.autoDownloadDesc')}</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={updates.autoDownload}
+                        onChange={(event) => changeUpdateSetting({ autoDownload: event.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
                   </div>
                 </div>
               </>

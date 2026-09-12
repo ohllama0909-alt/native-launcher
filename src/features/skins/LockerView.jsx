@@ -129,7 +129,7 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       const model = await detectSkinModel(dataUrl);
-      setImportData({ fileName: file.name, dataUrl, name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'unnamed', model: model || 'classic' });
+      setImportData({ fileName: file.name, dataUrl, name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'unnamed', model: model || 'classic', detected: model || 'classic' });
       setImportOpen(true);
     } catch (error) { onNotify?.('Upload Error', error?.message || 'Could not read file.'); }
   };
@@ -207,10 +207,29 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
       </main>
     </div>
     <input ref={fileInputRef} type="file" accept="image/png,.png" hidden onChange={(event) => { processFile(event.target.files?.[0]); event.target.value=''; }}/>
-    {importOpen && importData && <div className="locker-modal-overlay" onClick={() => setImportOpen(false)}><div className="locker-import-modal" onClick={(event) => event.stopPropagation()}><button type="button" className="import-modal-close" onClick={() => setImportOpen(false)}><X size={16}/></button><div className="import-modal-preview"><SkinViewer3D account={{...account,skinUrl:importData.dataUrl,model:importData.model}} width={170} height={230} animation="idle" autoRotate/></div><div className="import-modal-form"><label className="import-form-field"><span>{t('locker.name')}</span><input value={importData.name} onChange={(event) => setImportData({...importData,name:event.target.value})}/></label><div className="import-form-field"><span>{t('locker.file')}</span><button type="button" className="import-file-display" onClick={() => fileInputRef.current?.click()}><span>{importData.fileName}</span><Folder size={14}/></button></div><div className="import-form-field"><span>{t('locker.playerModel')}</span><div className="import-radio-group">{['classic','slim'].map((model) => <button key={model} type="button" className={importData.model===model?'active':''} onClick={() => setImportData({...importData,model})}>{model==='classic'?t('locker.modelClassic'):t('locker.modelSlim')}</button>)}</div></div><button type="button" className="import-save-btn" onClick={saveImport} disabled={importSaving}><Check size={15}/>{importSaving?t('common.loading'):t('common.save')}</button></div></div></div>}
+    {importOpen && importData && <div className="locker-modal-overlay" onClick={() => setImportOpen(false)}><div className="locker-import-modal" onClick={(event) => event.stopPropagation()}><button type="button" className="import-modal-close" onClick={() => setImportOpen(false)}><X size={16}/></button><div className="import-modal-preview"><SkinViewer3D account={{...account,skinUrl:importData.dataUrl,model:importData.model}} width={170} height={230} animation="idle" autoRotate/></div><div className="import-modal-form"><div className="import-modal-head"><h3>{t('locker.importTitle')}</h3><p>{t('locker.importSubtitle')}</p></div><label className="import-form-field"><span>{t('locker.fieldName')}</span><input value={importData.name} onChange={(event) => setImportData({...importData,name:event.target.value})}/></label><div className="import-form-field"><span>{t('locker.fieldFile')}</span><button type="button" className="import-file-display" onClick={() => fileInputRef.current?.click()}><span>{importData.fileName}</span><Folder size={14}/></button></div><div className="import-form-field"><span>{t('locker.model')}</span><div className="import-model-grid">{['classic','slim'].map((model) => <button key={model} type="button" className={`import-model-card${importData.model===model?' active':''}`} onClick={() => setImportData({...importData,model})}><ModelArmGlyph model={model}/><strong>{model==='classic'?t('locker.modelClassic'):t('locker.modelSlim')}</strong><small>{model==='classic'?t('locker.modelClassicDesc'):t('locker.modelSlimDesc')}</small>{importData.detected===model && <em className="import-model-detected">{t('locker.modelDetected')}</em>}{importData.model===model && <span className="import-model-check"><Check size={12}/></span>}</button>)}</div></div><button type="button" className="import-save-btn" onClick={saveImport} disabled={importSaving}><Check size={15}/>{importSaving?t('common.loading'):t('common.save')}</button></div></div></div>}
   </div>;
 }
 
 function CarouselControls({ page, pages, setPage }) {
   return <div className="locker-carousel-controls"><button type="button" disabled={page<=0} onClick={() => setPage((value)=>Math.max(0,value-1))}><ChevronLeft size={16}/></button><span>{page+1} / {pages}</span><button type="button" disabled={page>=pages-1} onClick={() => setPage((value)=>Math.min(pages-1,value+1))}><ChevronRight size={16}/></button></div>;
+}
+
+/**
+ * A tiny pixel-art figure whose arm width tracks the model: Classic wears the
+ * standard 4px arms, Slim the narrower 3px arms. It makes the otherwise abstract
+ * "Classic vs Slim" choice legible at a glance in the import picker.
+ */
+function ModelArmGlyph({ model }) {
+  const slim = model === 'slim';
+  const armW = slim ? 3 : 4;
+  const leftX = slim ? 5 : 4;
+  return (
+    <svg className="import-model-glyph" viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" shapeRendering="crispEdges">
+      <rect className="glyph-body" x="9" y="2" width="6" height="6" />
+      <rect className="glyph-body" x="9" y="9" width="6" height="9" />
+      <rect className="glyph-arm" x={leftX} y="9" width={armW} height="9" />
+      <rect className="glyph-arm" x="16" y="9" width={armW} height="9" />
+    </svg>
+  );
 }

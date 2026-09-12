@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Blocks, Compass, Home, Layers3, Minus, Settings, User, X } from 'lucide-react';
+import { ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, Minus, RefreshCw, Settings, User, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -33,6 +33,37 @@ function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = nu
   );
 }
 
+/**
+ * Maps an updater status payload to a compact titlebar pill — or null when there
+ * is nothing worth surfacing (idle, up to date, or disabled in unpackaged builds).
+ * Reuses the fully-localized `update.*` catalog so every locale is covered.
+ */
+function deriveUpdatePill(status, t) {
+  const type = status?.type;
+  switch (type) {
+    case 'checking':
+      return { variant: 'checking', Icon: RefreshCw, spin: true, label: t('update.checking'), tooltip: t('update.checking') };
+    case 'available': {
+      const label = t('update.pillAvailable');
+      const version = status.version || null;
+      return { variant: 'available', Icon: ArrowUp, spin: false, label, version, tooltip: version ? `${label} · ${version}` : label };
+    }
+    case 'preparing':
+    case 'downloading': {
+      const percent = Math.max(0, Math.min(100, Math.round(status.percent || 0)));
+      const label = t('update.downloadingPercent', { percent });
+      return { variant: 'downloading', Icon: Download, spin: false, label, tooltip: label };
+    }
+    case 'downloaded':
+    case 'installing': {
+      const label = t('update.pillReady');
+      return { variant: 'ready', Icon: RefreshCw, spin: type === 'installing', label, tooltip: label };
+    }
+    default:
+      return null;
+  }
+}
+
 export default function AppNavbar({
   currentTab,
   onSelectTab,
@@ -45,10 +76,14 @@ export default function AppNavbar({
   isMaximized,
   onMinimize,
   onMaximize,
-  onClose
+  onClose,
+  updateStatus = null,
+  onOpenUpdater
 }) {
   const { t } = useI18n();
   const buildVersion = window.native?.version || packageInfo.version;
+  const updatePill = deriveUpdatePill(updateStatus, t);
+  const settingsStatus = updateStatus?.type === 'available' || updateStatus?.type === 'downloaded' ? 'brand' : null;
   return (
     <>
       <header className="noctra-titlebar">
@@ -56,6 +91,22 @@ export default function AppNavbar({
           <span className="noctra-wordmark"><Logo height={13} variant="mark" /> Noctra Client</span>
           <i />
           <span>Build <b>{buildVersion}</b></span>
+          {updatePill && (
+            <>
+              <i />
+              <button
+                type="button"
+                className={`noctra-update-pill ${updatePill.variant}`}
+                onClick={onOpenUpdater}
+                title={updatePill.tooltip}
+                aria-label={updatePill.tooltip}
+              >
+                <updatePill.Icon size={12} strokeWidth={2.3} className={updatePill.spin ? 'noctra-update-spin' : ''} aria-hidden="true" />
+                <span>{updatePill.label}</span>
+                {updatePill.version && <b>{updatePill.version}</b>}
+              </button>
+            </>
+          )}
         </div>
         <div className="window-controls-group">
           <button className="window-ctrl-btn" onClick={onMinimize} aria-label={t('window.minimize')}><Minus size={14} /></button>
@@ -112,7 +163,7 @@ export default function AppNavbar({
             label={t('window.notifications')}
             tone={notifications > 0 ? 'alert' : null}
           />
-          <RailButton icon={Settings} onClick={onOpenSettings} label={t('common.settings')} />
+          <RailButton icon={Settings} onClick={onOpenSettings} label={t('common.settings')} status={settingsStatus} />
         </div>
       </aside>
     </>

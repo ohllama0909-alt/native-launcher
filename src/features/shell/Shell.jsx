@@ -38,7 +38,8 @@ export default function Shell({
   onSwitchAccount,
   onRemoveAccount,
   onWardrobeChanged,
-  onOpenUpdater
+  onOpenUpdater,
+  updateStatus
 }) {
   const { locale, t } = useI18n();
   // 'home' | 'instances' | 'versions' | 'browse' | 'stats' | 'accounts' | 'cluster-detail'
@@ -157,6 +158,8 @@ export default function Shell({
         onMinimize={handleMinimize}
         onMaximize={handleMaximize}
         onClose={handleClose}
+        updateStatus={updateStatus}
+        onOpenUpdater={onOpenUpdater}
       />
 
       <div className="shell-content-layer">

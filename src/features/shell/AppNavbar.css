@@ -57,6 +57,70 @@
   box-shadow: 0 0 7px var(--color-success);
 }
 
+/* ---------- titlebar update pill ----------
+   The persistent, clickable update indicator. It only renders when the
+   updater has something to say (available / downloading / ready / checking);
+   otherwise the titlebar stays clean. */
+.noctra-update-pill {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px 0 7px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 20px;
+  background: var(--surface-tint);
+  color: var(--fg-secondary);
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+    color 0.16s var(--ease), box-shadow 0.16s var(--ease), transform 0.16s var(--ease-out);
+}
+
+.noctra-update-pill:hover { transform: translateY(-1px); }
+.noctra-update-pill:active { transform: translateY(0); }
+.noctra-update-pill svg { flex: none; }
+.noctra-update-pill b { font-weight: 800; color: inherit; opacity: 0.82; }
+
+/* Available — brand accent invites the user to open the update center. */
+.noctra-update-pill.available {
+  border-color: var(--brand-border);
+  background: var(--brand-subtle);
+  color: var(--brand-soft);
+  box-shadow: 0 0 14px var(--brand-glow);
+}
+.noctra-update-pill.available:hover { box-shadow: 0 0 20px var(--brand-glow); }
+
+/* Ready to install — success accent signals the restart action. */
+.noctra-update-pill.ready {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-success);
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.3);
+}
+.noctra-update-pill.ready:hover { box-shadow: 0 0 20px rgba(34, 197, 94, 0.4); }
+
+/* Downloading — quiet brand tint while work is in progress. */
+.noctra-update-pill.downloading {
+  border-color: var(--brand-border);
+  color: var(--brand-soft);
+}
+
+/* Checking — the most subtle state, with a spinning glyph. */
+.noctra-update-pill.checking { color: var(--fg-muted); }
+
+.noctra-update-spin {
+  transform-origin: center;
+  animation: noctra-update-spin 0.9s linear infinite;
+}
+
+@keyframes noctra-update-spin {
+  to { transform: rotate(360deg); }
+}
+
 .noctra-wordmark {
   display: flex;
   align-items: center;
@@ -293,9 +357,19 @@
   background: var(--color-danger);
 }
 
+/* Brand dot marks the settings button when an update is waiting there. */
+.rail-status.brand {
+  background: var(--brand-2);
+  box-shadow: 0 0 8px var(--brand-glow);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rail-btn,
-  .noctra-logo {
+  .noctra-logo,
+  .noctra-update-pill {
     transition: none;
+  }
+  .noctra-update-spin {
+    animation: none;
   }
 }
