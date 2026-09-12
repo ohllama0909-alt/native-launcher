@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, X, Paperclip, Smile, Send, CheckCheck } from 'lucide-react';
+import RelayPage from './RelayPage.jsx';
 import './ActiveChatOverlay.css';
 
 function formatTime(timestamp) {
@@ -11,6 +12,7 @@ function formatTime(timestamp) {
 export default function ActiveChatOverlay({ friend, messages = [], loading = false, onSendMessage, onClose, onOpenRelay }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [relayOpen, setRelayOpen] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -23,6 +25,7 @@ export default function ActiveChatOverlay({ friend, messages = [], loading = fal
   }, [friend?.id]);
 
   if (!friend) return null;
+  if (relayOpen) return <RelayPage initialFriend={friend} onClose={() => setRelayOpen(false)} />;
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -35,8 +38,13 @@ export default function ActiveChatOverlay({ friend, messages = [], loading = fal
   };
 
   const avatarUrl = friend.uuid
-    ? `https://mc-heads.net/avatar/${friend.uuid}/64`
-    : `https://mc-heads.net/avatar/${friend.name}/64`;
+    ? `{{https://mc-heads.net/avatar/${friend.uuid}}}/64`
+    : `{{https://mc-heads.net/avatar/${friend.name}}}/64`;
+
+  const openRelay = () => {
+    setRelayOpen(true);
+    onOpenRelay?.();
+  };
 
   return (
     <div className="active-chat-overlay" onClick={(e) => e.stopPropagation()}>
@@ -52,32 +60,16 @@ export default function ActiveChatOverlay({ friend, messages = [], loading = fal
           </div>
         </div>
         <div className="chat-overlay-header-actions">
-          {onOpenRelay && (
-            <button type="button" className="chat-open-relay-btn" onClick={onOpenRelay} title="Open full Noctra Relay communication hub">
-              <span>Open Relay</span><ExternalLink size={13} />
-            </button>
-          )}
+          <button type="button" className="chat-open-relay-btn" onClick={openRelay} title="Open full Noctra Relay communication hub"><span>Open Relay</span><ExternalLink size={13} /></button>
           <button type="button" className="chat-close-btn" onClick={onClose} aria-label="Close fast-chat"><X size={15} /></button>
         </div>
       </div>
 
       <div className="chat-overlay-messages" aria-live="polite">
-        {messages.length === 0 && !loading && (
-          <div className="chat-overlay-empty"><p>No messages yet with <b>{friend.nickname || friend.name}</b></p><span>Say hello!</span></div>
-        )}
+        {messages.length === 0 && !loading && <div className="chat-overlay-empty"><p>No messages yet with <b>{friend.nickname || friend.name}</b></p><span>Say hello!</span></div>}
         {messages.map((msg) => {
           const isMe = msg.senderId !== friend.id;
-          return (
-            <div key={msg.id} className={`chat-message-row ${isMe ? 'is-outgoing' : 'is-incoming'}`}>
-              <div className="chat-bubble">
-                <p className="chat-bubble-text">{msg.content}</p>
-                <div className="chat-bubble-meta">
-                  <span className="chat-time">{formatTime(msg.createdAt)}</span>
-                  {isMe && <CheckCheck size={12} className="chat-receipt-icon" aria-label={msg.isRead ? 'Read' : 'Delivered'} />}
-                </div>
-              </div>
-            </div>
-          );
+          return <div key={msg.id} className={`chat-message-row ${isMe ? 'is-outgoing' : 'is-incoming'}`}><div className="chat-bubble"><p className="chat-bubble-text">{msg.content}</p><div className="chat-bubble-meta"><span className="chat-time">{formatTime(msg.createdAt)}</span>{isMe && <CheckCheck size={12} className="chat-receipt-icon" aria-label={msg.isRead ? 'Read' : 'Delivered'} />}</div></div></div>;
         })}
         <div ref={messagesEndRef} />
       </div>
