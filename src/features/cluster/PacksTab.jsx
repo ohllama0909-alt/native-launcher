@@ -33,7 +33,9 @@ export default function PacksTab({ cluster, type = 'shaders', onNavigateBrowse }
     }
   };
 
-  const browseLabel = type === 'shaders' ? (t('packs.browseShaders') || 'Browse shaders') : (t('packs.browsePacks') || 'Browse resource packs');
+  const browseLabel = type === 'shaders'
+    ? (t('packs.browseShaders') && t('packs.browseShaders') !== 'packs.browseShaders' ? t('packs.browseShaders') : 'Browse shaders')
+    : (t('packs.browsePacks') && t('packs.browsePacks') !== 'packs.browsePacks' ? t('packs.browsePacks') : 'Browse resource packs');
 
   return (
     <div className="cluster-tab-pane packs-tab">
