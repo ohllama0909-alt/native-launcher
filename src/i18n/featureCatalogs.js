@@ -27,6 +27,7 @@ const en = {
     subtitle: 'Skins, capes and cosmetics for your account.',
     currentSkin: 'Current skin',
     uploadSkin: 'Upload skin',
+    dragDrop: 'Drag & drop or browse',
     dropTitle: 'Drag & drop file',
     dropHint: 'or browse for a PNG',
     uploadCape: 'Upload a cape PNG',
