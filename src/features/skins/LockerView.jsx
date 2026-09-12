@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDown,
   Check,
   ChevronLeft,
   ChevronRight,
   Cloud,
+  Download,
+  Eye,
+  EyeOff,
   Folder,
   Layers,
   Pause,
@@ -12,860 +14,350 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
-  Sparkles,
   Star,
   Trash2,
   X
 } from 'lucide-react';
 import SkinViewer3D from '../../components/ui/SkinViewer3D.jsx';
 import { CAPE_PRESETS } from './capePresets.js';
-import {
-  FALLBACK_SKIN,
-  detectSkinModel,
-  readFileAsDataUrl,
-  skinIdentifier
-} from '../../lib/skins.js';
+import { detectSkinModel, readFileAsDataUrl } from '../../lib/skins.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './LockerView.css';
 
-const POSES = [
-  { id: 'idle', label: 'Idle' },
-  { id: 'walk', label: 'Walk' },
-  { id: 'run', label: 'Run' },
-  { id: 'fly', label: 'Fly' }
-];
+const CAPES_PER_PAGE = 5;
+const SKINS_PER_PAGE = 5;
 
-export default function LockerView({
-  account,
-  onWardrobeChanged,
-  onNotify
-}) {
+export default function LockerView({ account, onWardrobeChanged, onNotify }) {
   const { t } = useI18n();
-
-  // Local wardrobe state
   const [wardrobe, setWardrobe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-
-  // 3D Player controls
-  const [autoRotate, setAutoRotate] = useState(false);
-  const [animation, setAnimation] = useState('idle');
   const [paused, setPaused] = useState(false);
   const [showCape, setShowCape] = useState(true);
   const [showLayers, setShowLayers] = useState(true);
-  const [isFlipped, setIsFlipped] = useState(false);
-
-  const viewerInstanceRef = useRef(null);
+  const [capePage, setCapePage] = useState(0);
+  const [skinPage, setSkinPage] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importData, setImportData] = useState(null);
+  const [importSaving, setImportSaving] = useState(false);
+  const viewerRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Import modal state
-  const [importOpen, setImportOpen] = useState(false);
-  const [importData, setImportData] = useState(null); // { file, dataUrl, name, model }
-  const [importSaving, setImportSaving] = useState(false);
+  const publishState = (next) => {
+    setWardrobe(next);
+    onWardrobeChanged?.(next);
+    return next;
+  };
 
-  // Carousel page state
-  const [capePage, setCapePage] = useState(0);
-  const [favPage, setFavPage] = useState(0);
-
-  // Load wardrobe on mount or account change
   const loadWardrobe = async () => {
     if (!account) return;
     setLoading(true);
     try {
       if (window.native?.wardrobe?.get) {
-        const state = await window.native.wardrobe.get(account);
-        setWardrobe(state);
-        onWardrobeChanged?.(state);
+        publishState(await window.native.wardrobe.get(account));
       } else {
-        // Fallback for browser/mock
         const saved = localStorage.getItem(`native.wardrobe.${account.id || 'default'}`);
-        if (saved) {
-          setWardrobe(JSON.parse(saved));
-        } else {
-          setWardrobe({
-            model: account.model || 'classic',
-            items: [],
-            skins: [],
-            capes: [],
-            favorites: [],
-            latest: [],
-            active: {
-              skinUrl: null,
-              capeUrl: null,
-              model: account.model || 'classic',
-              hasSkin: false,
-              hasCape: false
-            }
-          });
-        }
+        publishState(saved ? JSON.parse(saved) : {
+          model: account.model || 'classic', items: [], skins: [], capes: [], favorites: [], latest: [],
+          active: { skinUrl: null, capeUrl: null, model: account.model || 'classic', hasSkin: false, hasCape: false }
+        });
       }
-    } catch (err) {
-      console.warn('Could not load wardrobe:', err);
+    } catch (error) {
+      console.warn('Could not load wardrobe:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadWardrobe();
-  }, [account?.id]);
+  useEffect(() => { loadWardrobe(); }, [account?.id]);
 
-  // Handle layer and flip changes on viewerInstanceRef
   useEffect(() => {
-    const viewer = viewerInstanceRef.current;
+    const viewer = viewerRef.current;
     if (!viewer?.playerObject) return;
-
-    // Toggle outer jacket/hat layer
-    if (viewer.playerObject.skin?.outerLayer) {
-      viewer.playerObject.skin.outerLayer.visible = showLayers;
-    }
-    // Toggle cape visibility
-    if (viewer.playerObject.cape) {
-      viewer.playerObject.cape.visible = showCape;
-    }
-
+    if (viewer.playerObject.skin?.outerLayer) viewer.playerObject.skin.outerLayer.visible = showLayers;
+    if (viewer.playerObject.cape) viewer.playerObject.cape.visible = showCape;
     if (viewer.renderPaused) viewer.render();
   }, [showLayers, showCape]);
 
-  // Active outfit computation
-  const activeSkin = wardrobe?.active?.skinUrl || null;
-  const activeCape = wardrobe?.active?.capeUrl || null;
   const currentModel = wardrobe?.model || account?.model || 'classic';
+  const viewerAccount = useMemo(() => ({
+    ...account,
+    model: currentModel,
+    skinUrl: wardrobe?.active?.skinUrl || null,
+    capeUrl: showCape ? wardrobe?.active?.capeUrl || null : null
+  }), [account, currentModel, wardrobe?.active?.skinUrl, wardrobe?.active?.capeUrl, showCape]);
 
-  const viewerAccount = useMemo(() => {
-    return {
-      ...account,
-      model: currentModel,
-      skinUrl: activeSkin,
-      capeUrl: showCape ? activeCape : null
-    };
-  }, [account, currentModel, activeSkin, activeCape, showCape]);
+  const skinItems = useMemo(() => {
+    const byId = new Map();
+    [...(wardrobe?.favorites || []), ...(wardrobe?.latest || []), ...(wardrobe?.skins || [])]
+      .filter((item) => item.kind === 'skin')
+      .forEach((item) => byId.set(item.id, item));
+    return [...byId.values()];
+  }, [wardrobe]);
 
-  // Flip 180 degrees
-  const handleFlip = () => {
-    const viewer = viewerInstanceRef.current;
-    const nextFlipped = !isFlipped;
-    setIsFlipped(nextFlipped);
-    if (viewer?.playerObject) {
-      viewer.playerObject.rotation.y = nextFlipped ? Math.PI : 0;
-      if (viewer.renderPaused) viewer.render();
-    }
+  const capePages = Math.max(1, Math.ceil(CAPE_PRESETS.length / CAPES_PER_PAGE));
+  const skinPages = Math.max(1, Math.ceil(skinItems.length / SKINS_PER_PAGE));
+  const visibleCapes = CAPE_PRESETS.slice(capePage * CAPES_PER_PAGE, (capePage + 1) * CAPES_PER_PAGE);
+  const visibleSkins = skinItems.slice(skinPage * SKINS_PER_PAGE, (skinPage + 1) * SKINS_PER_PAGE);
+
+  useEffect(() => {
+    setCapePage((page) => Math.min(page, capePages - 1));
+    setSkinPage((page) => Math.min(page, skinPages - 1));
+  }, [capePages, skinPages]);
+
+  const handleResetView = () => {
+    const viewer = viewerRef.current;
+    if (!viewer?.playerObject) return;
+    viewer.playerObject.rotation.set(0, 0, 0);
+    viewer.playerObject.resetJoints?.();
+    if (viewer.renderPaused) viewer.render();
   };
 
-  // Reset view rotation
-  const handleResetRotation = () => {
-    setIsFlipped(false);
-    setAutoRotate(false);
-    const viewer = viewerInstanceRef.current;
-    if (viewer?.playerObject) {
-      viewer.playerObject.rotation.set(0, 0, 0);
-      if (viewer.resetJoints) viewer.resetJoints();
-      if (viewer.renderPaused) viewer.render();
-    }
-  };
-
-  // Model flip (classic <-> slim)
-  const handleToggleModel = async () => {
-    const nextModel = currentModel === 'classic' ? 'slim' : 'classic';
+  const handleExport = async () => {
+    const id = wardrobe?.active?.skinId;
+    if (!id || !window.native?.wardrobe?.export) return;
     try {
-      if (window.native?.wardrobe?.setModel && account) {
-        const next = await window.native.wardrobe.setModel(account, nextModel);
-        setWardrobe(next);
-        onWardrobeChanged?.(next);
-      } else {
-        setWardrobe((prev) => ({ ...prev, model: nextModel }));
-      }
-      onNotify?.(t('locker.model'), `${t('locker.model')}: ${nextModel === 'classic' ? t('locker.modelClassic') : t('locker.modelSlim')}`);
-    } catch (err) {
-      console.warn('Failed to switch model:', err);
+      await window.native.wardrobe.export(account, id);
+    } catch (error) {
+      onNotify?.(t('locker.title'), error?.message || 'Could not export texture.');
     }
   };
 
-  // Real-time Cloud Sync
   const handleCloudSync = async () => {
     if (!account) return;
     setSyncing(true);
     try {
-      if (window.native?.wardrobe?.sync) {
-        await window.native.wardrobe.sync(account);
-      }
+      await window.native?.wardrobe?.sync?.(account);
       await loadWardrobe();
       onNotify?.(t('locker.title'), 'All cosmetics synchronized with Noctra Cloud.');
-    } catch (err) {
-      console.warn('Sync failed:', err);
-      onNotify?.(t('locker.title'), 'Cloud sync completed locally.');
+    } catch (error) {
+      onNotify?.(t('locker.title'), error?.message || 'Cloud sync completed locally.');
     } finally {
       setSyncing(false);
     }
   };
 
-  // Drag & drop / File input handling
-  const handleProcessFile = async (file) => {
+  const processFile = async (file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.png') && file.type !== 'image/png') {
       onNotify?.('Invalid File', t('locker.uploadNotPng'));
       return;
     }
-
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const detected = await detectSkinModel(dataUrl);
-      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-
+      const model = await detectSkinModel(dataUrl);
       setImportData({
-        file,
         fileName: file.name,
         dataUrl,
-        name: cleanName || 'unnamed',
-        model: detected || 'classic'
+        name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'unnamed',
+        model: model || 'classic'
       });
       setImportOpen(true);
-    } catch (err) {
-      onNotify?.('Upload Error', err.message || 'Could not read file.');
+    } catch (error) {
+      onNotify?.('Upload Error', error?.message || 'Could not read file.');
     }
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const file = e.dataTransfer?.files?.[0];
-    if (file) handleProcessFile(file);
-  };
-
-  const handleFileSelect = (e) => {
-    const file = e.target?.files?.[0];
-    if (file) handleProcessFile(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // Save imported skin
-  const handleSaveImport = async () => {
+  const saveImport = async () => {
     if (!importData || !account) return;
     setImportSaving(true);
     try {
-      let nextState;
-      if (window.native?.wardrobe?.upload) {
-        nextState = await window.native.wardrobe.upload(
-          account,
-          'skin',
-          importData.dataUrl,
-          { name: importData.name, model: importData.model }
-        );
-        // Background sync to cloud
-        window.native?.wardrobe?.sync?.(account).catch(() => {});
-      } else {
-        // Fallback
-        const newItem = {
-          id: `skin-${Date.now()}`,
-          kind: 'skin',
-          name: importData.name,
-          model: importData.model,
-          createdAt: Date.now(),
-          favorite: false,
-          active: true,
-          url: importData.dataUrl
-        };
-        nextState = {
-          ...wardrobe,
-          model: importData.model,
-          items: [newItem, ...(wardrobe?.items || [])],
-          skins: [newItem, ...(wardrobe?.skins || [])],
-          latest: [newItem, ...(wardrobe?.latest || [])],
-          active: {
-            ...wardrobe?.active,
-            skinId: newItem.id,
-            model: importData.model,
-            skinUrl: importData.dataUrl,
-            hasSkin: true
-          }
-        };
-        localStorage.setItem(`native.wardrobe.${account.id || 'default'}`, JSON.stringify(nextState));
-      }
-
-      setWardrobe(nextState);
-      onWardrobeChanged?.(nextState);
+      const next = await window.native?.wardrobe?.upload?.(
+        account, 'skin', importData.dataUrl,
+        { name: importData.name, model: importData.model }
+      );
+      if (next) publishState(next);
+      window.native?.wardrobe?.sync?.(account).catch(() => {});
       setImportOpen(false);
       setImportData(null);
       onNotify?.(t('locker.title'), t('locker.uploadDone', { name: importData.name }));
-    } catch (err) {
-      onNotify?.('Error', err.message || 'Could not upload skin.');
+    } catch (error) {
+      onNotify?.('Error', error?.message || 'Could not upload skin.');
     } finally {
       setImportSaving(false);
     }
   };
 
-  // Apply an existing skin
-  const handleApplySkin = async (skin) => {
+  const applySkin = async (skin) => {
     if (!skin?.id || !account) return;
     try {
-      let nextState;
-      if (window.native?.wardrobe?.apply) {
-        nextState = await window.native.wardrobe.apply(account, skin.id);
-        window.native?.wardrobe?.sync?.(account).catch(() => {});
-      } else {
-        nextState = {
-          ...wardrobe,
-          model: skin.model || wardrobe.model,
-          active: {
-            ...wardrobe.active,
-            skinId: skin.id,
-            skinUrl: skin.url,
-            model: skin.model || wardrobe.model,
-            hasSkin: true
-          }
-        };
-        localStorage.setItem(`native.wardrobe.${account.id || 'default'}`, JSON.stringify(nextState));
-      }
-      setWardrobe(nextState);
-      onWardrobeChanged?.(nextState);
-      onNotify?.(t('locker.title'), `Equipped ${skin.name}`);
-    } catch (err) {
-      console.warn('Failed to apply skin:', err);
+      const next = await window.native?.wardrobe?.apply?.(account, skin.id);
+      if (next) publishState(next);
+      window.native?.wardrobe?.sync?.(account).catch(() => {});
+    } catch (error) {
+      onNotify?.(t('locker.title'), error?.message || 'Could not equip skin.');
     }
   };
 
-  // Apply a cape
-  const handleApplyCape = async (preset) => {
+  const toggleFavorite = async (item, event) => {
+    event?.stopPropagation();
+    if (!item?.id || !account) return;
+    try {
+      const next = await window.native?.wardrobe?.favorite?.(account, item.id, !item.favorite);
+      if (next) publishState(next);
+    } catch (error) {
+      console.warn('Could not update favourite:', error);
+    }
+  };
+
+  const removeItem = async (item, event) => {
+    event?.stopPropagation();
+    if (!item?.id || !account) return;
+    try {
+      const next = await window.native?.wardrobe?.remove?.(account, item.id);
+      if (next) publishState(next);
+      window.native?.wardrobe?.sync?.(account).catch(() => {});
+    } catch (error) {
+      onNotify?.(t('locker.title'), error?.message || 'Could not remove item.');
+    }
+  };
+
+  const applyCape = async (cape) => {
     if (!account) return;
     try {
-      let nextState;
-      if (preset.id === 'none' || !preset.textureUrl) {
-        // Clear active cape
-        if (window.native?.wardrobe?.clearActive) {
-          nextState = await window.native.wardrobe.clearActive(account, 'cape');
-          window.native?.wardrobe?.sync?.(account).catch(() => {});
-        } else {
-          nextState = {
-            ...wardrobe,
-            active: { ...wardrobe?.active, capeUrl: null, hasCape: false }
-          };
-          localStorage.setItem(`native.wardrobe.${account.id || 'default'}`, JSON.stringify(nextState));
-        }
-        onNotify?.(t('locker.title'), 'Cape unequipped.');
-      } else {
-        // Equip preset cape
-        if (window.native?.wardrobe?.upload) {
-          nextState = await window.native.wardrobe.upload(account, 'cape', preset.textureUrl, {
-            name: preset.name
-          });
-          window.native?.wardrobe?.sync?.(account).catch(() => {});
-        } else {
-          nextState = {
-            ...wardrobe,
-            active: { ...wardrobe?.active, capeUrl: preset.textureUrl, hasCape: true }
-          };
-          localStorage.setItem(`native.wardrobe.${account.id || 'default'}`, JSON.stringify(nextState));
-        }
-        onNotify?.(t('locker.title'), `Equipped ${preset.name}`);
-      }
-
-      setWardrobe(nextState);
-      onWardrobeChanged?.(nextState);
-    } catch (err) {
-      console.warn('Failed to apply cape:', err);
+      const next = cape.textureUrl
+        ? await window.native?.wardrobe?.upload?.(account, 'cape', cape.textureUrl, { name: cape.name })
+        : await window.native?.wardrobe?.clearActive?.(account, 'cape');
+      if (next) publishState(next);
+      window.native?.wardrobe?.sync?.(account).catch(() => {});
+    } catch (error) {
+      onNotify?.(t('locker.title'), error?.message || 'Could not equip cape.');
     }
   };
-
-  // Toggle favorite
-  const handleToggleFavorite = async (item, e) => {
-    e?.stopPropagation();
-    if (!account || !item?.id) return;
-    const nextFav = !item.favorite;
-    try {
-      let nextState;
-      if (window.native?.wardrobe?.favorite) {
-        nextState = await window.native.wardrobe.favorite(account, item.id, nextFav);
-      } else {
-        const items = (wardrobe?.items || []).map((it) => (it.id === item.id ? { ...it, favorite: nextFav } : it));
-        nextState = {
-          ...wardrobe,
-          items,
-          favorites: items.filter((it) => it.favorite)
-        };
-        localStorage.setItem(`native.wardrobe.${account.id || 'default'}`, JSON.stringify(nextState));
-      }
-      setWardrobe(nextState);
-      onWardrobeChanged?.(nextState);
-    } catch (err) {
-      console.warn('Failed to toggle favorite:', err);
-    }
-  };
-
-  // Remove skin item
-  const handleRemoveItem = async (item, e) => {
-    e?.stopPropagation();
-    if (!account || !item?.id) return;
-    try {
-      let nextState;
-      if (window.native?.wardrobe?.remove) {
-        nextState = await window.native.wardrobe.remove(account, item.id);
-        window.native?.wardrobe?.sync?.(account).catch(() => {});
-      } else {
-        const items = (wardrobe?.items || []).filter((it) => it.id !== item.id);
-        nextState = {
-          ...wardrobe,
-          items,
-          skins: items.filter((it) => it.kind === 'skin'),
-          favorites: items.filter((it) => it.favorite),
-          latest: items.slice(0, 12)
-        };
-        localStorage.setItem(`native.wardrobe.${account.id || 'default'}`, JSON.stringify(nextState));
-      }
-      setWardrobe(nextState);
-      onWardrobeChanged?.(nextState);
-      onNotify?.(t('locker.title'), t('locker.removed', { name: item.name }));
-    } catch (err) {
-      console.warn('Failed to remove item:', err);
-    }
-  };
-
-  // Carousel slicing
-  const CAPE_PAGE_SIZE = 6;
-  const totalCapePages = Math.ceil(CAPE_PRESETS.length / CAPE_PAGE_SIZE);
-  const visibleCapes = CAPE_PRESETS.slice(capePage * CAPE_PAGE_SIZE, (capePage + 1) * CAPE_PAGE_SIZE);
-
-  const favoritesList = wardrobe?.favorites || [];
-  const FAV_PAGE_SIZE = 4;
-  const totalFavPages = Math.max(1, Math.ceil(favoritesList.length / FAV_PAGE_SIZE));
-  const visibleFavorites = favoritesList.slice(favPage * FAV_PAGE_SIZE, (favPage + 1) * FAV_PAGE_SIZE);
-
-  const latestList = wardrobe?.latest || wardrobe?.skins || [];
 
   return (
-    <div className="locker-view">
-      {/* ---------- Header ---------- */}
+    <div className="locker-view" onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+      event.preventDefault();
+      processFile(event.dataTransfer?.files?.[0]);
+    }}>
       <header className="locker-header">
-        <div className="locker-title-block">
+        <div>
           <h1 className="locker-title">{t('locker.title') || 'LOCKER'}</h1>
-          <p className="locker-subtitle">
-            {t('locker.subtitle') ||
-              'Your personal wardrobe, built right in. The Locker allows you to instantly swap, preview, and manage your Minecraft skins without ever opening a browser. Mark your go-to outfits as favorites for quick access before joining a server.'}
-          </p>
+          <p className="locker-subtitle">{t('locker.subtitle')}</p>
         </div>
-
-        <div className="locker-cloud-status">
-          <button
-            type="button"
-            className="locker-sync-btn"
-            onClick={handleCloudSync}
-            disabled={syncing}
-            title="Synchronize cosmetics with Noctra Cloud"
-          >
-            <Cloud size={14} className={syncing ? 'is-pulsing' : ''} />
-            <span>{t('locker.cloudNote') || 'All cosmetics synced to Noctra Cloud'}</span>
-            <RefreshCw size={12} className={syncing ? 'is-spinning' : ''} />
-          </button>
-        </div>
+        <button type="button" className="locker-sync-btn" onClick={handleCloudSync} disabled={syncing}>
+          <Cloud size={14} />
+          <span>{t('locker.cloudNote')}</span>
+          <RefreshCw size={13} className={syncing ? 'is-spinning' : ''} />
+        </button>
       </header>
 
-      {/* ---------- Main Layout ---------- */}
-      <div className="locker-content-grid">
-        {/* Left Stage: CURRENT SKIN */}
-        <section className="locker-stage-card">
-          <div className="locker-stage-header">
-            <h2 className="locker-section-title">{t('locker.currentSkin') || 'CURRENT SKIN'}</h2>
+      <div className="locker-workspace">
+        <section className="locker-stage" aria-label={t('locker.currentSkin')}>
+          <div className="locker-stage-heading">
+            <h2>{t('locker.currentSkin')}</h2>
             <div className="locker-stage-toggles">
-              <button
-                type="button"
-                className={`stage-toggle-btn ${showCape ? 'active' : ''}`}
-                onClick={() => setShowCape(!showCape)}
-                title={showCape ? 'Hide Cape' : 'Show Cape'}
-              >
-                <Sparkles size={15} />
+              <button type="button" className={showCape ? 'active' : ''} onClick={() => setShowCape((value) => !value)} title={showCape ? 'Hide cape' : 'Show cape'}>
+                {showCape ? <Eye size={15} /> : <EyeOff size={15} />}
               </button>
-              <button
-                type="button"
-                className={`stage-toggle-btn ${showLayers ? 'active' : ''}`}
-                onClick={() => setShowLayers(!showLayers)}
-                title={showLayers ? 'Hide Jacket/Hat Layer' : 'Show Jacket/Hat Layer'}
-              >
+              <button type="button" className={showLayers ? 'active' : ''} onClick={() => setShowLayers((value) => !value)} title={showLayers ? 'Hide outer layer' : 'Show outer layer'}>
                 <Layers size={15} />
               </button>
             </div>
           </div>
 
-          <div className="locker-3d-canvas-wrap">
-            <SkinViewer3D
-              account={viewerAccount}
-              width={270}
-              height={360}
-              animation={paused ? null : animation}
-              autoRotate={autoRotate}
-              onViewer={(v) => { viewerInstanceRef.current = v; }}
-            />
+          <div className="locker-stage-model">
+            {loading ? <span className="locker-loading" /> : (
+              <SkinViewer3D
+                account={viewerAccount}
+                width={285}
+                height={390}
+                animation={paused ? null : 'idle'}
+                paused={paused}
+                onViewer={(viewer) => { viewerRef.current = viewer; }}
+              />
+            )}
           </div>
 
-          {/* Controls below canvas */}
-          <div className="locker-stage-controls">
-            <div className="stage-controls-left">
-              <button
-                type="button"
-                className={`stage-action-btn ${autoRotate ? 'active' : ''}`}
-                onClick={() => setAutoRotate(!autoRotate)}
-                title={t('locker.spin') || 'Auto-rotate'}
-              >
-                <RotateCcw size={14} />
-              </button>
-              <button
-                type="button"
-                className={`stage-action-btn ${isFlipped ? 'active' : ''}`}
-                onClick={handleFlip}
-                title={t('locker.flip') || 'Turn around'}
-              >
-                <ArrowDown size={14} />
-              </button>
-              <button
-                type="button"
-                className={`stage-action-btn ${paused ? 'active' : ''}`}
-                onClick={() => setPaused(!paused)}
-                title={paused ? 'Resume pose animation' : 'Pause animation'}
-              >
-                {paused ? <Play size={14} /> : <Pause size={14} />}
-              </button>
-
-              <div className="stage-pose-pills">
-                {POSES.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={`pose-pill ${animation === p.id && !paused ? 'active' : ''}`}
-                    onClick={() => {
-                      setAnimation(p.id);
-                      setPaused(false);
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="stage-controls-right">
-              <button
-                type="button"
-                className="stage-model-badge"
-                onClick={handleToggleModel}
-                title="Click to toggle Classic / Slim arm model"
-              >
-                {currentModel === 'classic' ? 'Wide (4px)' : 'Slim (3px)'}
+          <div className="locker-stage-actions">
+            <button type="button" onClick={handleResetView} title="Reset view"><RotateCcw size={16} /></button>
+            <div>
+              <button type="button" onClick={handleExport} disabled={!wardrobe?.active?.skinId} title="Download active texture"><Download size={16} /></button>
+              <button type="button" onClick={() => setPaused((value) => !value)} title={paused ? 'Play preview' : 'Pause preview'}>
+                {paused ? <Play size={16} /> : <Pause size={16} />}
               </button>
             </div>
           </div>
         </section>
 
-        {/* Right Columns: UPLOAD, CAPES, FAVORITES, LATEST */}
-        <div className="locker-manage-column">
-          {/* Top Row: Upload Card & Capes */}
-          <div className="locker-top-row">
-            {/* Upload Dropzone */}
-            <div className="locker-upload-section">
-              <h3 className="locker-sub-title">{t('locker.uploadSkin') || 'UPLOAD SKIN'}</h3>
-              <div
-                className="locker-dropzone"
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/png"
-                  style={{ display: 'none' }}
-                  onChange={handleFileSelect}
-                />
-                <div className="dropzone-icon-box">
-                  <Plus size={20} />
-                </div>
-                <span className="dropzone-text">
-                  {t('locker.dropTitle') || 'Drag & drop file or browse'}
-                </span>
-              </div>
+        <main className="locker-library">
+          <section className="locker-row locker-skins-row">
+            <div className="locker-row-header">
+              <div><span className="locker-kicker">{t('locker.favorites')}</span><h2>{t('locker.latest')}</h2></div>
+              <CarouselControls page={skinPage} pages={skinPages} setPage={setSkinPage} />
             </div>
-
-            {/* Capes Carousel */}
-            <div className="locker-capes-section">
-              <div className="capes-header-row">
-                <h3 className="locker-sub-title">{t('locker.capes') || 'CAPES'}</h3>
-                {totalCapePages > 1 && (
-                  <div className="carousel-arrows">
-                    <button
-                      type="button"
-                      disabled={capePage <= 0}
-                      onClick={() => setCapePage(capePage - 1)}
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={capePage >= totalCapePages - 1}
-                      onClick={() => setCapePage(capePage + 1)}
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="capes-carousel-grid">
-                {visibleCapes.map((preset) => {
-                  const isCurrent = (preset.id === 'none' && !activeCape) || activeCape === preset.textureUrl;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      className={`cape-card ${isCurrent ? 'active' : ''}`}
-                      onClick={() => handleApplyCape(preset)}
-                      title={preset.name}
-                    >
-                      <div className="cape-swatch" style={{ background: preset.swatch }}>
-                        {preset.id === 'none' ? (
-                          <X size={14} className="no-cape-icon" />
-                        ) : preset.id === 'noctra' ? (
-                          <span className="cape-mark">N</span>
-                        ) : null}
-                      </div>
-                      <span className="cape-label">{preset.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Middle Row: FAVORITES */}
-          <div className="locker-favorites-section">
-            <div className="favorites-header-row">
-              <h3 className="locker-sub-title">{t('locker.favorites') || 'FAVORITES'}</h3>
-              {totalFavPages > 1 && (
-                <div className="carousel-arrows">
-                  <button
-                    type="button"
-                    disabled={favPage <= 0}
-                    onClick={() => setFavPage(favPage - 1)}
-                  >
-                    <ChevronLeft size={14} />
+            <div className="locker-skin-strip">
+              <button type="button" className="locker-upload-card" onClick={() => fileInputRef.current?.click()}>
+                <span className="locker-upload-plus"><Plus size={18} /></span>
+                <strong>{t('locker.uploadSkin')}</strong>
+                <small>{t('locker.dragDrop')}</small>
+              </button>
+              {visibleSkins.map((skin) => (
+                <article key={skin.id} className={`locker-skin-card ${skin.active ? 'active' : ''}`} onClick={() => applySkin(skin)}>
+                  <button type="button" className="locker-favourite" onClick={(event) => toggleFavorite(skin, event)} title={skin.favorite ? t('locker.unfavorite') : t('locker.favorite')}>
+                    <Star size={13} fill={skin.favorite ? 'currentColor' : 'none'} />
                   </button>
-                  <button
-                    type="button"
-                    disabled={favPage >= totalFavPages - 1}
-                    onClick={() => setFavPage(favPage + 1)}
-                  >
-                    <ChevronRight size={14} />
+                  <div className="locker-skin-preview">
+                    <SkinViewer3D account={{ ...account, skinUrl: skin.url, model: skin.model }} width={104} height={142} paused />
+                  </div>
+                  <div className="locker-card-meta"><strong>{skin.name}</strong><small>{skin.ageDays ? `${skin.ageDays}d` : 'new'}</small></div>
+                  <button type="button" className="locker-remove" onClick={(event) => removeItem(skin, event)} title={t('common.remove')}><Trash2 size={13} /></button>
+                </article>
+              ))}
+              {!visibleSkins.length && <div className="locker-empty-skins"><Star size={18} /><span>{t('locker.emptyFavorites')}</span></div>}
+            </div>
+          </section>
+
+          <section className="locker-row locker-capes-row">
+            <div className="locker-row-header">
+              <div><span className="locker-kicker">OFFICIAL MINECRAFT</span><h2>{t('locker.capes')}</h2></div>
+              <CarouselControls page={capePage} pages={capePages} setPage={setCapePage} />
+            </div>
+            <div className="locker-cape-strip">
+              {visibleCapes.map((cape) => {
+                const active = cape.id === 'none' ? !wardrobe?.active?.hasCape : wardrobe?.active?.cape?.name === cape.name;
+                return (
+                  <button key={cape.id} type="button" className={`locker-cape-card ${active ? 'active' : ''}`} onClick={() => applyCape(cape)}>
+                    {cape.textureUrl ? <span className="locker-cape-texture" style={{ backgroundImage: `url(${cape.textureUrl})` }} /> : <span className="locker-no-cape"><X size={20} /></span>}
+                    <span>{cape.name}</span>
+                    {active && <Check size={13} className="locker-cape-check" />}
                   </button>
-                </div>
-              )}
+                );
+              })}
             </div>
-
-            <div className="favorites-cards-grid">
-              {visibleFavorites.length === 0 ? (
-                <div className="locker-empty-hint">
-                  <Star size={18} />
-                  <span>{t('locker.favoritesHint') || 'Star a skin to pin it here.'}</span>
-                </div>
-              ) : (
-                visibleFavorites.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`outfit-card ${item.active ? 'active' : ''}`}
-                    onClick={() => handleApplySkin(item)}
-                  >
-                    <button
-                      type="button"
-                      className="outfit-fav-btn is-favorited"
-                      onClick={(e) => handleToggleFavorite(item, e)}
-                      title={t('locker.unfavorite')}
-                    >
-                      <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                    </button>
-
-                    <div className="outfit-preview-stage">
-                      <SkinViewer3D
-                        account={{ ...account, skinUrl: item.url, model: item.model || 'classic' }}
-                        width={90}
-                        height={130}
-                        paused={true}
-                      />
-                    </div>
-
-                    <div className="outfit-info-row">
-                      <span className="outfit-name">{item.name}</span>
-                      <span className="outfit-age">{item.ageDays ? `${item.ageDays}d` : 'new'}</span>
-                    </div>
-
-                    <div className="outfit-hover-overlay">
-                      <button type="button" className="outfit-wear-btn" onClick={() => handleApplySkin(item)}>
-                        {item.active ? 'Worn' : (t('locker.apply') || 'Wear')}
-                      </button>
-                      <button
-                        type="button"
-                        className="outfit-delete-btn"
-                        onClick={(e) => handleRemoveItem(item, e)}
-                        title="Remove from locker"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Bottom Row: LATEST */}
-          <div className="locker-latest-section">
-            <h3 className="locker-sub-title">{t('locker.latest') || 'LATEST'}</h3>
-            <div className="latest-cards-grid">
-              {latestList.length === 0 ? (
-                <div className="locker-empty-hint">
-                  <span>{t('locker.latestHint') || 'Uploads show up here.'}</span>
-                </div>
-              ) : (
-                latestList.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`outfit-card ${item.active ? 'active' : ''}`}
-                    onClick={() => handleApplySkin(item)}
-                  >
-                    <button
-                      type="button"
-                      className={`outfit-fav-btn ${item.favorite ? 'is-favorited' : ''}`}
-                      onClick={(e) => handleToggleFavorite(item, e)}
-                      title={item.favorite ? t('locker.unfavorite') : t('locker.favorite')}
-                    >
-                      <Star size={12} fill={item.favorite ? '#f59e0b' : 'none'} color={item.favorite ? '#f59e0b' : 'rgba(255,255,255,0.4)'} />
-                    </button>
-
-                    <div className="outfit-preview-stage">
-                      <SkinViewer3D
-                        account={{ ...account, skinUrl: item.url, model: item.model || 'classic' }}
-                        width={90}
-                        height={130}
-                        paused={true}
-                      />
-                    </div>
-
-                    <div className="outfit-info-row">
-                      <span className="outfit-name">{item.name}</span>
-                      <span className="outfit-age">{item.ageDays ? `${item.ageDays}d` : 'new'}</span>
-                    </div>
-
-                    <div className="outfit-hover-overlay">
-                      <button type="button" className="outfit-wear-btn" onClick={() => handleApplySkin(item)}>
-                        {item.active ? 'Worn' : (t('locker.apply') || 'Wear')}
-                      </button>
-                      <button
-                        type="button"
-                        className="outfit-delete-btn"
-                        onClick={(e) => handleRemoveItem(item, e)}
-                        title="Remove from locker"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
 
-      {/* ---------- Import Skin Modal (matching mockup popup) ---------- */}
+      <input ref={fileInputRef} type="file" accept="image/png,.png" hidden onChange={(event) => {
+        processFile(event.target.files?.[0]);
+        event.target.value = '';
+      }} />
+
       {importOpen && importData && (
         <div className="locker-modal-overlay" onClick={() => setImportOpen(false)}>
-          <div className="locker-import-modal" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="import-modal-close"
-              onClick={() => setImportOpen(false)}
-            >
-              <X size={16} />
-            </button>
-
-            {/* Left 3D Preview */}
-            <div className="import-modal-preview">
-              <SkinViewer3D
-                account={{
-                  ...account,
-                  skinUrl: importData.dataUrl,
-                  model: importData.model
-                }}
-                width={170}
-                height={230}
-                animation="idle"
-                autoRotate={true}
-              />
-            </div>
-
-            {/* Right Form */}
+          <div className="locker-import-modal" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="import-modal-close" onClick={() => setImportOpen(false)}><X size={16} /></button>
+            <div className="import-modal-preview"><SkinViewer3D account={{ ...account, skinUrl: importData.dataUrl, model: importData.model }} width={170} height={230} animation="idle" autoRotate /></div>
             <div className="import-modal-form">
-              <div className="import-form-field">
-                <label className="import-field-label">Name</label>
-                <input
-                  type="text"
-                  className="import-text-input"
-                  value={importData.name}
-                  onChange={(e) => setImportData({ ...importData, name: e.target.value })}
-                  placeholder="Skin name..."
-                />
-              </div>
-
-              <div className="import-form-field">
-                <label className="import-field-label">File</label>
-                <div className="import-file-display">
-                  <span className="import-file-name">{importData.fileName || 'texture.png'}</span>
-                  <button
-                    type="button"
-                    className="import-browse-btn"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Change file"
-                  >
-                    <Folder size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="import-form-field">
-                <label className="import-field-label">Player Model</label>
-                <div className="import-radio-group">
-                  <label className={`import-radio-label ${importData.model === 'classic' ? 'active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="import-model"
-                      value="classic"
-                      checked={importData.model === 'classic'}
-                      onChange={() => setImportData({ ...importData, model: 'classic' })}
-                    />
-                    <span>Wide (Classic 4px)</span>
-                  </label>
-                  <label className={`import-radio-label ${importData.model === 'slim' ? 'active' : ''}`}>
-                    <input
-                      type="radio"
-                      name="import-model"
-                      value="slim"
-                      checked={importData.model === 'slim'}
-                      onChange={() => setImportData({ ...importData, model: 'slim' })}
-                    />
-                    <span>Slim (Alex 3px)</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="import-modal-actions">
-                <button
-                  type="button"
-                  className="import-save-btn"
-                  onClick={handleSaveImport}
-                  disabled={importSaving}
-                >
-                  <Check size={16} />
-                  <span>{importSaving ? 'Saving…' : 'Save'}</span>
-                </button>
-              </div>
+              <label className="import-form-field"><span>{t('locker.name')}</span><input value={importData.name} onChange={(event) => setImportData({ ...importData, name: event.target.value })} /></label>
+              <div className="import-form-field"><span>{t('locker.file')}</span><button type="button" className="import-file-display" onClick={() => fileInputRef.current?.click()}><span>{importData.fileName}</span><Folder size={14} /></button></div>
+              <div className="import-form-field"><span>{t('locker.playerModel')}</span><div className="import-radio-group">
+                {['classic', 'slim'].map((model) => <button key={model} type="button" className={importData.model === model ? 'active' : ''} onClick={() => setImportData({ ...importData, model })}>{model === 'classic' ? t('locker.modelClassic') : t('locker.modelSlim')}</button>)}
+              </div></div>
+              <button type="button" className="import-save-btn" onClick={saveImport} disabled={importSaving}><Check size={15} />{importSaving ? t('common.loading') : t('common.save')}</button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function CarouselControls({ page, pages, setPage }) {
+  return <div className="locker-carousel-controls">
+    <button type="button" disabled={page <= 0} onClick={() => setPage((value) => Math.max(0, value - 1))}><ChevronLeft size={16} /></button>
+    <span>{page + 1} / {pages}</span>
+    <button type="button" disabled={page >= pages - 1} onClick={() => setPage((value) => Math.min(pages - 1, value + 1))}><ChevronRight size={16} /></button>
+  </div>;
 }
