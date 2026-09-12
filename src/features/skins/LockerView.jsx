@@ -250,9 +250,13 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
   };
 
   return <div className="locker-view" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); processFile(event.dataTransfer?.files?.[0]); }}>
+    <div className="locker-ambient-bg" aria-hidden="true" />
     <header className="locker-header"><div><h1 className="locker-title">{t('locker.title') || 'LOCKER'}</h1><p className="locker-subtitle">{t('locker.subtitle')}</p></div><button type="button" className="locker-sync-btn" onClick={handleCloudSync} disabled={syncing}><Cloud size={14}/><span>{t('locker.cloudNote')}</span><RefreshCw size={13} className={syncing ? 'is-spinning' : ''}/></button></header>
     <div className="locker-workspace">
-      <section className="locker-stage" aria-label={t('locker.currentSkin')}><div className="locker-stage-heading"><h2>{t('locker.currentSkin')}</h2><div className="locker-stage-toggles"><button type="button" className={showCape ? 'active' : ''} onClick={() => setShowCape((value) => !value)} title={showCape ? 'Hide cape' : 'Show cape'}>{showCape ? <Eye size={15}/> : <EyeOff size={15}/>}</button><button type="button" className={showLayers ? 'active' : ''} onClick={() => setShowLayers((value) => !value)} title={showLayers ? 'Hide outer layer' : 'Show outer layer'}><Layers size={15}/></button></div></div>
+      <section className="locker-stage" aria-label={t('locker.currentSkin')}>
+        <div className="locker-stage-bg" aria-hidden="true" />
+        <div className="locker-stage-overlay" aria-hidden="true" />
+        <div className="locker-stage-heading"><h2>{t('locker.currentSkin')}</h2><div className="locker-stage-toggles"><button type="button" className={showCape ? 'active' : ''} onClick={() => setShowCape((value) => !value)} title={showCape ? 'Hide cape' : 'Show cape'}>{showCape ? <Eye size={15}/> : <EyeOff size={15}/>}</button><button type="button" className={showLayers ? 'active' : ''} onClick={() => setShowLayers((value) => !value)} title={showLayers ? 'Hide outer layer' : 'Show outer layer'}><Layers size={15}/></button></div></div>
         <div className="locker-stage-model">{loading ? <span className="locker-loading"/> : <SkinViewer3D account={viewerAccount} width={285} height={390} animation={paused ? null : 'idle'} paused={paused} onViewer={(viewer) => { viewerRef.current = viewer; }}/>}</div>
         <div className="locker-stage-actions"><button type="button" onClick={handleResetView} title="Reset view"><RotateCcw size={16}/></button><div><button type="button" onClick={handleExport} disabled={!(wardrobe?.active?.skinId || wardrobe?.activeSkin)} title="Download active texture"><Download size={16}/></button><button type="button" onClick={() => setPaused((value) => !value)} title={paused ? 'Play preview' : 'Pause preview'}>{paused ? <Play size={16}/> : <Pause size={16}/>}</button></div></div>
       </section>
