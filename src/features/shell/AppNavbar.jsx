@@ -10,6 +10,7 @@ import './AppNavbar.css';
 /** Primary destinations, in the order they appear in the rail. */
 export const NAV_ITEMS = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
+  { id: 'skins', labelKey: 'nav.locker', icon: User },
   { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
   { id: 'versions', labelKey: 'nav.versions', icon: Blocks },
   { id: 'browse', labelKey: 'nav.browse', icon: Compass }

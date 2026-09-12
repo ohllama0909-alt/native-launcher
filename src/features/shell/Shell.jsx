@@ -5,6 +5,7 @@ import InstancesView from '../instances/InstancesView.jsx';
 import ClustersView from '../clusters/ClustersView.jsx';
 import BrowseView from '../browser/BrowseView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
+import LockerView from '../skins/LockerView.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import SettingsModal from '../settings/SettingsModal.jsx';
 import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
@@ -16,6 +17,7 @@ import './Shell.css';
 
 const BACK_LABELS = {
   home: 'back.home',
+  skins: 'nav.locker',
   instances: 'back.instances',
   versions: 'back.versions',
   browse: 'back.browse'
@@ -172,6 +174,14 @@ export default function Shell({
             launcherState={launcher}
             onLaunch={handleLaunch}
             onKill={launcher.kill}
+          />
+        )}
+
+        {currentTab === 'skins' && (
+          <LockerView
+            account={account}
+            onWardrobeChanged={onWardrobeChanged}
+            onNotify={notify}
           />
         )}
 

@@ -660,80 +660,104 @@ export default function BrowseView({
           )}
 
           <div className="browse-cards-grid">
-            {results.map((project) => {
-              const id = project.project_id;
-              const isInstalled = installedKeys.has(id);
-              const isBusy = busyIds.has(id);
-
-              return (
-                <article className="content-card" key={id}>
-                  <button
-                    type="button"
-                    className="content-card-main"
-                    onClick={() => openDetail(project)}
-                  >
-                    <span className="content-card-icon">
-                      {project.icon_url ? (
-                        <img src={project.icon_url} alt="" loading="lazy" />
-                      ) : (
-                        <NativeIcon name={activeType.icon} size={20} />
-                      )}
-                    </span>
-
+            {loading ? (
+              Array.from({ length: 8 }).map((_, idx) => (
+                <article className="content-card content-card-skeleton" key={`skeleton-${idx}`}>
+                  <div className="content-card-main">
+                    <span className="content-card-icon skeleton-box skeleton-icon" />
                     <span className="content-card-text">
                       <span className="content-card-title-row">
-                        <span className="content-card-title">{project.title}</span>
-                        {isInstalled && (
-                          <span className="content-card-badge">
-                            <NativeIcon name="check" size={10} />
-                            {t('browse.installed')}
-                          </span>
-                        )}
+                        <span className="skeleton-box skeleton-title" />
                       </span>
-                      <span className="content-card-desc">{project.description}</span>
+                      <span className="skeleton-box skeleton-line" />
+                      <span className="skeleton-box skeleton-line short" />
                       <span className="content-card-stats">
-                        <span>
-                          <NativeIcon name="download" size={11} />
-                          {formatNumber(project.downloads, { notation: 'compact', maximumFractionDigits: 1 })}
-                        </span>
-                        <span>
-                          <NativeIcon name="star" size={11} />
-                          {formatNumber(project.follows, { notation: 'compact', maximumFractionDigits: 1 })}
-                        </span>
-                        {project.author && <span>{project.author}</span>}
+                        <span className="skeleton-box skeleton-pill" />
+                        <span className="skeleton-box skeleton-pill" />
                       </span>
                     </span>
-                  </button>
-
+                  </div>
                   <div className="content-card-actions">
-                    {isInstalled && activeType.id !== 'modpack' ? (
-                      <button
-                        type="button"
-                        className="content-remove-btn"
-                        onClick={() => handleRemove(project)}
-                        disabled={isBusy}
-                      >
-                        {isBusy ? '…' : t('common.remove')}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="content-install-btn"
-                        onClick={() => handleInstall(project)}
-                        disabled={isBusy || (activeType.id !== 'modpack' && !target)}
-                      >
-                        {isBusy ? (
-                          <NativeIcon name="refresh" size={14} className="is-spinning" />
-                        ) : (
-                          <NativeIcon name="download" size={14} />
-                        )}
-                        <span>{activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</span>
-                      </button>
-                    )}
+                    <span className="skeleton-box skeleton-btn" />
                   </div>
                 </article>
-              );
-            })}
+              ))
+            ) : (
+              results.map((project) => {
+                const id = project.project_id;
+                const isInstalled = installedKeys.has(id);
+                const isBusy = busyIds.has(id);
+
+                return (
+                  <article className="content-card" key={id}>
+                    <button
+                      type="button"
+                      className="content-card-main"
+                      onClick={() => openDetail(project)}
+                    >
+                      <span className="content-card-icon">
+                        {project.icon_url ? (
+                          <img src={project.icon_url} alt="" loading="lazy" />
+                        ) : (
+                          <NativeIcon name={activeType.icon} size={20} />
+                        )}
+                      </span>
+
+                      <span className="content-card-text">
+                        <span className="content-card-title-row">
+                          <span className="content-card-title">{project.title}</span>
+                          {isInstalled && (
+                            <span className="content-card-badge">
+                              <NativeIcon name="check" size={10} />
+                              {t('browse.installed')}
+                            </span>
+                          )}
+                        </span>
+                        <span className="content-card-desc">{project.description}</span>
+                        <span className="content-card-stats">
+                          <span>
+                            <NativeIcon name="download" size={11} />
+                            {formatNumber(project.downloads, { notation: 'compact', maximumFractionDigits: 1 })}
+                          </span>
+                          <span>
+                            <NativeIcon name="star" size={11} />
+                            {formatNumber(project.follows, { notation: 'compact', maximumFractionDigits: 1 })}
+                          </span>
+                          {project.author && <span>{project.author}</span>}
+                        </span>
+                      </span>
+                    </button>
+
+                    <div className="content-card-actions">
+                      {isInstalled && activeType.id !== 'modpack' ? (
+                        <button
+                          type="button"
+                          className="content-remove-btn"
+                          onClick={() => handleRemove(project)}
+                          disabled={isBusy}
+                        >
+                          {isBusy ? '…' : t('common.remove')}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="content-install-btn"
+                          onClick={() => handleInstall(project)}
+                          disabled={isBusy || (activeType.id !== 'modpack' && !target)}
+                        >
+                          {isBusy ? (
+                            <NativeIcon name="refresh" size={14} className="is-spinning" />
+                          ) : (
+                            <NativeIcon name="download" size={14} />
+                          )}
+                          <span>{activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</span>
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
+            )}
           </div>
 
           {totalPages > 1 && (
