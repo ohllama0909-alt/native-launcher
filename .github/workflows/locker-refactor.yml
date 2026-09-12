@@ -5,6 +5,9 @@ on:
     paths:
       - 'src/features/skins/**'
       - 'src/assets/capes/**'
+      - 'src/components/ui/PlayerAvatar.jsx'
+      - 'src/lib/skins.js'
+      - 'test/skins.test.js'
       - 'scripts/fetch-official-capes.mjs'
       - '.github/workflows/locker-refactor.yml'
 
