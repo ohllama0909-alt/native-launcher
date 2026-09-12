@@ -477,6 +477,32 @@
   color: var(--fg-on-brand);
 }
 
+:root[data-contrast='high'] .home-quick-btn {
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-contrast='high'] .home-quick-btn:hover {
+  background: rgba(18, 18, 24, 0.95);
+  border-color: var(--brand-border);
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8);
+}
+
+:root[data-contrast='high'] .cluster-settings-btn {
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-contrast='high'] .cluster-settings-btn:hover {
+  background: rgba(18, 18, 24, 0.95);
+  border-color: var(--brand-border);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8);
+}
+
 .home-empty-state {
   display: flex;
   flex-direction: column;

@@ -127,7 +127,7 @@ export default function HomeView({
     <div className="home-view">
       {/* Wallpaper */}
       <div className="home-bg-layer">
-        <img src={backgroundArt} alt={cluster?.name || 'Minecraft'} className="home-bg-img" />
+        <img key={backgroundArt} src={backgroundArt} alt={cluster?.name || 'Minecraft'} className="home-bg-img" />
         <div className="home-bg-overlay" />
         <div className="home-bg-fade" />
       </div>

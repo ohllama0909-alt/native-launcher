@@ -1131,16 +1131,7 @@ function init(dependencies, ipcMain) {
     }
   };
 
-  ipcMain.handle('wardrobe:get', async (_event, account) => {
-    const state = publicState(account);
-    if (!state.active.hasSkin && !state.active.hasCape && account?.name && account.name !== 'guest') {
-      try {
-        const pulled = await pullRemoteWardrobe(account);
-        if (pulled) return pulled;
-      } catch {}
-    }
-    return state;
-  });
+  ipcMain.handle('wardrobe:get', (_event, account) => publicState(account));
   // Lightweight skin/cape resolver for avatar UIs (the account switcher list,
   // onboarding, etc.). Local accounts (Noctra/offline) aren't on mc-heads, so
   // their real texture lives in the wardrobe: return the active skin, warming

@@ -28,6 +28,7 @@ export default function Shell({
   account,
   accounts = [],
   activeId,
+  initialInstances = null,
   onAddMicrosoft,
   onAddOffline,
   onAddNative,
@@ -59,7 +60,7 @@ export default function Shell({
 
   const [notifications, setNotifications] = useState([]);
 
-  const instancesManager = useInstances();
+  const instancesManager = useInstances(initialInstances);
   const launcher = useLauncher();
 
   const notify = useCallback((title, body) => {

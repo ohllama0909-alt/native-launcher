@@ -105,9 +105,56 @@ function buildInstance(values) {
   return instance;
 }
 
-export default function useInstances() {
-  const [data, setData] = useState(DEFAULT_DATA);
-  const [loaded, setLoaded] = useState(false);
+function loadInitialSync(initialData) {
+  if (initialData?.instances?.length) {
+    const instances = initialData.instances.map(hydrate);
+    return {
+      instances,
+      selectedId: initialData.selectedId || instances[0]?.id || null
+    };
+  }
+  if (window.native?.instances?.loadSync) {
+    try {
+      const saved = window.native.instances.loadSync();
+      if (saved?.instances?.length) {
+        const instances = saved.instances.map(hydrate);
+        return {
+          instances,
+          selectedId: saved.selectedId || instances[0]?.id || null
+        };
+      }
+    } catch {}
+  }
+  for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (parsed?.instances?.length) {
+        return {
+          instances: parsed.instances.map(hydrate),
+          selectedId: parsed.selectedId || parsed.instances[0]?.id || null
+        };
+      }
+    } catch {}
+  }
+  return DEFAULT_DATA;
+}
+
+export default function useInstances(initialData = null) {
+  const [data, setData] = useState(() => loadInitialSync(initialData));
+  const [loaded, setLoaded] = useState(() => Boolean(initialData?.instances?.length));
+
+  useEffect(() => {
+    if (initialData?.instances?.length) {
+      const instances = initialData.instances.map(hydrate);
+      setData({
+        instances,
+        selectedId: initialData.selectedId || instances[0]?.id || null
+      });
+      setLoaded(true);
+    }
+  }, [initialData]);
 
   useEffect(() => {
     let cancelled = false;

@@ -91,7 +91,7 @@ export default function App() {
           await window.native.settings?.save(migratedSettings);
         }
 
-        setStartup({ ready: true, onboarding, settings: migratedSettings });
+        setStartup({ ready: true, onboarding, settings: migratedSettings, instances: instanceData });
 
         // Background sync so any remote cloud updates are pulled seamlessly
         if (initialAccount && window.native.wardrobe?.sync) {
@@ -119,12 +119,12 @@ export default function App() {
       setApplicationLocale(settings?.onboarding?.language || 'en');
 
       setAccounts(savedAccounts);
-      setStartup({ ready: true, onboarding, settings });
+      setStartup({ ready: true, onboarding, settings, instances: instanceData });
     };
 
     loadStartup().catch((error) => {
       console.error('Could not load startup state:', error);
-      setStartup({ ready: true, onboarding: true, settings: {} });
+      setStartup({ ready: true, onboarding: true, settings: {}, instances: null });
     });
   }, []);
 
@@ -225,11 +225,11 @@ export default function App() {
     if (window.native) {
       await window.native.instances.save(instanceData);
       const savedSettings = await window.native.settings.save(nextSettings);
-      setStartup({ ready: true, onboarding: false, settings: savedSettings ?? nextSettings });
+      setStartup({ ready: true, onboarding: false, settings: savedSettings ?? nextSettings, instances: instanceData });
     } else {
       localStorage.setItem('native.instances', JSON.stringify(instanceData));
       localStorage.setItem('native.settings', JSON.stringify(nextSettings));
-      setStartup({ ready: true, onboarding: false, settings: nextSettings });
+      setStartup({ ready: true, onboarding: false, settings: nextSettings, instances: instanceData });
     }
   };
 
@@ -253,6 +253,7 @@ export default function App() {
         account={account}
         accounts={accounts}
         activeId={activeId}
+        initialInstances={startup.instances}
         onAddMicrosoft={handleAddMicrosoft}
         onAddOffline={handleAddOffline}
         onAddNative={handleAddNative}

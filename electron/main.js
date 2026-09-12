@@ -80,6 +80,14 @@ ipcMain.handle('instances:load', () => {
   }
 });
 
+ipcMain.on('instances:loadSync', (event) => {
+  try {
+    event.returnValue = JSON.parse(fs.readFileSync(instancesPath(), 'utf8'));
+  } catch {
+    event.returnValue = null;
+  }
+});
+
 ipcMain.handle('instances:save', (_event, data) => {
   fs.mkdirSync(path.dirname(instancesPath()), { recursive: true });
   fs.writeFileSync(instancesPath(), JSON.stringify(data, null, 2));

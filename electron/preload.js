@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('native', {
     ipcRenderer.on('window:maximized', (_event, isMaximized) => callback(isMaximized)),
   instances: {
     load: () => ipcRenderer.invoke('instances:load'),
+    loadSync: () => ipcRenderer.sendSync('instances:loadSync'),
     save: (data) => ipcRenderer.invoke('instances:save', data)
   },
   auth: {

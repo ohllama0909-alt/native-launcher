@@ -236,7 +236,8 @@
   --fg-muted: #9c97a0;
   --hairline: rgba(255, 255, 255, 0.14);
   --hairline-strong: rgba(255, 255, 255, 0.24);
-  --surface-glass: rgba(255, 255, 255, 0.06);
+  --surface-glass: rgba(0, 0, 0, 0.78);
+  --surface-glass-strong: rgba(0, 0, 0, 0.94);
 }
 
 /* ---------- corner rounding ---------- */
