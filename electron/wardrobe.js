@@ -40,12 +40,48 @@ const accountDir = (account) => path.join(wardrobeRoot(), accountKey(account));
 const metadataPath = (account) => path.join(accountDir(account), 'wardrobe.json');
 const itemPath = (account, filename) => path.join(accountDir(account), filename);
 
-function newSyncKey() {
-  return crypto.randomBytes(24).toString('hex');
+const OFFICIAL_CAPES = [
+  { id: 'cherry-blossom', name: 'Cherry Blossom', file: 'cherry-blossom.png', hash: 'be05a2d92dd043034c9ae6d7c8415e8bc990080ba4dc4c70e9ea92cf9a89705c' },
+  { id: 'founders', name: "Founder's Cape", file: 'founders.png', hash: '99aba02ef05ec6aa4d42db8ee43796d6cd50e4b2954ab29f0caeb85f96bf52a1' },
+  { id: 'anniversary-15', name: '15th Anniversary', file: 'anniversary-15.png', hash: '0b4f4ee1bf094876a8454838b7cd07184dce86428b3cab4122b3bb7d67e530b6' },
+  { id: 'purple-heart', name: 'Purple Heart', file: 'purple-heart.png', hash: '6836989ef37c72e84552410f178740a3d630ed4ecdce14029e6e9e155980d06c' },
+  { id: 'followers', name: "Follower's Cape", file: 'followers.png', hash: '77065df71efe39771d3af4832ed62803c551772cc2f78e744d52822ae949f6c6' },
+  { id: 'vanilla', name: 'Vanilla Cape', file: 'vanilla.png', hash: 'f9a76537647989f9a0b6d001e320dac591c359e9e61a31f4ce11c88f207f0ad4' },
+  { id: 'migrator', name: 'Migrator Cape', file: 'migrator.png', hash: '2340c0e03dd24a11b15a8b33c2a7e9e32abb2051b2481d0ba7defd635ca7a933' }
+];
+
+function getOfficialCapeByName(name) {
+  const clean = String(name || '').trim().toLowerCase();
+  return OFFICIAL_CAPES.find((c) => c.name.toLowerCase() === clean || c.id.toLowerCase() === clean);
 }
 
-function emptyMetadata() {
-  return { version: 2, activeSkin: null, activeCape: null, model: 'classic', items: [], syncKey: newSyncKey() };
+function getOfficialCapeByHash(hash) {
+  if (!hash) return null;
+  const clean = String(hash).trim().toLowerCase();
+  return OFFICIAL_CAPES.find((c) => c.hash.toLowerCase() === clean);
+}
+
+function getOfficialCapeBuffer(nameOrId) {
+  const cape = typeof nameOrId === 'object' && nameOrId ? nameOrId : (getOfficialCapeByName(nameOrId) || OFFICIAL_CAPES.find(c => c.id === nameOrId));
+  if (!cape) return null;
+  const p1 = path.join(__dirname, 'capes', cape.file);
+  if (fs.existsSync(p1)) return fs.readFileSync(p1);
+  const p2 = path.join(__dirname, '..', 'src', 'assets', 'capes', cape.file);
+  if (fs.existsSync(p2)) return fs.readFileSync(p2);
+  return null;
+}
+
+function deterministicSyncKey(account) {
+  const seed = String(account?.email || account?.uuid || account?.id || account?.name || 'guest').toLowerCase().trim();
+  return crypto.createHash('sha256').update(`noctra-wardrobe-v2:${seed}`).digest('hex').slice(0, 48);
+}
+
+function newSyncKey(account) {
+  return deterministicSyncKey(account);
+}
+
+function emptyMetadata(account) {
+  return { version: 2, activeSkin: null, activeCape: null, model: 'classic', items: [], syncKey: newSyncKey(account) };
 }
 
 /* ── items ───────────────────────────────────────────────────── */
@@ -104,12 +140,12 @@ function migrateLegacy(value) {
   return metadata;
 }
 
-function sanitizeMetadata(raw) {
-  if (!raw || typeof raw !== 'object') return emptyMetadata();
+function sanitizeMetadata(raw, account) {
+  if (!raw || typeof raw !== 'object') return emptyMetadata(account);
   if (Array.isArray(raw.slots) && !Array.isArray(raw.items)) return migrateLegacy(raw);
 
-  const metadata = emptyMetadata();
-  metadata.syncKey = typeof raw.syncKey === 'string' && raw.syncKey.length >= 32 ? raw.syncKey : metadata.syncKey;
+  const metadata = emptyMetadata(account);
+  metadata.syncKey = typeof raw.syncKey === 'string' && raw.syncKey.length >= 32 ? raw.syncKey : (account ? deterministicSyncKey(account) : metadata.syncKey);
   metadata.model = normalizeModel(raw.model);
   metadata.items = (Array.isArray(raw.items) ? raw.items : [])
     .map((item, index) => normalizeItem(item, `item-${index}`))
@@ -117,6 +153,8 @@ function sanitizeMetadata(raw) {
     .slice(0, ITEM_LIMIT);
   metadata.activeSkin = metadata.items.some((item) => item.id === raw.activeSkin) ? raw.activeSkin : null;
   metadata.activeCape = metadata.items.some((item) => item.id === raw.activeCape) ? raw.activeCape : null;
+  metadata.lastModifiedAt = Number(raw.lastModifiedAt) || null;
+  metadata.lastSyncedAt = Number(raw.lastSyncedAt) || null;
   return metadata;
 }
 
@@ -127,9 +165,49 @@ function loadMetadata(account) {
   } catch {
     raw = null;
   }
-  const metadata = sanitizeMetadata(raw);
-  // Persist the migrated shape (and the generated sync key) on first read.
-  if (!raw || raw.version !== 2) saveMetadata(account, metadata);
+  const metadata = sanitizeMetadata(raw, account);
+  if (!metadata.syncKey || metadata.syncKey.length < 32) {
+    metadata.syncKey = deterministicSyncKey(account);
+  }
+
+  // Automatic upgrade: verify that any cape items matching official presets use authentic textures
+  let upgraded = false;
+  for (const item of metadata.items) {
+    if (item.kind === 'cape') {
+      const official = getOfficialCapeByName(item.name);
+      if (official) {
+        const officialBuf = getOfficialCapeBuffer(official);
+        if (officialBuf) {
+          const targetPath = itemPath(account, item.file);
+          let replace = false;
+          try {
+            if (!fs.existsSync(targetPath)) {
+              replace = true;
+            } else {
+              const currentBuf = fs.readFileSync(targetPath);
+              if (!currentBuf.equals(officialBuf)) {
+                replace = true;
+              }
+            }
+          } catch {
+            replace = true;
+          }
+          if (replace) {
+            try {
+              fs.mkdirSync(accountDir(account), { recursive: true });
+              writeFileAtomic(targetPath, officialBuf);
+              upgraded = true;
+            } catch {}
+          }
+        }
+      }
+    }
+  }
+
+  // Persist the migrated shape, deterministic sync key, or upgraded items on read.
+  if (!raw || raw.version !== 2 || upgraded || raw.syncKey !== metadata.syncKey) {
+    saveMetadata(account, metadata);
+  }
   return metadata;
 }
 
@@ -309,31 +387,48 @@ function publicState(account) {
 
 function storeItem(account, kind, buffer, { name, model, favorite = false } = {}) {
   const metadata = loadMetadata(account);
-  const id = crypto.randomUUID();
-  const file = `${kind}-${id.slice(0, 8)}.png`;
+  const targetName = cleanName(name, kind === 'cape' ? 'Cape' : 'Skin');
+  const existing = metadata.items.find((item) => item.kind === kind && item.name === targetName);
+
+  let id;
+  let file;
+  if (existing) {
+    id = existing.id;
+    file = existing.file;
+    existing.model = kind === 'skin' ? normalizeModel(model || existing.model) : 'classic';
+    existing.createdAt = Date.now();
+  } else {
+    id = crypto.randomUUID();
+    file = `${kind}-${id.slice(0, 8)}.png`;
+    const item = {
+      id,
+      kind,
+      file,
+      name: targetName,
+      model: kind === 'skin' ? normalizeModel(model) : 'classic',
+      createdAt: Date.now(),
+      favorite: Boolean(favorite)
+    };
+    metadata.items.unshift(item);
+  }
+
   fs.mkdirSync(accountDir(account), { recursive: true });
   writeFileAtomic(itemPath(account, file), buffer);
 
-  const item = {
-    id,
-    kind,
-    file,
-    name: cleanName(name, kind === 'cape' ? 'Cape' : 'Skin'),
-    model: kind === 'skin' ? normalizeModel(model) : 'classic',
-    createdAt: Date.now(),
-    favorite: Boolean(favorite)
-  };
-
-  metadata.items.unshift(item);
   if (kind === 'skin') {
     metadata.activeSkin = id;
-    metadata.model = item.model;
+    metadata.model = existing ? existing.model : normalizeModel(model);
   } else {
     metadata.activeCape = id;
   }
+  metadata.lastModifiedAt = Date.now();
 
   const removed = metadata.items.splice(ITEM_LIMIT);
-  for (const stale of removed) fs.rmSync(itemPath(account, stale.file), { force: true });
+  for (const stale of removed) {
+    if (!metadata.items.some((it) => it.file === stale.file)) {
+      fs.rmSync(itemPath(account, stale.file), { force: true });
+    }
+  }
 
   saveMetadata(account, metadata);
   return publicState(account);
@@ -371,6 +466,7 @@ function applyItem(account, id) {
   } else {
     metadata.activeCape = item.id;
   }
+  metadata.lastModifiedAt = Date.now();
   saveMetadata(account, metadata);
   return publicState(account);
 }
@@ -379,6 +475,7 @@ function clearActive(account, kind) {
   const metadata = loadMetadata(account);
   if (kind === 'cape') metadata.activeCape = null;
   else metadata.activeSkin = null;
+  metadata.lastModifiedAt = Date.now();
   saveMetadata(account, metadata);
   return publicState(account);
 }
@@ -406,6 +503,7 @@ function setModel(account, model) {
   metadata.model = normalizeModel(model);
   const skin = activeItem(metadata, 'skin');
   if (skin) skin.model = metadata.model;
+  metadata.lastModifiedAt = Date.now();
   saveMetadata(account, metadata);
   return publicState(account);
 }
@@ -417,6 +515,7 @@ function removeItem(account, id) {
   metadata.items = metadata.items.filter((entry) => entry.id !== id);
   if (metadata.activeSkin === id) metadata.activeSkin = null;
   if (metadata.activeCape === id) metadata.activeCape = null;
+  metadata.lastModifiedAt = Date.now();
   saveMetadata(account, metadata);
   fs.rmSync(itemPath(account, item.file), { force: true });
   return publicState(account);
@@ -441,15 +540,236 @@ function readActiveBuffers(account) {
   };
 }
 
+async function pullRemoteWardrobe(account) {
+  if (!account?.name || account.name === 'guest') return null;
+  const username = cleanName(account.name, 'Player');
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(`${apiRoot()}/csl/${encodeURIComponent(username)}.json`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const remote = await res.json();
+    if (!remote) return null;
+
+    const metadata = loadMetadata(account);
+    let changed = false;
+
+    // 1. Remote Skin
+    const remoteSkinUrl = remote.skin || remote.skins?.default || remote.skins?.slim;
+    if (remoteSkinUrl) {
+      const hashMatch = remoteSkinUrl.match(/\/textures\/([a-f0-9]{64})/i);
+      const remoteHash = hashMatch ? hashMatch[1].toLowerCase() : null;
+      const currentActiveSkin = activeItem(metadata, 'skin');
+      let needsDownload = true;
+
+      if (currentActiveSkin) {
+        try {
+          const currentBuf = fs.readFileSync(itemPath(account, currentActiveSkin.file));
+          const currentHash = crypto.createHash('sha256').update(currentBuf).digest('hex').toLowerCase();
+          if (remoteHash && currentHash === remoteHash) {
+            needsDownload = false;
+          }
+        } catch {}
+      }
+
+      if (needsDownload) {
+        try {
+          const sCtrl = new AbortController();
+          const sTimeout = setTimeout(() => sCtrl.abort(), 8000);
+          const sRes = await fetch(remoteSkinUrl, { signal: sCtrl.signal });
+          clearTimeout(sTimeout);
+          if (sRes.ok) {
+            const buf = Buffer.from(await sRes.arrayBuffer());
+            if (buf.length > 24) {
+              const model = remote.model === 'slim' ? 'slim' : 'classic';
+              let existingItem = null;
+              for (const it of metadata.items) {
+                if (it.kind === 'skin') {
+                  try {
+                    const b = fs.readFileSync(itemPath(account, it.file));
+                    if (crypto.createHash('sha256').update(b).digest('hex').toLowerCase() === (remoteHash || '')) {
+                      existingItem = it;
+                      break;
+                    }
+                  } catch {}
+                }
+              }
+
+              if (existingItem) {
+                metadata.activeSkin = existingItem.id;
+                metadata.model = model;
+                changed = true;
+              } else {
+                const id = crypto.randomUUID();
+                const file = `skin-${id.slice(0, 8)}.png`;
+                fs.mkdirSync(accountDir(account), { recursive: true });
+                writeFileAtomic(itemPath(account, file), buf);
+                const item = {
+                  id,
+                  kind: 'skin',
+                  file,
+                  name: `${username}'s Skin`,
+                  model,
+                  createdAt: Date.now(),
+                  favorite: true
+                };
+                metadata.items.unshift(item);
+                metadata.activeSkin = id;
+                metadata.model = model;
+                changed = true;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to download remote skin:', err?.message || err);
+        }
+      }
+    }
+
+    // 2. Remote Cape
+    const remoteCapeUrl = remote.cape || remote.capes?.default;
+    if (remoteCapeUrl) {
+      const hashMatch = remoteCapeUrl.match(/\/textures\/([a-f0-9]{64})/i);
+      const remoteHash = hashMatch ? hashMatch[1].toLowerCase() : null;
+      const currentActiveCape = activeItem(metadata, 'cape');
+      let needsDownload = true;
+
+      if (currentActiveCape) {
+        try {
+          const currentBuf = fs.readFileSync(itemPath(account, currentActiveCape.file));
+          const currentHash = crypto.createHash('sha256').update(currentBuf).digest('hex').toLowerCase();
+          if (remoteHash && currentHash === remoteHash) {
+            needsDownload = false;
+          }
+        } catch {}
+      }
+
+      if (needsDownload) {
+        try {
+          const cCtrl = new AbortController();
+          const cTimeout = setTimeout(() => cCtrl.abort(), 8000);
+          const cRes = await fetch(remoteCapeUrl, { signal: cCtrl.signal });
+          clearTimeout(cTimeout);
+          if (cRes.ok) {
+            const buf = Buffer.from(await cRes.arrayBuffer());
+            if (buf.length > 24) {
+              const bufHash = crypto.createHash('sha256').update(buf).digest('hex').toLowerCase();
+              const official = getOfficialCapeByHash(bufHash);
+              const capeName = official ? official.name : `${username}'s Cape`;
+
+              let existingItem = null;
+              for (const it of metadata.items) {
+                if (it.kind === 'cape') {
+                  if (official && it.name === official.name) {
+                    existingItem = it;
+                    break;
+                  }
+                  try {
+                    const b = fs.readFileSync(itemPath(account, it.file));
+                    if (crypto.createHash('sha256').update(b).digest('hex').toLowerCase() === bufHash) {
+                      existingItem = it;
+                      break;
+                    }
+                  } catch {}
+                }
+              }
+
+              if (existingItem) {
+                writeFileAtomic(itemPath(account, existingItem.file), buf);
+                metadata.activeCape = existingItem.id;
+                changed = true;
+              } else {
+                const id = crypto.randomUUID();
+                const file = `cape-${id.slice(0, 8)}.png`;
+                fs.mkdirSync(accountDir(account), { recursive: true });
+                writeFileAtomic(itemPath(account, file), buf);
+                const item = {
+                  id,
+                  kind: 'cape',
+                  file,
+                  name: capeName,
+                  model: 'classic',
+                  createdAt: Date.now(),
+                  favorite: false
+                };
+                metadata.items.unshift(item);
+                metadata.activeCape = id;
+                changed = true;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to download remote cape:', err?.message || err);
+        }
+      }
+    }
+
+    if (remote.updatedAt) {
+      metadata.lastSyncedAt = Date.parse(remote.updatedAt) || Date.now();
+    }
+
+    if (changed) {
+      saveMetadata(account, metadata);
+    }
+    return publicState(account);
+  } catch {
+    return null;
+  }
+}
+
 async function syncWardrobe(account) {
-  const { metadata, skin, cape } = readActiveBuffers(account);
+  if (!account?.name || account.name === 'guest') return { ok: false };
+  const username = cleanName(account.name, 'Player');
+  let metadata = loadMetadata(account);
+
+  // If local has no active skin and no active cape, pull from remote first!
+  const hasLocalActive = Boolean(metadata.activeSkin || metadata.activeCape);
+  if (!hasLocalActive) {
+    const pulled = await pullRemoteWardrobe(account);
+    if (pulled?.active?.hasSkin || pulled?.active?.hasCape) {
+      return { ok: true, pulled: true, state: pulled };
+    }
+  }
+
+  // Check remote timestamp to see if another device updated remote more recently
+  try {
+    const checkCtrl = new AbortController();
+    const checkTimeout = setTimeout(() => checkCtrl.abort(), 4000);
+    const checkRes = await fetch(`${apiRoot()}/csl/${encodeURIComponent(username)}.json`, { signal: checkCtrl.signal });
+    clearTimeout(checkTimeout);
+    if (checkRes.ok) {
+      const remoteData = await checkRes.json();
+      const remoteTime = Date.parse(remoteData?.updatedAt) || 0;
+      const localSyncedTime = Number(metadata.lastSyncedAt) || 0;
+      const localModifiedTime = Number(metadata.lastModifiedAt) || 0;
+
+      // If remote was updated more recently than our last sync AND more recently than our local modifications
+      if (remoteTime > localSyncedTime && remoteTime > localModifiedTime) {
+        const pulled = await pullRemoteWardrobe(account);
+        if (pulled) return { ok: true, pulled: true, state: pulled };
+      }
+    }
+  } catch {}
+
+  // Otherwise, push local outfit to the server
+  const { skin, cape } = readActiveBuffers(account);
+  metadata = loadMetadata(account);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
+  const timeout = setTimeout(() => controller.abort(), 10_000);
   let response;
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${metadata.syncKey}`
+    };
+    if (account?.token) {
+      headers['X-Noctra-Token'] = account.token;
+    }
     response = await fetch(`${apiRoot()}/v1/wardrobe`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${metadata.syncKey}` },
+      headers,
       body: JSON.stringify({
         username: account.name,
         model: metadata.model,
@@ -461,8 +781,17 @@ async function syncWardrobe(account) {
   } finally {
     clearTimeout(timeout);
   }
-  if (!response.ok) throw new Error(`Wardrobe sync failed (HTTP ${response.status})`);
-  return response.json();
+
+  if (!response.ok) {
+    let detail = '';
+    try { detail = (await response.json())?.error || ''; } catch {}
+    throw new Error(detail || `Wardrobe sync failed (HTTP ${response.status})`);
+  }
+
+  metadata.lastSyncedAt = Date.now();
+  saveMetadata(account, metadata);
+  const resData = await response.json();
+  return { ...resData, ok: true, state: publicState(account) };
 }
 
 function syncWardrobeInBackground(account) {
@@ -787,7 +1116,17 @@ function init(dependencies, ipcMain) {
     }
   };
 
-  ipcMain.handle('wardrobe:get', (_event, account) => publicState(account));
+  ipcMain.handle('wardrobe:get', async (_event, account) => {
+    const state = publicState(account);
+    if (!state.active.hasSkin && !state.active.hasCape && account?.name && account.name !== 'guest') {
+      try {
+        const pulled = await pullRemoteWardrobe(account);
+        if (pulled) return pulled;
+      } catch {}
+    }
+    return state;
+  });
+  ipcMain.handle('wardrobe:pull', (_event, account) => pullRemoteWardrobe(account));
   ipcMain.handle('wardrobe:upload', (_event, payload) => {
     const state = addItemFromBase64(payload.account, payload);
     syncWardrobeInBackground(payload.account);
@@ -845,5 +1184,9 @@ module.exports = {
   exportItem,
   prepareFabricInstance,
   migrateLegacy,
+  pullRemoteWardrobe,
+  syncWardrobe,
+  deterministicSyncKey,
+  OFFICIAL_CAPES,
   API_ROOT
 };

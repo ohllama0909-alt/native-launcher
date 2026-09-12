@@ -141,3 +141,56 @@ test('publishing an outfit serves a CustomSkinLoader profile and texture', async
   assert.equal((await fetch(`${base}/csl/Herobrine.json`)).status, 404);
   assert.equal((await fetch(`${base}/health`)).status, 200);
 });
+
+test('multi-device sync succeeds when using Noctra session token or deterministic key', async (t) => {
+  const authDb = require('../skin-server/auth-db');
+  const server = await listen(0, '127.0.0.1');
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  // 1. Create a Noctra user in authDb
+  const testUser = authDb.createUser({
+    email: 'steve@example.com',
+    username: 'SteveTest',
+    password: 'password123',
+    model: 'classic'
+  });
+  const sessionDevice1 = authDb.createSession(testUser.id);
+  const sessionDevice2 = authDb.createSession(testUser.id);
+
+  const skinA = makePng(0x33);
+  const skinB = makePng(0x44);
+
+  // Device 1 uploads with its session token
+  const dev1Res = await fetch(`${base}/v1/wardrobe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Noctra-Token': sessionDevice1.token,
+      Authorization: `Bearer ${crypto.randomBytes(24).toString('hex')}`
+    },
+    body: JSON.stringify({ username: 'SteveTest', skin: skinA.toString('base64') })
+  });
+  assert.equal(dev1Res.status, 200);
+
+  // Device 2 logs in on another device and uploads with Device 2's session token and different key
+  const dev2Res = await fetch(`${base}/v1/wardrobe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Noctra-Token': sessionDevice2.token,
+      Authorization: `Bearer ${crypto.randomBytes(24).toString('hex')}`
+    },
+    body: JSON.stringify({ username: 'SteveTest', skin: skinB.toString('base64') })
+  });
+  assert.equal(dev2Res.status, 200);
+
+  // Verify the profile was updated to skinB
+  const profileRes = await fetch(`${base}/csl/SteveTest.json`);
+  assert.equal(profileRes.status, 200);
+  const profile = await profileRes.json();
+  const textureRes = await fetch(profile.skins.default);
+  const served = Buffer.from(await textureRes.arrayBuffer());
+  assert.ok(served.equals(skinB));
+});
+

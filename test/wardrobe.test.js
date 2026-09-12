@@ -204,3 +204,40 @@ test('prepareFabricInstance writes the CustomSkinLoader files for the active out
     fs.rmSync(userData, { recursive: true, force: true });
   }
 });
+
+test('deterministicSyncKey produces consistent keys for the same account identity', () => {
+  const account1 = { id: 'user-123', name: 'PlayerOne', email: 'test@example.com' };
+  const account2 = { id: 'different-local-id', name: 'PlayerOne', email: 'test@example.com' };
+  const key1 = wardrobe.deterministicSyncKey(account1);
+  const key2 = wardrobe.deterministicSyncKey(account2);
+  assert.equal(key1, key2);
+  assert.equal(key1.length, 48);
+});
+
+test('storing an item with an existing name overwrites the file instead of duplicating', () => {
+  const { account, userData } = makeAccount();
+  try {
+    const fakeTexture1 = pngBuffer(2, 2);
+    const fakeTexture2 = pngBuffer(4, 4);
+
+    let state = wardrobe.addItemFromBase64(account, {
+      kind: 'cape',
+      dataUrl: fakeTexture1.toString('base64'),
+      name: 'Migrator Cape'
+    });
+    assert.equal(state.capes.length, 1);
+    assert.equal(state.capes[0].name, 'Migrator Cape');
+
+    // Storing again with same name should update in place
+    state = wardrobe.addItemFromBase64(account, {
+      kind: 'cape',
+      dataUrl: fakeTexture2.toString('base64'),
+      name: 'Migrator Cape'
+    });
+    assert.equal(state.capes.length, 1);
+    assert.equal(state.capes[0].name, 'Migrator Cape');
+  } finally {
+    fs.rmSync(userData, { recursive: true, force: true });
+  }
+});
+

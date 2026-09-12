@@ -36,7 +36,16 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
     setLoading(true);
     try {
       if (window.native?.wardrobe?.get) {
-        publishState(await window.native.wardrobe.get(account));
+        const current = await window.native.wardrobe.get(account);
+        publishState(current);
+        // Automatically sync with cloud in background so any remote changes are pulled
+        window.native.wardrobe.sync(account).then((res) => {
+          if (res?.pulled && res?.state) {
+            publishState(res.state);
+          } else if (res?.ok) {
+            window.native.wardrobe.get(account).then(publishState).catch(() => {});
+          }
+        }).catch(() => {});
       } else {
         const saved = localStorage.getItem(`native.wardrobe.${account.id || 'default'}`);
         publishState(saved ? JSON.parse(saved) : { model: account.model || 'classic', items: [], skins: [], capes: [], favorites: [], latest: [], active: { skinUrl: null, capeUrl: null, model: account.model || 'classic', hasSkin: false, hasCape: false } });
@@ -101,8 +110,13 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
     if (!account) return;
     setSyncing(true);
     try {
-      await window.native?.wardrobe?.sync?.(account);
-      await loadWardrobe();
+      const res = await window.native?.wardrobe?.sync?.(account);
+      if (res?.state) {
+        publishState(res.state);
+      } else {
+        const updated = await window.native?.wardrobe?.get?.(account);
+        if (updated) publishState(updated);
+      }
       onNotify?.(t('locker.title'), 'All cosmetics synchronized with Noctra Cloud.');
     } catch (error) {
       onNotify?.(t('locker.title'), error?.message || 'Cloud sync completed locally.');
@@ -166,15 +180,10 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
       if (!cape.textureUrl) {
         next = await window.native?.wardrobe?.clearActive?.(account, 'cape');
       } else {
-        const existing = (wardrobe?.capes || wardrobe?.items || []).find((item) => item.kind === 'cape' && item.name === cape.name);
-        if (existing) {
-          next = await window.native?.wardrobe?.apply?.(account, existing.id);
-        } else {
-          const response = await fetch(cape.textureUrl);
-          if (!response.ok) throw new Error(`Could not load ${cape.name}`);
-          const textureDataUrl = await readFileAsDataUrl(await response.blob());
-          next = await window.native?.wardrobe?.upload?.(account, 'cape', textureDataUrl, { name: cape.name });
-        }
+        const response = await fetch(cape.textureUrl);
+        if (!response.ok) throw new Error(`Could not load ${cape.name}`);
+        const textureDataUrl = await readFileAsDataUrl(await response.blob());
+        next = await window.native?.wardrobe?.upload?.(account, 'cape', textureDataUrl, { name: cape.name });
       }
       if (next) publishState(next);
       window.native?.wardrobe?.sync?.(account).catch(() => {});

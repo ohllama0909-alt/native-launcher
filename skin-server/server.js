@@ -178,24 +178,68 @@ async function handler(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/v1/wardrobe') {
       const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-      if (token.length < 32) return send(res, 401, { error: 'Missing wardrobe key.' });
+      const noctraToken = String(req.headers['x-noctra-token'] || '');
+      if (token.length < 32 && (!noctraToken || noctraToken.length < 32)) {
+        return send(res, 401, { error: 'Missing wardrobe key.' });
+      }
       const body = await readJson(req);
       const username = usernameOf(body.username);
       const existing = readProfile(username);
-      const authHash = crypto.createHash('sha256').update(token).digest('hex');
-      if (existing?.authHash && !crypto.timingSafeEqual(Buffer.from(existing.authHash, 'hex'), Buffer.from(authHash, 'hex'))) {
+      const authHash = crypto.createHash('sha256').update(token || noctraToken).digest('hex');
+
+      let authorized = false;
+
+      // 1. Session token check: If user passed a Noctra session token (X-Noctra-Token or Bearer noc_...)
+      const checkSessionToken = (noctraToken && noctraToken.length >= 32) ? noctraToken : (token.startsWith('noc_') ? token : null);
+      if (checkSessionToken) {
+        try {
+          const sessionUser = authDb.getUserBySession(checkSessionToken);
+          if (sessionUser && sessionUser.username.toLowerCase() === username.toLowerCase()) {
+            authorized = true;
+          }
+        } catch {}
+      }
+
+      // 2. Check if username is registered in Noctra Auth DB
+      let registeredUser = null;
+      try { registeredUser = authDb.getUserByUsername(username); } catch {}
+
+      // 3. Match existing profile authHash if already set
+      if (!authorized && existing?.authHash) {
+        try {
+          if (crypto.timingSafeEqual(Buffer.from(existing.authHash, 'hex'), Buffer.from(authHash, 'hex'))) {
+            authorized = true;
+          }
+        } catch {}
+      }
+
+      // 4. Deterministic key check for offline / unregistered usernames
+      if (!authorized && !registeredUser) {
+        const expectedKey = crypto.createHash('sha256').update(`noctra-wardrobe-v2:${username.toLowerCase()}`).digest('hex').slice(0, 48);
+        const expectedHash = crypto.createHash('sha256').update(expectedKey).digest('hex');
+        if (authHash === expectedHash) {
+          authorized = true;
+        }
+      }
+
+      // 5. If no existing profile and either authorized or not registered
+      if (!authorized && !existing && !registeredUser) {
+        authorized = true;
+      }
+
+      if (!authorized) {
         return send(res, 403, { error: 'This wardrobe belongs to another key.' });
       }
 
       // A null skin/cape clears that slot; anything else must be a valid PNG.
-      const skin = body.skin === null || body.skin === undefined ? null : textureHash(pngBuffer(body.skin));
-      const cape = body.cape === null || body.cape === undefined ? null : textureHash(pngBuffer(body.cape));
+      const skin = body.skin !== undefined ? (body.skin ? textureHash(pngBuffer(body.skin)) : null) : (existing?.skin ?? null);
+      const cape = body.cape !== undefined ? (body.cape ? textureHash(pngBuffer(body.cape)) : null) : (existing?.cape ?? null);
       const profile = {
         username,
         model: body.model === 'slim' ? 'slim' : 'default',
-        skin: skin ?? existing?.skin ?? null,
-        cape: cape ?? existing?.cape ?? null,
-        authHash,
+        skin,
+        cape,
+        authHash: authorized && authHash ? authHash : (existing?.authHash || authHash),
         updatedAt: new Date().toISOString()
       };
       atomicWrite(profilePath(username), JSON.stringify(profile, null, 2));
