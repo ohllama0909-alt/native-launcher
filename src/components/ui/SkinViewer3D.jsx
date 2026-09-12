@@ -1,16 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PlayerAvatar from './PlayerAvatar.jsx';
-import { FALLBACK_SKIN, SKIN_SERVICE, skinIdentifier } from '../../lib/skins.js';
+import { FALLBACK_SKIN, isLocalIdentity, SKIN_SERVICE, skinIdentifier } from '../../lib/skins.js';
 
 const SKIN_PATH = '/skin/';
 const CAPE_PATH = '/cape/';
 
-const textureBlobCache = new Map();
-
 export function skinTextureUrl(account) {
   if (account?.skinUrl) return account.skinUrl;
+  // Local (Noctra or offline) accounts must never fall back to mc-heads by name,
+  // as that queries a stranger's Mojang account with that username!
+  if (isLocalIdentity(account)) {
+    return SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN;
+  }
   const id = skinIdentifier(account) || FALLBACK_SKIN;
-  if (textureBlobCache.has(id)) return textureBlobCache.get(id);
   return SKIN_SERVICE + SKIN_PATH + encodeURIComponent(id);
 }
 
@@ -42,11 +44,33 @@ export default function SkinViewer3D({
 
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [selfHealed, setSelfHealed] = useState(null);
 
-  const skinUrl = skinTextureUrl(account);
+  // Self-heal local skins from wardrobe if account arrived without skinUrl
+  useEffect(() => {
+    if (account?.skinUrl || !isLocalIdentity(account) || !window.native?.wardrobe?.avatar) {
+      setSelfHealed(null);
+      return undefined;
+    }
+    let cancelled = false;
+    window.native.wardrobe.avatar(account).then((res) => {
+      if (!cancelled && res?.skinUrl) {
+        setSelfHealed({ skinUrl: res.skinUrl, capeUrl: res.capeUrl, model: res.model });
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [account?.id, account?.skinUrl]);
+
+  const effectiveAccount = selfHealed ? { ...account, ...selfHealed } : account;
+  const skinUrl = effectiveAccount?.skinUrl || skinTextureUrl(effectiveAccount);
+  const capeUrl = capeTextureUrl(effectiveAccount);
+  const effectiveModel = effectiveAccount?.model;
+
   const loadedSkinRef = useRef(null);
   const loadedModelRef = useRef(null);
   const loadedCapeRef = useRef(null);
+  const skinReqRef = useRef(0);
+  const capeReqRef = useRef(0);
 
   const onViewerRef = useRef(onViewer);
   onViewerRef.current = onViewer;
@@ -60,18 +84,14 @@ export default function SkinViewer3D({
         if (disposed || !canvasRef.current) return;
 
         libRef.current = lib;
-        const initialModel = account?.model === 'slim' ? 'slim' : account?.model === 'classic' ? 'default' : 'auto-detect';
+        const initialModel = effectiveModel === 'slim' ? 'slim' : effectiveModel === 'classic' ? 'default' : 'auto-detect';
         const viewer = new lib.SkinViewer({
           canvas: canvasRef.current,
           width,
           height,
-          skin: skinUrl,
           model: initialModel,
           preserveDrawingBuffer: false
         });
-
-        loadedSkinRef.current = skinUrl;
-        loadedModelRef.current = initialModel;
 
         viewer.fov = 42;
         viewer.zoom = 0.82;
@@ -132,37 +152,40 @@ export default function SkinViewer3D({
 
     // Arm width is explicit when the locker knows it, otherwise the library
     // infers it from the texture.
-    const modelOption = account?.model === 'slim'
+    const modelOption = effectiveModel === 'slim'
       ? 'slim'
-      : account?.model === 'classic'
+      : effectiveModel === 'classic'
         ? 'default'
         : 'auto-detect';
 
     if (loadedSkinRef.current !== skinUrl || loadedModelRef.current !== modelOption) {
       loadedSkinRef.current = skinUrl;
       loadedModelRef.current = modelOption;
+      const reqId = ++skinReqRef.current;
       viewer.loadSkin(skinUrl, { model: modelOption }).then(() => {
-        const id = skinIdentifier(account);
-        if (id && skinUrl) textureBlobCache.set(id, skinUrl);
+        if (reqId !== skinReqRef.current) return;
         if (viewer.renderPaused) viewer.render();
       }).catch(() => {
+        if (reqId !== skinReqRef.current) return;
         viewer.loadSkin(SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN).then(() => {
           if (viewer.renderPaused) viewer.render();
         }).catch(() => {});
       });
     }
 
-    const capeUrl = capeTextureUrl(account);
     if (loadedCapeRef.current !== capeUrl) {
       loadedCapeRef.current = capeUrl;
+      const reqId = ++capeReqRef.current;
       if (capeUrl) {
         viewer.loadCape(capeUrl).then(() => {
+          if (reqId !== capeReqRef.current) return;
           if (viewer.playerObject?.cape) {
             viewer.playerObject.cape.position.z = -2.5;
             viewer.playerObject.cape.visible = true;
           }
           if (viewer.renderPaused) viewer.render();
         }).catch(() => {
+          if (reqId !== capeReqRef.current) return;
           try {
             viewer.loadCape(null);
             if (viewer.playerObject?.cape) {
@@ -183,7 +206,7 @@ export default function SkinViewer3D({
         } catch {}
       }
     }
-  }, [skinUrl, account?.model, account?.capeUrl, ready]);
+  }, [skinUrl, capeUrl, effectiveModel, ready]);
 
   /* ---- live auto-rotate toggle ---- */
   useEffect(() => {

@@ -313,36 +313,38 @@ function warmSkinCache(account) {
       }
     } catch {}
 
-    // 2. Try Mojang session server or mc-heads
-    let mojangUrl = null;
-    const rawUuid = account.uuid ? String(account.uuid).replace(/-/g, '') : null;
-    if (rawUuid) {
-      try {
-        const sCtrl = new AbortController();
-        const sTimeout = setTimeout(() => sCtrl.abort(), 3500);
-        const sess = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${rawUuid}`, { signal: sCtrl.signal });
-        clearTimeout(sTimeout);
-        if (sess.ok) {
-          const sdata = await sess.json();
-          const texProp = sdata?.properties?.find((p) => p.name === 'textures');
-          if (texProp?.value) {
-            const parsed = JSON.parse(Buffer.from(texProp.value, 'base64').toString('utf8'));
-            mojangUrl = parsed?.textures?.SKIN?.url;
+    // 2. Try Mojang session server or mc-heads for Microsoft accounts only
+    if (account?.isMicrosoft || account?.type === 'microsoft') {
+      let mojangUrl = null;
+      const rawUuid = account.uuid ? String(account.uuid).replace(/-/g, '') : null;
+      if (rawUuid) {
+        try {
+          const sCtrl = new AbortController();
+          const sTimeout = setTimeout(() => sCtrl.abort(), 3500);
+          const sess = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${rawUuid}`, { signal: sCtrl.signal });
+          clearTimeout(sTimeout);
+          if (sess.ok) {
+            const sdata = await sess.json();
+            const texProp = sdata?.properties?.find((p) => p.name === 'textures');
+            if (texProp?.value) {
+              const parsed = JSON.parse(Buffer.from(texProp.value, 'base64').toString('utf8'));
+              mojangUrl = parsed?.textures?.SKIN?.url;
+            }
           }
-        }
-      } catch {}
-    }
+        } catch {}
+      }
 
-    const fetchUrl = mojangUrl || `https://mc-heads.net/skin/${encodeURIComponent(account.uuid || account.name)}`;
-    const fCtrl = new AbortController();
-    const fTimeout = setTimeout(() => fCtrl.abort(), 5000);
-    const res = await fetch(fetchUrl, { signal: fCtrl.signal });
-    clearTimeout(fTimeout);
-    if (res.ok) {
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length > 24) {
-        writeFileAtomic(target, buf);
-        return true;
+      const fetchUrl = mojangUrl || `https://mc-heads.net/skin/${encodeURIComponent(account.uuid || account.name)}`;
+      const fCtrl = new AbortController();
+      const fTimeout = setTimeout(() => fCtrl.abort(), 5000);
+      const res = await fetch(fetchUrl, { signal: fCtrl.signal });
+      clearTimeout(fTimeout);
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length > 24) {
+          writeFileAtomic(target, buf);
+          return true;
+        }
       }
     }
     return false;
@@ -1215,6 +1217,7 @@ module.exports = {
   migrateLegacy,
   pullRemoteWardrobe,
   syncWardrobe,
+  warmSkinCache,
   deterministicSyncKey,
   OFFICIAL_CAPES,
   API_ROOT

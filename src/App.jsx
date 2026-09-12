@@ -57,8 +57,22 @@ export default function App() {
           window.native.instances?.load()
         ]);
 
-        setAccounts(accountData?.accounts ?? []);
-        setActiveId(accountData?.activeId ?? null);
+        const accs = accountData?.accounts ?? [];
+        const actId = accountData?.activeId ?? null;
+        setAccounts(accs);
+        setActiveId(actId);
+
+        const initialAccount = accs.find(a => a.id === actId) ?? null;
+        if (initialAccount && window.native.wardrobe?.get) {
+          try {
+            const initialWardrobe = await window.native.wardrobe.get(initialAccount);
+            if (initialWardrobe) {
+              setWardrobe({ ...initialWardrobe, accountId: initialAccount.id });
+            }
+          } catch (e) {
+            console.warn('Could not load initial wardrobe:', e);
+          }
+        }
 
         const completion = settings?.onboarding?.completed;
         const hasExistingData = Boolean(
@@ -78,6 +92,19 @@ export default function App() {
         }
 
         setStartup({ ready: true, onboarding, settings: migratedSettings });
+
+        // Background sync so any remote cloud updates are pulled seamlessly
+        if (initialAccount && window.native.wardrobe?.sync) {
+          window.native.wardrobe.sync(initialAccount).then((res) => {
+            if (res?.pulled && res?.state) {
+              setWardrobe({ ...res.state, accountId: initialAccount.id });
+            } else if (res?.ok) {
+              window.native.wardrobe.get(initialAccount).then((w) => {
+                if (w) setWardrobe({ ...w, accountId: initialAccount.id });
+              }).catch(() => {});
+            }
+          }).catch(() => {});
+        }
         return;
       }
 
@@ -172,6 +199,13 @@ export default function App() {
   const handleSwitchAccount = async (id) => {
     await window.native?.accounts?.setActive(id);
     setActiveId(id);
+    const target = accounts.find(a => a.id === id);
+    if (target && window.native?.wardrobe?.get) {
+      try {
+        const w = await window.native.wardrobe.get(target);
+        if (w) setWardrobe({ ...w, accountId: id });
+      } catch {}
+    }
   };
 
   const handleRemoveAccount = async (id) => {

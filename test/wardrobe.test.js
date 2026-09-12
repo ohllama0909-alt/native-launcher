@@ -265,3 +265,16 @@ test('publicState surfaces a cached skin texture when nothing is equipped (avata
   }
 });
 
+test('warmSkinCache does not query Mojang or mc-heads for local Noctra/offline accounts', async () => {
+  const { account, userData } = makeAccount({ type: 'noctra', name: 'SomePlayerName' });
+  try {
+    const warmed = await wardrobe.warmSkinCache(account);
+    assert.equal(warmed, false);
+    const cached = path.join(userData, 'cache', 'skins', 'SomePlayerName.png');
+    assert.equal(fs.existsSync(cached), false);
+  } finally {
+    fs.rmSync(userData, { recursive: true, force: true });
+  }
+});
+
+
