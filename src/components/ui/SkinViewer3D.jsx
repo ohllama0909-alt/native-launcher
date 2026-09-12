@@ -5,9 +5,12 @@ import { FALLBACK_SKIN, SKIN_SERVICE, skinIdentifier } from '../../lib/skins.js'
 const SKIN_PATH = '/skin/';
 const CAPE_PATH = '/cape/';
 
+const textureBlobCache = new Map();
+
 export function skinTextureUrl(account) {
   if (account?.skinUrl) return account.skinUrl;
   const id = skinIdentifier(account) || FALLBACK_SKIN;
+  if (textureBlobCache.has(id)) return textureBlobCache.get(id);
   return SKIN_SERVICE + SKIN_PATH + encodeURIComponent(id);
 }
 
@@ -41,6 +44,10 @@ export default function SkinViewer3D({
   const [ready, setReady] = useState(false);
 
   const skinUrl = skinTextureUrl(account);
+  const loadedSkinRef = useRef(null);
+  const loadedModelRef = useRef(null);
+  const loadedCapeRef = useRef(null);
+
   const onViewerRef = useRef(onViewer);
   onViewerRef.current = onViewer;
 
@@ -53,13 +60,18 @@ export default function SkinViewer3D({
         if (disposed || !canvasRef.current) return;
 
         libRef.current = lib;
+        const initialModel = account?.model === 'slim' ? 'slim' : account?.model === 'classic' ? 'default' : 'auto-detect';
         const viewer = new lib.SkinViewer({
           canvas: canvasRef.current,
           width,
           height,
           skin: skinUrl,
+          model: initialModel,
           preserveDrawingBuffer: false
         });
+
+        loadedSkinRef.current = skinUrl;
+        loadedModelRef.current = initialModel;
 
         viewer.fov = 42;
         viewer.zoom = 0.82;
@@ -126,43 +138,52 @@ export default function SkinViewer3D({
         ? 'default'
         : 'auto-detect';
 
-    viewer.loadSkin(skinUrl, { model: modelOption }).then(() => {
-      if (viewer.renderPaused) viewer.render();
-    }).catch(() => {
-      viewer.loadSkin(SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN).then(() => {
-        if (viewer.renderPaused) viewer.render();
-      }).catch(() => {});
-    });
-
-    const capeUrl = capeTextureUrl(account);
-    if (capeUrl) {
-      viewer.loadCape(capeUrl).then(() => {
-        if (viewer.playerObject?.cape) {
-          viewer.playerObject.cape.position.z = -2.5;
-          viewer.playerObject.cape.visible = true;
-        }
+    if (loadedSkinRef.current !== skinUrl || loadedModelRef.current !== modelOption) {
+      loadedSkinRef.current = skinUrl;
+      loadedModelRef.current = modelOption;
+      viewer.loadSkin(skinUrl, { model: modelOption }).then(() => {
+        const id = skinIdentifier(account);
+        if (id && skinUrl) textureBlobCache.set(id, skinUrl);
         if (viewer.renderPaused) viewer.render();
       }).catch(() => {
+        viewer.loadSkin(SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN).then(() => {
+          if (viewer.renderPaused) viewer.render();
+        }).catch(() => {});
+      });
+    }
+
+    const capeUrl = capeTextureUrl(account);
+    if (loadedCapeRef.current !== capeUrl) {
+      loadedCapeRef.current = capeUrl;
+      if (capeUrl) {
+        viewer.loadCape(capeUrl).then(() => {
+          if (viewer.playerObject?.cape) {
+            viewer.playerObject.cape.position.z = -2.5;
+            viewer.playerObject.cape.visible = true;
+          }
+          if (viewer.renderPaused) viewer.render();
+        }).catch(() => {
+          try {
+            viewer.loadCape(null);
+            if (viewer.playerObject?.cape) {
+              viewer.playerObject.cape.visible = false;
+            }
+            if (viewer.renderPaused) viewer.render();
+          } catch {
+            /* no cape is fine */
+          }
+        });
+      } else {
         try {
           viewer.loadCape(null);
           if (viewer.playerObject?.cape) {
             viewer.playerObject.cape.visible = false;
           }
           if (viewer.renderPaused) viewer.render();
-        } catch {
-          /* no cape is fine */
-        }
-      });
-    } else {
-      try {
-        viewer.loadCape(null);
-        if (viewer.playerObject?.cape) {
-          viewer.playerObject.cape.visible = false;
-        }
-        if (viewer.renderPaused) viewer.render();
-      } catch {}
+        } catch {}
+      }
     }
-  }, [skinUrl, account, ready]);
+  }, [skinUrl, account?.model, account?.capeUrl, ready]);
 
   /* ---- live auto-rotate toggle ---- */
   useEffect(() => {

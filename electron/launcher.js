@@ -361,14 +361,19 @@ async function launch({ instance, account }) {
   if (jvmArgs) opts.customArgs = jvmArgs;
 
   try {
-    if (instance.loader === 'Fabric') {
+    const loader = String(instance.loader || instance.mc_loader || 'Vanilla');
+    if (loader === 'Fabric') {
       setState('preparing', 'Resolving Fabric…');
       opts.version.custom = await resolveFabric(instance.version, instance.loaderVersion);
-      const wardrobe = await wardrobeMod.prepareFabricInstance(instance, account, (detail) => setState('preparing', detail));
-      if (wardrobe.warning) launcher.emit('debug', `[Noctra Client]: Wardrobe integration: ${wardrobe.warning}`);
-    } else if (instance.loader === 'Forge') {
+    } else if (loader === 'Forge') {
       setState('preparing', 'Resolving Forge…');
       opts.forge = await resolveForge(instance.version, instance.loaderVersion);
+    }
+
+    if (loader !== 'Vanilla') {
+      setState('preparing', 'Setting up CustomSkinLoader…');
+      const wardrobe = await wardrobeMod.prepareFabricInstance(instance, account, (detail) => setState('preparing', detail));
+      if (wardrobe?.warning) launcher.emit('debug', `[Noctra Client]: Wardrobe integration: ${wardrobe.warning}`);
     }
   } catch (err) {
     setState('error', err.message);

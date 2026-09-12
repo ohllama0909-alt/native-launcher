@@ -34,6 +34,7 @@ const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 let deps = null;
 
 const wardrobeRoot = () => path.join(deps.app.getPath('userData'), 'wardrobe');
+const cacheDir = () => path.join(deps.app.getPath('userData'), 'cache', 'skins');
 const accountKey = (account) => crypto.createHash('sha256').update(String(account?.id || account?.name || 'guest')).digest('hex').slice(0, 24);
 const accountDir = (account) => path.join(wardrobeRoot(), accountKey(account));
 const metadataPath = (account) => path.join(accountDir(account), 'wardrobe.json');
@@ -190,11 +191,97 @@ function publicItem(account, item, metadata) {
   };
 }
 
+function warmSkinCache(account) {
+  if (!account?.name || account.name === 'guest' || !deps?.app) return;
+  const username = cleanName(account.name, 'Player');
+  const target = path.join(cacheDir(), `${username}.png`);
+  if (fs.existsSync(target)) return;
+
+  (async () => {
+    try {
+      fs.mkdirSync(cacheDir(), { recursive: true });
+
+      // 1. Try Noctra wardrobe server first
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3500);
+        const cslRes = await fetch(`${apiRoot()}/csl/${encodeURIComponent(username)}.json`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (cslRes.ok) {
+          const data = await cslRes.json();
+          const remoteSkinUrl = data.skin || data.skins?.default || data.skins?.slim;
+          if (remoteSkinUrl) {
+            const tCtrl = new AbortController();
+            const tTimeout = setTimeout(() => tCtrl.abort(), 4000);
+            const texRes = await fetch(remoteSkinUrl, { signal: tCtrl.signal });
+            clearTimeout(tTimeout);
+            if (texRes.ok) {
+              const buf = Buffer.from(await texRes.arrayBuffer());
+              if (buf.length > 24) {
+                writeFileAtomic(target, buf);
+                return;
+              }
+            }
+          }
+        }
+      } catch {}
+
+      // 2. Try Mojang session server or mc-heads
+      let mojangUrl = null;
+      const rawUuid = account.uuid ? String(account.uuid).replace(/-/g, '') : null;
+      if (rawUuid) {
+        try {
+          const sCtrl = new AbortController();
+          const sTimeout = setTimeout(() => sCtrl.abort(), 3500);
+          const sess = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${rawUuid}`, { signal: sCtrl.signal });
+          clearTimeout(sTimeout);
+          if (sess.ok) {
+            const sdata = await sess.json();
+            const texProp = sdata?.properties?.find((p) => p.name === 'textures');
+            if (texProp?.value) {
+              const parsed = JSON.parse(Buffer.from(texProp.value, 'base64').toString('utf8'));
+              mojangUrl = parsed?.textures?.SKIN?.url;
+            }
+          }
+        } catch {}
+      }
+
+      const fetchUrl = mojangUrl || `https://mc-heads.net/skin/${encodeURIComponent(account.uuid || account.name)}`;
+      const fCtrl = new AbortController();
+      const fTimeout = setTimeout(() => fCtrl.abort(), 5000);
+      const res = await fetch(fetchUrl, { signal: fCtrl.signal });
+      clearTimeout(fTimeout);
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length > 24) {
+          writeFileAtomic(target, buf);
+        }
+      }
+    } catch {}
+  })().catch(() => {});
+}
+
 function publicState(account) {
   const metadata = loadMetadata(account);
   const items = metadata.items.map((item) => publicItem(account, item, metadata));
   const skin = items.find((item) => item.kind === 'skin' && item.active) || null;
   const cape = items.find((item) => item.kind === 'cape' && item.active) || null;
+
+  let skinUrl = skin?.url || null;
+  let capeUrl = cape?.url || null;
+
+  // If no custom skin is active, check if we have a cached texture on disk for this account
+  if (!skinUrl && account?.name && account.name !== 'guest' && deps?.app) {
+    const username = cleanName(account.name, 'Player');
+    const cachedSkinPath = path.join(cacheDir(), `${username}.png`);
+    if (fs.existsSync(cachedSkinPath)) {
+      try {
+        skinUrl = `data:image/png;base64,${fs.readFileSync(cachedSkinPath).toString('base64')}`;
+      } catch {}
+    } else {
+      warmSkinCache(account);
+    }
+  }
 
   return {
     version: 2,
@@ -208,10 +295,10 @@ function publicState(account) {
     active: {
       skinId: skin?.id || null,
       model: metadata.model,
-      skinUrl: skin?.url || null,
-      capeUrl: cape?.url || null,
-      hasSkin: Boolean(skin),
-      hasCape: Boolean(cape),
+      skinUrl,
+      capeUrl,
+      hasSkin: Boolean(skinUrl),
+      hasCape: Boolean(capeUrl),
       skin,
       cape
     }
@@ -558,19 +645,19 @@ async function exportItem(account, id = null) {
 }
 
 /**
- * Prepare a Fabric instance's CustomSkinLoader folder:
+ * Prepare an instance's CustomSkinLoader folder:
  *  - the active skin/cape as LocalSkin textures,
  *  - an ExtraList entry pointing at the Noctra wardrobe API so other players
  *    (and other machines) resolve the same textures over the network,
- *  - the CustomSkinLoader mod itself, pinned to the instance's MC version.
+ *  - the CustomSkinLoader mod itself, pinned to the instance's MC version and loader.
  */
 async function prepareFabricInstance(instance, account, onState = () => {}) {
-  if (!instance?.id || !account?.id || account.id === 'guest') return { installed: false };
+  if (!instance?.id) return { installed: false };
   const gameDir = path.join(deps.app.getPath('userData'), 'minecraft', 'instances', String(instance.id));
   const modsDir = path.join(gameDir, 'mods');
   const cslDir = path.join(gameDir, 'CustomSkinLoader');
-  const { metadata, skin, cape } = readActiveBuffers(account);
-  const username = String(account.name || 'Player').replace(/[^A-Za-z0-9_]/g, '_').slice(0, 16) || 'Player';
+  const { metadata, skin, cape } = account ? readActiveBuffers(account) : { metadata: emptyMetadata(), skin: null, cape: null };
+  const username = String(account?.name || 'Player').replace(/[^A-Za-z0-9_]/g, '_').slice(0, 16) || 'Player';
 
   const localSkin = path.join(cslDir, 'LocalSkin', 'skins', `${username}.png`);
   const localCape = path.join(cslDir, 'LocalSkin', 'capes', `${username}.png`);
@@ -591,28 +678,58 @@ async function prepareFabricInstance(instance, account, onState = () => {}) {
   let tracker = {};
   try { tracker = JSON.parse(fs.readFileSync(trackerPath, 'utf8')); } catch {}
 
+  const mcVersion = String(instance.version || instance.mc_version || '');
+  const loaderName = String(instance.loader || instance.mc_loader || 'Fabric').toLowerCase();
+  const modLoader = loaderName.includes('forge')
+    ? (loaderName.includes('neo') ? 'neoforge' : 'forge')
+    : loaderName.includes('quilt')
+      ? 'quilt'
+      : 'fabric';
+
   const trackedPath = tracker.filename ? path.join(modsDir, path.basename(tracker.filename)) : null;
-  const mcVersion = String(instance.version || instance.mc_version);
   if (tracker.mcVersion === mcVersion && trackedPath && fs.existsSync(trackedPath)) {
     return { installed: true, filename: path.basename(trackedPath), model: metadata.model };
   }
 
-  try {
-    onState('Preparing wardrobe support…');
-    const params = new URLSearchParams({
-      loaders: JSON.stringify(['fabric']),
-      game_versions: JSON.stringify([mcVersion])
-    });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    let response;
-    try {
-      response = await fetch(`https://api.modrinth.com/v2/project/idMHQ4n2/version?${params}`, { signal: controller.signal });
-    } finally {
-      clearTimeout(timeout);
+  // If ANY CustomSkinLoader jar is already present in mods directory, reuse it
+  if (fs.existsSync(modsDir)) {
+    const existingJar = fs.readdirSync(modsDir).find((f) => /customskinloader/i.test(f) && f.endsWith('.jar'));
+    if (existingJar) {
+      return { installed: true, filename: existingJar, model: metadata.model };
     }
-    if (!response.ok) throw new Error(`Modrinth returned HTTP ${response.status}`);
-    const versions = await response.json();
+  }
+
+  try {
+    onState('Downloading CustomSkinLoader mod…');
+    let versions = [];
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12_000);
+
+    try {
+      const params = new URLSearchParams({
+        loaders: JSON.stringify([modLoader]),
+        game_versions: JSON.stringify([mcVersion])
+      });
+      const response = await fetch(`https://api.modrinth.com/v2/project/idMHQ4n2/version?${params}`, { signal: controller.signal });
+      if (response.ok) {
+        versions = await response.json();
+      }
+    } catch {}
+
+    // Fallback: if no builds matched the exact version tag, fetch the latest loader release (Universal build)
+    if (!versions?.length) {
+      try {
+        const params = new URLSearchParams({
+          loaders: JSON.stringify([modLoader])
+        });
+        const response = await fetch(`https://api.modrinth.com/v2/project/idMHQ4n2/version?${params}`, { signal: controller.signal });
+        if (response.ok) {
+          versions = await response.json();
+        }
+      } catch {}
+    }
+    clearTimeout(timeout);
+
     const file = versions?.[0]?.files?.find((entry) => entry.primary) || versions?.[0]?.files?.[0];
     if (!file?.url || !file?.filename) throw new Error('No compatible CustomSkinLoader build was found.');
 
@@ -628,9 +745,9 @@ async function prepareFabricInstance(instance, account, onState = () => {}) {
 
     if (tracker.filename && tracker.filename !== path.basename(target)) {
       const oldPath = path.join(modsDir, path.basename(tracker.filename));
-      if (oldPath !== target) fs.rmSync(oldPath, { force: true });
+      if (oldPath !== target && fs.existsSync(oldPath)) fs.rmSync(oldPath, { force: true });
     }
-    writeFileAtomic(trackerPath, JSON.stringify({ filename: path.basename(target), version: versions[0].version_number, mcVersion }, null, 2));
+    writeFileAtomic(trackerPath, JSON.stringify({ filename: path.basename(target), version: versions[0].version_number, mcVersion, loader: modLoader }, null, 2));
     return { installed: true, filename: path.basename(target), model: metadata.model };
   } catch (error) {
     // A wardrobe integration failure must never stop the game itself. Reuse a

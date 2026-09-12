@@ -134,7 +134,6 @@ export default function HomeView({
 
       <div className="home-avatar-companion" title={account?.name || t('home.guest')}>
         <div className="home-avatar-nametag">
-          <span className="home-nametag-dot" />
           <span className="home-avatar-name">{account?.name || t('home.guest')}</span>
         </div>
         <SkinViewer3D

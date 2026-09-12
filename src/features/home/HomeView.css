@@ -313,7 +313,7 @@
   transform: translateY(-3px);
 }
 
-/* ---------- 3D home companion & Apple-style nametag ---------- */
+/* ---------- 100% Authentic In-Game Minecraft Nametag ---------- */
 
 .home-avatar-companion {
   position: absolute;
@@ -326,58 +326,39 @@
   flex-direction: column;
   align-items: center;
   pointer-events: none;
-  filter: drop-shadow(0 24px 28px rgba(0, 0, 0, .5));
+  filter: drop-shadow(0 20px 24px rgba(0, 0, 0, .45));
 }
 
 .home-avatar-nametag {
   position: relative;
   z-index: 2;
-  margin-bottom: -12px;
+  margin-bottom: -10px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 14px 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 9999px;
-  background: rgba(18, 18, 22, 0.72);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.1) inset;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  justify-content: center;
+  padding: 2px 7px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 2px;
+  border: none;
+  box-shadow: none;
   pointer-events: auto;
+  user-select: none;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .home-avatar-nametag:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.5),
-    0 1px 0 rgba(255, 255, 255, 0.16) inset;
-}
-
-.home-nametag-dot {
-  flex: none;
-  width: 6.5px;
-  height: 6.5px;
-  border-radius: 50%;
-  background: #34c759;
-  box-shadow: 0 0 8px rgba(52, 199, 89, 0.85);
-  animation: nametag-pulse 2.2s infinite ease-in-out;
-}
-
-@keyframes nametag-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.65; transform: scale(0.88); }
+  background: rgba(0, 0, 0, 0.65);
+  transform: translateY(-1px);
 }
 
 .home-avatar-name {
   color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--font-sans);
-  font-size: 12.5px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-shadow: 1.5px 1.5px 0px rgba(0, 0, 0, 0.85);
 }
 
 .home-avatar-viewer {
