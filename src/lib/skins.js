@@ -23,27 +23,35 @@ export function normalizeKind(kind) {
  */
 export function isLocalIdentity(account) {
   const rawId = account?.id;
+  const rawUuid = account?.uuid;
   return account?.type === 'noctra'
     || account?.type === 'offline'
     || String(rawId || '').startsWith('native-')
-    || String(rawId || '').startsWith('offline-');
+    || String(rawId || '').startsWith('offline-')
+    || String(rawUuid || '').startsWith('native-')
+    || String(rawUuid || '').startsWith('offline-');
 }
 
 /**
  * Resolve an account to the identifier understood by the public skin renderer.
  * Microsoft UUIDs are authoritative. Noctra/offline UUIDs are generated locally,
- * so their Minecraft username must be preferred or the renderer returns Steve.
+ * so their skins come from wardrobe; the public renderer returns Steve/Alex.
  */
 export function skinIdentifier(account, uuid, name) {
+  const localIdentity = isLocalIdentity(account)
+    || String(uuid || '').startsWith('native-')
+    || String(uuid || '').startsWith('offline-');
+
+  if (localIdentity) {
+    return account?.model === 'slim' ? 'MHF_Alex' : FALLBACK_SKIN;
+  }
+
   const rawUuid = account?.uuid || uuid;
   const rawName = account?.name || name;
   const rawId = account?.id;
-  const localIdentity = isLocalIdentity(account);
 
   let raw = FALLBACK_SKIN;
-  if (localIdentity && rawName && rawName !== 'guest') {
-    raw = rawName;
-  } else if (rawUuid && rawUuid !== 'guest' && !String(rawUuid).startsWith('offline-') && !String(rawUuid).startsWith('native-')) {
+  if (rawUuid && rawUuid !== 'guest' && !String(rawUuid).startsWith('offline-') && !String(rawUuid).startsWith('native-')) {
     raw = rawUuid;
   } else if (rawName && rawName !== 'guest') {
     raw = rawName;

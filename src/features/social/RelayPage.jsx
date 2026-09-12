@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, ChevronDown, ChevronRight, CirclePlus, Gift, Heart, Image, Menu, MessageCircle, Mic, Paperclip, Pin, Search, Send, Settings, ShoppingCart, Smile, User, UserPlus, Users, X } from 'lucide-react';
 import './RelayPage.css';
 
-const head = (user) => user?.uuid ? `{{https://mc-heads.net/avatar/${user.uuid}}}/64` : `{{https://mc-heads.net/avatar/${user?.name || 'MHF_Steve'}}}/64`;
+const head = (user) => user?.uuid ? `https://mc-heads.net/avatar/${user.uuid}/64` : `https://mc-heads.net/avatar/${user?.name || 'MHF_Steve'}/64`;
 const time = (stamp) => stamp ? new Date(stamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
 const STORE = 'noctra-relay-v1';
 
@@ -103,7 +103,7 @@ export default function RelayPage({ initialFriend, onClose }) {
   const Thread = ({ item }) => (
     <button type="button" className={`relay-thread ${selected?.id === item.id ? 'is-active' : ''}`} onClick={() => selectThread(item)}>
       <div className="relay-thread-avatar">
-        {item.kind === 'group' ? <Users size={18} /> : <img src={head(item)} alt="" />}
+        {item.kind === 'group' ? <Users size={18} /> : <img src={head(item)} alt="" onError={(e) => { e.currentTarget.src = 'https://mc-heads.net/avatar/MHF_Steve/64'; }} />}
         <i className={`relay-presence ${item.status || 'offline'}`} />
         {item.unreadCount > 0 && <b>{item.unreadCount > 9 ? '9+' : item.unreadCount}</b>}
       </div>
@@ -133,7 +133,7 @@ export default function RelayPage({ initialFriend, onClose }) {
       <main className="relay-conversation">
         <header className="relay-conversation-head">
           <div className="relay-peer">
-            <div>{selected?.kind === 'group' ? <Users size={20} /> : <img src={head(selected)} alt="" />}<i className={`relay-presence ${selected?.status || 'offline'}`} /></div>
+            <div>{selected?.kind === 'group' ? <Users size={20} /> : <img src={head(selected)} alt="" onError={(e) => { e.currentTarget.src = 'https://mc-heads.net/avatar/MHF_Steve/64'; }} />}<i className={`relay-presence ${selected?.status || 'offline'}`} /></div>
             <span><strong>{selected?.nickname || selected?.name || 'Select a conversation'}</strong><small>{selected?.activity || 'No conversation selected'}</small></span>
           </div>
           <label className="relay-message-search"><Search size={14} /><input value={messageQuery} onChange={(e) => setMessageQuery(e.target.value)} placeholder="Search in conversation..." /></label>

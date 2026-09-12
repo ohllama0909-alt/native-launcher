@@ -12,9 +12,11 @@ const source = fs.readFileSync(path.join(__dirname, '../src/lib/skins.js'), 'utf
 const skinIdentifier = new Function(`${source}; return skinIdentifier;`)();
 const isLocalIdentity = new Function(`${source}; return isLocalIdentity;`)();
 
-test('Noctra and offline avatars resolve by username instead of generated UUID', () => {
-  assert.equal(skinIdentifier({ type: 'noctra', id: 'native-1', uuid: 'generated-uuid', name: 'PremiumName' }), 'PremiumName');
-  assert.equal(skinIdentifier({ type: 'offline', id: 'offline-1', uuid: 'generated-uuid', name: 'OfflineName' }), 'OfflineName');
+test('Noctra and offline accounts default to Steve or Alex until a skin is uploaded', () => {
+  assert.equal(skinIdentifier({ type: 'noctra', id: 'native-1', uuid: 'generated-uuid', name: 'PremiumName' }), 'MHF_Steve');
+  assert.equal(skinIdentifier({ type: 'noctra', id: 'native-1', uuid: 'generated-uuid', name: 'PremiumName', model: 'slim' }), 'MHF_Alex');
+  assert.equal(skinIdentifier({ type: 'offline', id: 'offline-1', uuid: 'generated-uuid', name: 'OfflineName' }), 'MHF_Steve');
+  assert.equal(skinIdentifier(null, 'offline-1', 'OfflineName'), 'MHF_Steve');
 });
 
 test('Microsoft avatars continue to resolve by authoritative UUID', () => {

@@ -38,8 +38,8 @@ export default function ActiveChatOverlay({ friend, messages = [], loading = fal
   };
 
   const avatarUrl = friend.uuid
-    ? `{{https://mc-heads.net/avatar/${friend.uuid}}}/64`
-    : `{{https://mc-heads.net/avatar/${friend.name}}}/64`;
+    ? `https://mc-heads.net/avatar/${friend.uuid}/64`
+    : `https://mc-heads.net/avatar/${friend.name || 'MHF_Steve'}/64`;
 
   const openRelay = () => {
     setRelayOpen(true);
