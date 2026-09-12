@@ -26,14 +26,13 @@ jobs:
       - name: Download and validate official cape textures
         run: node scripts/fetch-official-capes.mjs
       - name: Commit generated official textures
-        if: github.event_name == 'push'
         run: |
           if ! git diff --quiet -- src/assets/capes; then
             git config user.name github-actions[bot]
             git config user.email 41898282+github-actions[bot]@users.noreply.github.com
             git add src/assets/capes
             git commit -m "chore(locker): add official Minecraft cape textures"
-            git push
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
           fi
       - run: npm ci
       - run: npm test
