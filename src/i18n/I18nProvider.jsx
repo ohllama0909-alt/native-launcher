@@ -5,6 +5,7 @@ const LOCALE_EVENT = 'native:locale-changed';
 const I18nContext = createContext(null);
 
 function normaliseLocale(value) {
+  if (!value || value === 'si' || String(value).toLowerCase().startsWith('si')) return DEFAULT_LOCALE;
   if (SUPPORTED_LOCALES.includes(value)) return value;
   const short = String(value || '').split('-')[0].toLowerCase();
   return SUPPORTED_LOCALES.find((locale) => locale.toLowerCase().startsWith(short)) || DEFAULT_LOCALE;
@@ -19,6 +20,10 @@ function interpolate(value, variables) {
 function getInitialLocale() {
   try {
     const saved = localStorage.getItem('native.locale');
+    if (saved === 'si') {
+      localStorage.setItem('native.locale', DEFAULT_LOCALE);
+      return DEFAULT_LOCALE;
+    }
     if (saved) return normaliseLocale(saved);
     const rawSettings = localStorage.getItem('native.settings');
     if (rawSettings) {

@@ -472,9 +472,7 @@ export default function AccountSwitcherModal({
                 </div>
 
                 <div className="noctra-auth-header">
-                  <div className="noctra-auth-badge">
-                    <Logo height={42} variant="mark" />
-                  </div>
+                  <Logo height={48} variant="mark" className="noctra-auth-clean-logo" />
                   <h2 className="noctra-auth-title">{t('account.noctraLogin')}</h2>
                   <p className="noctra-auth-sub">{t('account.nativeSubtitle')}</p>
                 </div>
@@ -663,9 +661,7 @@ export default function AccountSwitcherModal({
                 </div>
 
                 <div className="noctra-auth-header">
-                  <div className="noctra-auth-badge verify-badge">
-                    <Logo height={42} variant="mark" />
-                  </div>
+                  <Logo height={48} variant="mark" className="noctra-auth-clean-logo" />
                   <h2 className="noctra-auth-title">{t('account.verifyCodeTitle')}</h2>
                   <p className="noctra-auth-sub">
                     {t('account.verifyCodeSubtitle', { email: regEmail })}

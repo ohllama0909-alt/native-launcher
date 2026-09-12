@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import AppearancePanel from './AppearancePanel.jsx';
 import StoragePanel from './StoragePanel.jsx';
 import ChangelogPanel from './ChangelogPanel.jsx';
@@ -30,7 +31,6 @@ const DEFAULT_PREFS = {
 
 const LANGUAGE_NAMES = {
   en: 'English',
-  si: 'සිංහල (Sinhala)',
   es: 'Español',
   de: 'Deutsch',
   fr: 'Français',
@@ -156,9 +156,15 @@ export default function SettingsModal({
                       <span className="settings-row-title">{t('settings.interfaceLanguage')}</span>
                       <span className="settings-row-desc">{t('settings.interfaceLanguageDesc')}</span>
                     </div>
-                    <select className="text-input" value={locale} onChange={(event) => changeLanguage(event.target.value)}>
-                      {SUPPORTED_LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_NAMES[code]}</option>)}
-                    </select>
+                    <Dropdown
+                      className="settings-language-dropdown"
+                      value={locale}
+                      options={SUPPORTED_LOCALES.map((code) => ({
+                        value: code,
+                        label: LANGUAGE_NAMES[code] || code
+                      }))}
+                      onChange={(next) => changeLanguage(next)}
+                    />
                   </div>
                 </div>
                 <div className="settings-section">

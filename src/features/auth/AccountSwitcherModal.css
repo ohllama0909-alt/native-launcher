@@ -110,7 +110,7 @@
   min-width: 0;
   overflow-y: auto;
   padding: 40px 24px;
-  background: radial-gradient(ellipse 62% 62% at 64% 44%, rgba(160, 81, 162, 0.055), transparent 72%);
+  background: transparent;
 }
 
 .account-login-content {
@@ -523,22 +523,18 @@
   margin-bottom: 20px;
 }
 
-.noctra-auth-badge {
-  width: 60px;
-  height: 60px;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  background: radial-gradient(circle at center, var(--brand-subtle, rgba(160, 81, 162, 0.25)), rgba(14, 11, 16, 0.6));
-  border: 1px solid var(--brand-border, rgba(160, 81, 162, 0.3));
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  margin-bottom: 12px;
+.noctra-auth-clean-logo {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.noctra-auth-badge .native-mark {
-  width: 42px !important;
-  height: 42px !important;
+.noctra-auth-clean-logo .native-mark {
+  width: 48px !important;
+  height: 48px !important;
   object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
 }
 
 .noctra-avatar-preview-wrap {
