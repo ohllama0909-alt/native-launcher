@@ -115,19 +115,33 @@ contextBridge.exposeInMainWorld('native', {
   social: {
     getFriends: () => ipcRenderer.invoke('social:getFriends'),
     getRequests: () => ipcRenderer.invoke('social:getRequests'),
+    // Preloads the tail of every conversation in one call.
+    getConversations: (perFriend = 40) => ipcRenderer.invoke('social:getConversations', { perFriend }),
+    getUpdates: (since = 0) => ipcRenderer.invoke('social:getUpdates', { since }),
     sendRequest: (targetUsername) => ipcRenderer.invoke('social:sendRequest', targetUsername),
     respondRequest: (requestId, action) => ipcRenderer.invoke('social:respondRequest', { requestId, action }),
-    getMessages: (friendId, limit) => ipcRenderer.invoke('social:getMessages', { friendId, limit }),
+    getMessages: (friendId, limit, options = {}) =>
+      ipcRenderer.invoke('social:getMessages', { friendId, limit, ...options }),
     sendMessage: (friendId, content, mediaOptions = {}) => ipcRenderer.invoke('social:sendMessage', { friendId, content, ...mediaOptions }),
     uploadMedia: (dataUrl, filename) => ipcRenderer.invoke('social:uploadMedia', { dataUrl, filename }),
     setMessageReaction: (messageId, reaction) => ipcRenderer.invoke('social:setMessageReaction', { messageId, reaction }),
+    markRead: (friendId) => ipcRenderer.invoke('social:markRead', friendId),
+    setTyping: (friendId, isTyping) => ipcRenderer.invoke('social:setTyping', { friendId, isTyping }),
     updateFriend: (friendId, data) => ipcRenderer.invoke('social:updateFriend', { friendId, ...data }),
     unfriend: (friendId) => ipcRenderer.invoke('social:unfriend', friendId),
     block: (targetId) => ipcRenderer.invoke('social:block', targetId),
+    unblock: (targetId) => ipcRenderer.invoke('social:unblock', targetId),
+    getBlocked: () => ipcRenderer.invoke('social:getBlocked'),
     searchUsers: (query) => ipcRenderer.invoke('social:searchUsers', query),
     getPresence: () => ipcRenderer.invoke('social:getPresence'),
     setPresence: (payload) => ipcRenderer.invoke('social:setPresence', payload),
-    onPresenceUpdated: (callback) => subscribe('social:presenceUpdated', callback)
+    getStreamStatus: () => ipcRenderer.invoke('social:getStreamStatus'),
+    reconnectStream: () => ipcRenderer.invoke('social:reconnectStream'),
+    onPresenceUpdated: (callback) => subscribe('social:presenceUpdated', callback),
+    // Realtime fan-out: message:new, message:reaction, message:read, typing,
+    // presence, request:changed, friends:changed, blocks:changed, skin:updated.
+    onSocialEvent: (callback) => subscribe('social:event', callback),
+    onStreamStatus: (callback) => subscribe('social:streamStatus', callback)
   }
 });
 
