@@ -127,6 +127,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
   const [selectedId, setSelectedId] = useState(() => persisted?.lastSelectedId || null);
   const [mutedIds, setMutedIds] = useState(() => persisted?.mutedIds || {});
+  const [pinnedIds, setPinnedIds] = useState(() => persisted?.pinnedIds || {});
   const [uploads, setUploads] = useState({});
 
   const [inboxQuery, setInboxQuery] = useState('');
@@ -162,9 +163,9 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify({ lastSelectedId: selectedId, mutedIds }));
+      localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify({ lastSelectedId: selectedId, mutedIds, pinnedIds }));
     } catch {}
-  }, [selectedId, mutedIds]);
+  }, [selectedId, mutedIds, pinnedIds]);
 
   useEffect(() => {
     if (!previewMediaModal) return undefined;
@@ -214,6 +215,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
       const status = String(friend.status || 'offline').toLowerCase();
       const lastSeenAt = friend.lastSeen || friend.lastMessageTime || 0;
+      const pinned = pinnedIds[friend.id] ?? Boolean(friend.pinned);
       const muted = mutedIds[friend.id] ?? Boolean(friend.muted);
 
       return {
@@ -225,7 +227,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         skinUrl: friend.skinUrl || null,
         model: friend.model || 'classic',
         status,
-        pinned: Boolean(friend.pinned),
+        pinned,
         muted,
         activity:
           friend.activity ||
@@ -247,7 +249,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         unread: muted ? 0 : (friend.unreadCount || 0)
       };
     });
-  }, [social?.friends, social?.conversations, social?.typingBy, selfId, mutedIds]);
+  }, [social?.friends, social?.conversations, social?.typingBy, selfId, mutedIds, pinnedIds]);
 
   const formattedGroups = useMemo(() => {
     return (relayGroups.groups || []).map((group) => {
@@ -265,12 +267,14 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         snippet = `${group.memberCount || group.members?.length || 0} members`;
       }
 
+      const pinned = pinnedIds[group.id] ?? Boolean(group.pinned);
       const muted = mutedIds[group.id] ?? Boolean(group.muted);
 
       return {
         ...group,
         kind: 'group',
         nickname: group.name,
+        pinned,
         muted,
         lastStamp: group.lastMessage?.createdAt || group.createdAt || 0,
         lastTime: formatTime(group.lastMessage?.createdAt || group.createdAt),
@@ -278,11 +282,17 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         unread: muted ? 0 : (group.unreadCount || 0)
       };
     });
-  }, [relayGroups.groups, selfId, mutedIds]);
+  }, [relayGroups.groups, selfId, mutedIds, pinnedIds]);
 
   const allThreads = useMemo(() => {
     const dms = [...mergedFriends].sort((a, b) => (b.lastStamp || 0) - (a.lastStamp || 0));
-    return [...formattedGroups, ...dms];
+    const combined = [...formattedGroups, ...dms];
+    return combined.sort((a, b) => {
+      const aPinned = Boolean(a.pinned);
+      const bPinned = Boolean(b.pinned);
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+      return (b.lastStamp || 0) - (a.lastStamp || 0);
+    });
   }, [formattedGroups, mergedFriends]);
 
   const activeEntity = useMemo(() => {
@@ -534,11 +544,16 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     }
   };
 
-  const handleTogglePin = async (entity) => {
+  const handleTogglePin = (entity) => {
     if (!entity) return;
     setShowMenuDropdown(false);
-    if (entity.kind === 'group') await relayGroups.setGroupPrefs(entity.id, { pinned: !entity.pinned });
-    else await social?.updateFriend?.(entity.id, { pinned: !entity.pinned });
+    const next = !entity.pinned;
+    setPinnedIds((previous) => ({ ...previous, [entity.id]: next }));
+
+    const request = entity.kind === 'group'
+      ? relayGroups.setGroupPrefs(entity.id, { pinned: next })
+      : social?.updateFriend?.(entity.id, { pinned: next });
+    Promise.resolve(request).catch(() => {});
   };
 
   const handleToggleMute = (entity) => {
@@ -950,6 +965,14 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                             presence={getPresence(thread)}
                             isGroup={thread.kind === 'group'}
                             onClick={() => handleSelectThread(thread)}
+                            onTogglePin={(e) => {
+                              e?.stopPropagation();
+                              handleTogglePin(thread);
+                            }}
+                            onToggleMute={(e) => {
+                              e?.stopPropagation();
+                              handleToggleMute(thread);
+                            }}
                           >
                             <CompositeGroupAvatar members={thread.members} />
                           </ThreadRow>

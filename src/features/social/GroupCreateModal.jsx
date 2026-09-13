@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { Camera, Check, Search, Users, X } from 'lucide-react';
 import RelayAvatar from './RelayAvatar';
 import './relay-groups.css';
 
@@ -37,12 +38,17 @@ export function GroupCreateModal({ open, friends = [], onClose, onCreate, upload
     setError(null);
   };
 
+  const handleClose = () => {
+    reset();
+    onClose?.();
+  };
+
   const pickImage = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('Group images must be an image file.');
+      setError('Group icon must be an image file.');
       return;
     }
     setUploading(true);
@@ -60,14 +66,15 @@ export function GroupCreateModal({ open, friends = [], onClose, onCreate, upload
   };
 
   const submit = async () => {
-    if (!name.trim()) {
-      setError('Give your group a name.');
+    const cleanName = name.trim();
+    if (!cleanName) {
+      setError('Please enter a group name.');
       return;
     }
     setBusy(true);
     setError(null);
     const result = await onCreate?.({
-      name: name.trim(),
+      name: cleanName,
       iconUrl,
       memberIds: selected
     });
@@ -87,11 +94,21 @@ export function GroupCreateModal({ open, friends = [], onClose, onCreate, upload
   };
 
   return (
-    <div className="relay-modal-scrim" onMouseDown={(event) => event.target === event.currentTarget && onClose?.()}>
+    <div className="relay-modal-scrim" onMouseDown={(event) => event.target === event.currentTarget && handleClose()}>
       <div className="relay-modal relay-modal--create" role="dialog" aria-label="Create group">
-        <header className="relay-modal__head">
-          <h2>Create a group</h2>
-          <p>Pick an image, name it, then invite friends.</p>
+        <header className="relay-modal__head relay-modal__head--row">
+          <div className="relay-modal__title-group">
+            <div className="relay-modal__badge">
+              <Users size={16} />
+            </div>
+            <div>
+              <h2>Create a group</h2>
+              <p>Pick an icon, name it, and invite your friends.</p>
+            </div>
+          </div>
+          <button type="button" className="relay-modal__close-btn" onClick={handleClose} title="Close">
+            <X size={16} />
+          </button>
         </header>
 
         <div className="relay-modal__identity">
@@ -100,62 +117,110 @@ export function GroupCreateModal({ open, friends = [], onClose, onCreate, upload
             className={`relay-group-icon-picker${iconUrl ? ' has-image' : ''}`}
             onClick={() => fileInput.current?.click()}
             disabled={uploading}
+            title="Upload group icon"
           >
-            {iconUrl ? <img src={iconUrl} alt="" /> : <span className="relay-group-icon-picker__glyph">{name.trim().slice(0, 2).toUpperCase() || '\u002B'}</span>}
-            <span className="relay-group-icon-picker__hint">{uploading ? 'Uploading' : 'Change'}</span>
+            {iconUrl ? (
+              <img src={iconUrl} alt="Group icon" />
+            ) : (
+              <div className="relay-group-icon-placeholder">
+                <Camera size={22} />
+                <span>{uploading ? 'Uploading…' : 'Add Icon'}</span>
+              </div>
+            )}
           </button>
           <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickImage} />
 
-          <label className="relay-field">
-            <span className="relay-field__label">Group name</span>
+          <div className="relay-field-group-name">
+            <div className="relay-field__header">
+              <span className="relay-field__label">GROUP NAME</span>
+              <span className="relay-field__count">{name.length}/{MAX_NAME}</span>
+            </div>
             <input
-              className="relay-input"
+              className="relay-input relay-input--prominent"
               value={name}
               maxLength={MAX_NAME}
-              placeholder="Late night crew"
-              onChange={(event) => setName(event.target.value)}
+              placeholder="e.g. Bedwars Squad"
+              autoFocus
+              onChange={(event) => {
+                setName(event.target.value);
+                if (error) setError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submit();
+              }}
             />
-            <span className="relay-field__count">{name.length}/{MAX_NAME}</span>
-          </label>
+          </div>
         </div>
 
         <div className="relay-modal__section">
           <div className="relay-modal__section-head">
-            <span>Invite friends</span>
+            <span>INVITE FRIENDS</span>
             <span className="relay-count-chip">{selected.length} selected</span>
           </div>
-          <input
-            className="relay-input"
-            value={query}
-            placeholder="Search friends..."
-            onChange={(event) => setQuery(event.target.value)}
-          />
+
+          <div className="relay-modal-search">
+            <Search size={14} className="relay-modal-search__icon" />
+            <input
+              className="relay-input relay-input--search"
+              value={query}
+              placeholder="Search friends..."
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            {query && (
+              <button type="button" className="relay-modal-search__clear" onClick={() => setQuery('')}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
 
           <div className="relay-member-scroll">
-            {visibleFriends.length === 0 && <p className="relay-empty">No friends match that search.</p>}
-            {visibleFriends.map((friend) => (
-              <button
-                key={friend.id}
-                type="button"
-                className={`relay-member-row${selected.includes(friend.id) ? ' is-selected' : ''}`}
-                onClick={() => toggleFriend(friend.id)}
-              >
-                <RelayAvatar name={friend.name} size={32} status={friend.status} showStatus />
-                <span className="relay-member-row__name">{friend.nickname || friend.name}</span>
-                <span className="relay-member-row__check" aria-hidden="true">
-                  {selected.includes(friend.id) ? '\u2713' : ''}
-                </span>
-              </button>
-            ))}
+            {friends.length === 0 ? (
+              <div className="relay-empty-friends">
+                <p>No friends found on your friends list.</p>
+                <span>Add friends first to invite them to groups.</span>
+              </div>
+            ) : visibleFriends.length === 0 ? (
+              <p className="relay-empty">No friends match &ldquo;{query}&rdquo;</p>
+            ) : (
+              visibleFriends.map((friend) => {
+                const isChecked = selected.includes(friend.id);
+                return (
+                  <button
+                    key={friend.id}
+                    type="button"
+                    className={`relay-member-row${isChecked ? ' is-selected' : ''}`}
+                    onClick={() => toggleFriend(friend.id)}
+                  >
+                    <div className={`relay-checkbox ${isChecked ? 'is-checked' : ''}`}>
+                      {isChecked && <Check size={12} />}
+                    </div>
+                    <RelayAvatar name={friend.name} skinUrl={friend.skinUrl} size={32} />
+                    <div className="relay-member-row__meta">
+                      <span className="relay-member-row__name">{friend.nickname || friend.name}</span>
+                      <span className="relay-member-row__sub">
+                        {friend.status === 'in-game' ? (friend.activity || 'In-game') : (friend.status === 'offline' ? 'Offline' : 'Online')}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
-        {error && <p className="relay-error">{error}</p>}
+        {error && <div className="relay-error-banner">{error}</div>}
 
         <footer className="relay-modal__foot">
-          <button type="button" className="relay-btn relay-btn--ghost" onClick={onClose}>Cancel</button>
-          <button type="button" className="relay-btn relay-btn--primary" onClick={submit} disabled={busy || uploading}>
-            {busy ? 'Creating...' : 'Create group'}
+          <button type="button" className="relay-btn relay-btn--ghost" onClick={handleClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="relay-btn relay-btn--primary"
+            onClick={submit}
+            disabled={busy || uploading || !name.trim()}
+          >
+            {busy ? 'Creating…' : 'Create Group'}
           </button>
         </footer>
       </div>

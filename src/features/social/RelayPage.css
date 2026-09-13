@@ -94,13 +94,7 @@
 
 .relay-live-dot.is-live {
   background: var(--online);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
-  animation: relay-pulse 2.6s infinite;
-}
-
-@keyframes relay-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14); }
-  50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.04); }
+  box-shadow: none;
 }
 
 .relay-inbox-btn {
@@ -135,14 +129,13 @@
   border-radius: var(--radius);
   background: var(--page-sunken);
   border: 1px solid var(--hairline);
-  transition: border-color var(--relay-fast) var(--relay-ease),
-    box-shadow var(--relay-fast) var(--relay-ease);
+  transition: border-color var(--relay-fast) var(--relay-ease);
 }
 
 .relay-inbox-search-bar:focus-within,
 .relay-convo-search-bar:focus-within {
   border-color: var(--brand-border);
-  box-shadow: 0 0 0 3px var(--brand-subtle);
+  box-shadow: none;
 }
 
 .relay-search-icon { color: var(--fg-muted); flex: none; }
@@ -205,6 +198,11 @@
 
 /* ── Thread row ──────────────────────────────────────────── */
 
+.relay-thread-item-wrapper {
+  position: relative;
+  width: 100%;
+}
+
 .relay-thread-item {
   position: relative;
   width: 100%;
@@ -215,9 +213,113 @@
   border-radius: var(--radius);
   text-align: left;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
   opacity: 0;
   animation: relay-row-in 320ms var(--relay-ease) forwards;
   transition: background-color var(--relay-fast) var(--relay-ease);
+}
+
+.relay-thread-hover-actions {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--page-elevated);
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--hairline-strong);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.15s ease;
+  z-index: 5;
+}
+
+.relay-thread-item-wrapper:hover .relay-thread-hover-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.relay-thread-action-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.relay-thread-action-btn:hover {
+  background: var(--component-bg-hover);
+  color: var(--fg-primary);
+}
+
+.relay-thread-action-btn.is-active {
+  color: var(--brand);
+}
+
+.relay-thread-flag.is-pinned {
+  color: var(--brand);
+}
+
+.relay-thread-flag.is-muted {
+  color: var(--fg-muted);
+}
+
+.relay-thread-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  background: transparent;
+}
+
+.relay-thread-context-menu {
+  position: absolute;
+  top: 100%;
+  left: 20px;
+  min-width: 170px;
+  padding: 4px;
+  background: var(--page-elevated);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: relay-fade 0.12s ease;
+}
+
+.relay-thread-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.relay-thread-context-menu button:hover {
+  background: var(--component-bg-hover);
+  color: var(--fg-primary-hover, #fff);
 }
 
 @keyframes relay-row-in {
@@ -1151,7 +1253,7 @@
 
 .relay-composer-container:focus-within {
   border-color: var(--brand-border);
-  box-shadow: 0 0 0 3px var(--brand-subtle);
+  box-shadow: none;
 }
 
 .relay-composer-input {
