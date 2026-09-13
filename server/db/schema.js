@@ -65,6 +65,10 @@ function initSchema(db) {
       sender_id TEXT NOT NULL,
       receiver_id TEXT NOT NULL,
       content TEXT NOT NULL,
+      media_url TEXT DEFAULT NULL,
+      media_name TEXT DEFAULT NULL,
+      is_media INTEGER DEFAULT 0,
+      reaction TEXT DEFAULT NULL,
       is_read INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL,
       FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -103,6 +107,17 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_presence_user ON presence(user_id);
     CREATE INDEX IF NOT EXISTS idx_blocks_pair ON blocks(user_id, blocked_id);
   `);
+
+  // Safe migrations for existing databases
+  const safeAddColumn = (table, columnDef) => {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
+    } catch {}
+  };
+  safeAddColumn('messages', 'media_url TEXT DEFAULT NULL');
+  safeAddColumn('messages', 'media_name TEXT DEFAULT NULL');
+  safeAddColumn('messages', 'is_media INTEGER DEFAULT 0');
+  safeAddColumn('messages', 'reaction TEXT DEFAULT NULL');
 }
 
 module.exports = {

@@ -111,6 +111,7 @@ module.exports = {
   blockUser: (userId, blockedId) => socialMod.blockUser(getDb(), userId, blockedId),
   unblockUser: (userId, blockedId) => socialMod.unblockUser(getDb(), userId, blockedId),
   getMessages: (userId, friendId, limit) => socialMod.getMessages(getDb(), userId, friendId, limit),
-  sendMessage: (senderId, receiverId, content) => socialMod.sendMessage(getDb(), senderId, receiverId, content),
+  sendMessage: (senderId, receiverId, content, options) => socialMod.sendMessage(getDb(), senderId, receiverId, content, options),
+  setMessageReaction: (messageId, userId, reaction) => socialMod.setMessageReaction(getDb(), messageId, userId, reaction),
   searchUsers: (query, excludeUserId) => socialMod.searchUsers(getDb(), query, excludeUserId)
 };

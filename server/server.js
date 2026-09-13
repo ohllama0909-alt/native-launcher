@@ -22,7 +22,27 @@ const DATA_DIR = path.resolve(
 const PUBLIC_URL = (process.env.NATIVE_SKIN_PUBLIC_URL || '').replace(/\/+$/, '');
 const profilesDir = path.join(DATA_DIR, 'profiles');
 const texturesDir = path.join(DATA_DIR, 'textures');
+const mediaDir = path.join(DATA_DIR, 'media');
 const requests = new Map();
+
+function mimeTypeFor(filename) {
+  const ext = path.extname(filename).toLowerCase();
+  switch (ext) {
+    case '.png': return 'image/png';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.gif': return 'image/gif';
+    case '.webp': return 'image/webp';
+    case '.svg': return 'image/svg+xml';
+    case '.mp3': return 'audio/mpeg';
+    case '.ogg': return 'audio/ogg';
+    case '.wav': return 'audio/wav';
+    case '.txt':
+    case '.log': return 'text/plain';
+    case '.zip': return 'application/zip';
+    default: return 'application/octet-stream';
+  }
+}
 
 function send(res, status, value, headers = {}) {
   const body = Buffer.isBuffer(value) ? value : Buffer.from(typeof value === 'string' ? value : JSON.stringify(value));
@@ -169,6 +189,32 @@ async function handler(req, res) {
         'Cache-Control': 'public, max-age=31536000, immutable',
         ETag: `"${textureMatch[1]}"`
       });
+    }
+
+    // Avatar redirect / lookup
+    const avatarMatch = url.pathname.match(/^\/(?:csl\/)?avatar\/([A-Za-z0-9_]{3,16})$/i);
+    if (req.method === 'GET' && avatarMatch) {
+      const profile = readProfile(avatarMatch[1]);
+      if (profile?.skin) {
+        return send(res, 302, '', { 'Location': `/csl/textures/${profile.skin}` });
+      }
+      return send(res, 302, '', { 'Location': `https://mc-heads.net/avatar/${avatarMatch[1]}/64` });
+    }
+
+    // Social Media delivery (preserves full resolution)
+    const mediaMatch = url.pathname.match(/^\/v1\/social\/media\/([a-zA-Z0-9_.\-]+)$/);
+    if (req.method === 'GET' && mediaMatch) {
+      const target = path.join(mediaDir, path.basename(mediaMatch[1]));
+      if (!fs.existsSync(target)) return send(res, 404, { error: 'Media not found.' });
+      const stat = fs.statSync(target);
+      const mime = mimeTypeFor(target);
+      res.writeHead(200, {
+        'Content-Type': mime,
+        'Content-Length': stat.size,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*'
+      });
+      return fs.createReadStream(target).pipe(res);
     }
 
     // Wardrobe publication
@@ -395,12 +441,67 @@ async function handler(req, res) {
 
       if (req.method === 'GET' && url.pathname === '/v1/social/friends') {
         const friends = db.getFriends(authUser.id);
-        return send(res, 200, { ok: true, friends });
+        const origin = originOf(req);
+        const enriched = friends.map((f) => {
+          const profile = readProfile(f.name);
+          return {
+            ...f,
+            skinUrl: (profile && profile.skin) ? `${origin}/csl/textures/${profile.skin}` : null
+          };
+        });
+        return send(res, 200, { ok: true, friends: enriched });
       }
 
       if (req.method === 'GET' && url.pathname === '/v1/social/requests') {
         const requests = db.getFriendRequests(authUser.id);
-        return send(res, 200, { ok: true, requests });
+        const origin = originOf(req);
+        const mapReq = (r) => {
+          const profile = readProfile(r.name);
+          return {
+            ...r,
+            skinUrl: (profile && profile.skin) ? `${origin}/csl/textures/${profile.skin}` : null
+          };
+        };
+        return send(res, 200, {
+          ok: true,
+          requests: {
+            received: (requests.received || []).map(mapReq),
+            sent: (requests.sent || []).map(mapReq)
+          }
+        });
+      }
+
+      if (req.method === 'POST' && url.pathname === '/v1/social/upload') {
+        const body = await readJson(req);
+        const rawData = body.data || body.dataUrl || body.base64;
+        const originalName = String(body.name || body.filename || 'attachment.png').trim();
+        if (!rawData) {
+          return send(res, 400, { ok: false, error: 'No file data received.' });
+        }
+        const cleanBase64 = String(rawData).replace(/^data:[^;]+;base64,/i, '');
+        const buffer = Buffer.from(cleanBase64, 'base64');
+        if (buffer.length === 0 || buffer.length > 25 * 1024 * 1024) {
+          return send(res, 400, { ok: false, error: 'File size must be between 1 byte and 25MB.' });
+        }
+
+        const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 32);
+        const ext = path.extname(originalName) || '.png';
+        const filename = `${hash}${ext}`;
+        const targetPath = path.join(mediaDir, filename);
+
+        if (!fs.existsSync(targetPath)) {
+          fs.writeFileSync(targetPath, buffer);
+        }
+
+        const origin = originOf(req);
+        const publicUrl = `${origin}/v1/social/media/${filename}`;
+
+        return send(res, 200, {
+          ok: true,
+          url: publicUrl,
+          name: originalName,
+          size: buffer.length
+        });
       }
 
       if (req.method === 'POST' && url.pathname === '/v1/social/requests/send') {
@@ -427,7 +528,22 @@ async function handler(req, res) {
       }
 
       if (url.pathname.startsWith('/v1/social/messages/')) {
-        const friendId = decodeURIComponent(url.pathname.slice('/v1/social/messages/'.length)).trim();
+        const subPath = url.pathname.slice('/v1/social/messages/'.length);
+
+        // React to message: POST /v1/social/messages/:messageId/react
+        const reactMatch = subPath.match(/^([a-zA-Z0-9_\-]+)\/react$/);
+        if (req.method === 'POST' && reactMatch) {
+          const messageId = reactMatch[1];
+          const body = await readJson(req);
+          try {
+            const result = db.setMessageReaction(messageId, authUser.id, body.reaction);
+            return send(res, 200, result);
+          } catch (err) {
+            return send(res, 400, { ok: false, error: err.message });
+          }
+        }
+
+        const friendId = decodeURIComponent(subPath).trim();
         if (!friendId) return send(res, 400, { ok: false, error: 'Friend ID required' });
 
         if (req.method === 'GET') {
@@ -439,8 +555,15 @@ async function handler(req, res) {
         if (req.method === 'POST') {
           const body = await readJson(req);
           const content = String(body.content || '').trim();
+          const mediaUrl = body.mediaUrl || body.media_url || null;
+          const mediaName = body.mediaName || body.media_name || null;
+          const isMedia = body.isMedia ?? body.is_media ?? Boolean(mediaUrl);
           try {
-            const message = db.sendMessage(authUser.id, friendId, content);
+            const message = db.sendMessage(authUser.id, friendId, content, {
+              mediaUrl,
+              mediaName,
+              isMedia: isMedia ? 1 : 0
+            });
             return send(res, 200, { ok: true, message });
           } catch (err) {
             return send(res, 400, { ok: false, error: err.message });
@@ -484,7 +607,15 @@ async function handler(req, res) {
       if (req.method === 'GET' && url.pathname === '/v1/social/search') {
         const q = String(url.searchParams.get('q') || '').trim();
         const results = db.searchUsers(q, authUser.id);
-        return send(res, 200, { ok: true, results });
+        const origin = originOf(req);
+        const enriched = results.map((u) => {
+          const profile = readProfile(u.name);
+          return {
+            ...u,
+            skinUrl: (profile && profile.skin) ? `${origin}/csl/textures/${profile.skin}` : null
+          };
+        });
+        return send(res, 200, { ok: true, results: enriched });
       }
 
       return send(res, 404, { ok: false, error: 'Social endpoint not found' });
@@ -503,6 +634,7 @@ function createServer() {
 function listen(port = PORT, host = '0.0.0.0') {
   fs.mkdirSync(profilesDir, { recursive: true });
   fs.mkdirSync(texturesDir, { recursive: true });
+  fs.mkdirSync(mediaDir, { recursive: true });
   const server = createServer();
   return new Promise((resolve) => {
     server.listen(port, host, () => resolve(server));
@@ -512,6 +644,7 @@ function listen(port = PORT, host = '0.0.0.0') {
 if (require.main === module) {
   fs.mkdirSync(profilesDir, { recursive: true });
   fs.mkdirSync(texturesDir, { recursive: true });
+  fs.mkdirSync(mediaDir, { recursive: true });
   createServer().listen(PORT, '127.0.0.1', () =>
     console.log(`Noctra Server listening on 127.0.0.1:${PORT}`)
   );

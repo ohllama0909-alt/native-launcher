@@ -40,7 +40,7 @@ function getFriends(db, userId) {
         WHERE m.sender_id = f.friend_id AND m.receiver_id = f.user_id AND m.is_read = 0
       ) AS unreadCount,
       (
-        SELECT content FROM messages m
+        SELECT COALESCE(NULLIF(content, ''), media_name, 'Sent attachment') FROM messages m
         WHERE (m.sender_id = f.friend_id AND m.receiver_id = f.user_id)
            OR (m.sender_id = f.user_id AND m.receiver_id = f.friend_id)
         ORDER BY m.created_at DESC LIMIT 1
@@ -252,18 +252,32 @@ function getMessages(db, userId, friendId, limit = 50) {
   db.prepare('UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ? AND is_read = 0').run(friendId, userId);
 
   const stmt = db.prepare(`
-    SELECT id, sender_id AS senderId, receiver_id AS receiverId, content, is_read AS isRead, created_at AS createdAt
+    SELECT 
+      id, 
+      sender_id AS senderId, 
+      receiver_id AS receiverId, 
+      content, 
+      media_url AS mediaUrl, 
+      media_name AS mediaName, 
+      is_media AS isMedia, 
+      reaction, 
+      is_read AS isRead, 
+      created_at AS createdAt
     FROM messages
     WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
     ORDER BY created_at ASC
     LIMIT ?
   `);
-  return stmt.all(userId, friendId, friendId, userId, limit);
+  const rows = stmt.all(userId, friendId, friendId, userId, limit);
+  return rows.map(r => ({
+    ...r,
+    isMedia: Boolean(r.isMedia)
+  }));
 }
 
-function sendMessage(db, senderId, receiverId, content) {
+function sendMessage(db, senderId, receiverId, content, { mediaUrl = null, mediaName = null, isMedia = 0 } = {}) {
   const clean = String(content || '').trim();
-  if (!clean) throw new Error('Message content cannot be empty.');
+  if (!clean && !mediaUrl) throw new Error('Message content or media attachment cannot be empty.');
   if (clean.length > 2000) throw new Error('Message is too long (maximum 2000 characters).');
 
   const blockCheck = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)').get(senderId, receiverId, receiverId, senderId);
@@ -272,18 +286,34 @@ function sendMessage(db, senderId, receiverId, content) {
   const id = `msg-${crypto.randomBytes(8).toString('hex')}`;
   const now = Date.now();
   db.prepare(`
-    INSERT INTO messages (id, sender_id, receiver_id, content, is_read, created_at)
-    VALUES (?, ?, ?, ?, 0, ?)
-  `).run(id, senderId, receiverId, clean, now);
+    INSERT INTO messages (id, sender_id, receiver_id, content, media_url, media_name, is_media, is_read, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+  `).run(id, senderId, receiverId, clean, mediaUrl, mediaName, isMedia ? 1 : 0, now);
 
   return {
     id,
     senderId,
     receiverId,
     content: clean,
+    mediaUrl,
+    mediaName,
+    isMedia: Boolean(isMedia),
+    reaction: null,
     isRead: 0,
     createdAt: now
   };
+}
+
+function setMessageReaction(db, messageId, userId, reaction) {
+  const clean = reaction ? String(reaction).trim().slice(0, 10) : null;
+  const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(messageId);
+  if (!msg) throw new Error('Message not found.');
+  if (msg.sender_id !== userId && msg.receiver_id !== userId) {
+    throw new Error('Unauthorized to react to this message.');
+  }
+  const nextReaction = msg.reaction === clean ? null : clean;
+  db.prepare('UPDATE messages SET reaction = ? WHERE id = ?').run(nextReaction, messageId);
+  return { ok: true, id: messageId, reaction: nextReaction };
 }
 
 function searchUsers(db, query, excludeUserId) {
@@ -311,5 +341,6 @@ module.exports = {
   unblockUser,
   getMessages,
   sendMessage,
+  setMessageReaction,
   searchUsers
 };

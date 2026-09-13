@@ -121,17 +121,59 @@ export function useSocial(activeAccount) {
     }
   };
 
-  const sendMessage = async (content) => {
-    if (!activeChatFriend?.id || !window.native?.social || !content?.trim()) return;
+  const sendMessage = async (content, options = {}) => {
+    const targetId = options.friendId || activeChatFriend?.id;
+    if (!targetId || !window.native?.social) return { ok: false, error: 'No recipient selected' };
+    const text = (content || '').trim();
+    if (!text && !options.mediaUrl) return { ok: false, error: 'Empty message' };
+
     try {
-      const res = await window.native.social.sendMessage(activeChatFriend.id, content.trim());
+      const res = await window.native.social.sendMessage(targetId, text, {
+        mediaUrl: options.mediaUrl || null,
+        mediaName: options.mediaName || null,
+        isMedia: options.isMedia ?? Boolean(options.mediaUrl)
+      });
       if (res?.ok && res.message) {
         setMessages(prev => [...prev, res.message]);
-        return { ok: true };
+        // Update friends thread snippet immediately
+        const snippet = text || options.mediaName || 'Sent attachment';
+        setFriends(prev => prev.map(f => f.id === targetId ? {
+          ...f,
+          lastMessageContent: snippet,
+          lastMessageTime: Date.now(),
+          lastMessageSenderId: 'me'
+        } : f));
+        return { ok: true, message: res.message };
       }
       return { ok: false, error: res?.error || 'Failed to send message' };
     } catch (err) {
       return { ok: false, error: err.message };
+    }
+  };
+
+  const uploadMedia = async (dataUrl, filename) => {
+    if (!window.native?.social?.uploadMedia) {
+      return { ok: false, error: 'Upload not supported' };
+    }
+    try {
+      return await window.native.social.uploadMedia(dataUrl, filename);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  const setMessageReaction = async (messageId, reaction) => {
+    if (!window.native?.social?.setMessageReaction || !messageId) return;
+    // Optimistic update
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reaction: m.reaction === reaction ? null : reaction } : m));
+    try {
+      const res = await window.native.social.setMessageReaction(messageId, reaction);
+      if (res?.ok) {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reaction: res.reaction } : m));
+      }
+      return res;
+    } catch (err) {
+      console.error('[Social] Error setting reaction:', err);
     }
   };
 
@@ -225,6 +267,8 @@ export function useSocial(activeAccount) {
     sendRequest,
     respondRequest,
     sendMessage,
+    uploadMedia,
+    setMessageReaction,
     updateFriend,
     unfriend,
     block,

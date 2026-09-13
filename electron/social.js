@@ -180,10 +180,24 @@ function init(dependencies, ipcMain) {
     return res;
   });
 
-  ipcMain.handle('social:sendMessage', async (_event, { friendId, content }) => {
+  ipcMain.handle('social:sendMessage', async (_event, { friendId, content, mediaUrl, mediaName, isMedia }) => {
     return await socialFetch(`/v1/social/messages/${encodeURIComponent(friendId)}`, {
       method: 'POST',
-      body: { content }
+      body: { content, mediaUrl, mediaName, isMedia }
+    });
+  });
+
+  ipcMain.handle('social:uploadMedia', async (_event, { dataUrl, filename }) => {
+    return await socialFetch('/v1/social/upload', {
+      method: 'POST',
+      body: { dataUrl, filename }
+    });
+  });
+
+  ipcMain.handle('social:setMessageReaction', async (_event, { messageId, reaction }) => {
+    return await socialFetch(`/v1/social/messages/${encodeURIComponent(messageId)}/react`, {
+      method: 'POST',
+      body: { reaction }
     });
   });
 
