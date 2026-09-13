@@ -3,6 +3,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const db = require('./db');
+const events = require('./social-events');
 const { sendVerificationCodeEmail } = require('./mailer');
 
 /**
@@ -10,6 +11,8 @@ const { sendVerificationCodeEmail } = require('./mailer');
  * Handles:
  *  - Authentication & Account management (/v1/auth/*)
  *  - Real-time Social Network: Friends, Requests, Direct Messages, Presence (/v1/social/*)
+ *    Realtime transport is Server-Sent Events at GET /v1/social/stream; the
+ *    polling endpoints remain as a fallback only.
  *  - Wardrobe Sync & CustomSkinLoader API (/v1/wardrobe, /csl/*, /textures/*)
  */
 
@@ -23,7 +26,8 @@ const PUBLIC_URL = (process.env.NATIVE_SKIN_PUBLIC_URL || '').replace(/\/+$/, ''
 const profilesDir = path.join(DATA_DIR, 'profiles');
 const texturesDir = path.join(DATA_DIR, 'textures');
 const mediaDir = path.join(DATA_DIR, 'media');
-const requests = new Map();
+const rateBuckets = new Map();
+const MESSAGE_LIMIT = db.MESSAGE_LIMIT || 2000;
 
 function mimeTypeFor(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -36,7 +40,9 @@ function mimeTypeFor(filename) {
     case '.svg': return 'image/svg+xml';
     case '.mp3': return 'audio/mpeg';
     case '.ogg': return 'audio/ogg';
+    case '.webm': return 'audio/webm';
     case '.wav': return 'audio/wav';
+    case '.mp4': return 'video/mp4';
     case '.txt':
     case '.log': return 'text/plain';
     case '.zip': return 'application/zip';
@@ -97,11 +103,11 @@ function readProfile(username) {
 
 function allowed(ip) {
   const now = Date.now();
-  const item = requests.get(ip) || { start: now, count: 0 };
+  const item = rateBuckets.get(ip) || { start: now, count: 0 };
   if (now - item.start > 60_000) { item.start = now; item.count = 0; }
   item.count += 1;
-  requests.set(ip, item);
-  return item.count <= 60;
+  rateBuckets.set(ip, item);
+  return item.count <= 240;
 }
 
 async function readJson(req) {
@@ -125,6 +131,16 @@ function originOf(req) {
 }
 
 const textureUrl = (origin, hash) => (hash ? `${origin}/csl/textures/${hash}` : null);
+
+/** Attach the player's published skin texture so the UI never calls a third party. */
+function withSkin(entry, origin) {
+  const profile = entry && entry.name ? readProfile(entry.name) : null;
+  return {
+    ...entry,
+    skinUrl: (profile && profile.skin) ? `${origin}/csl/textures/${profile.skin}` : null,
+    model: (profile && profile.model) || entry.model || 'classic'
+  };
+}
 
 /** CustomSkinLoader's CustomSkinAPI document. */
 function customSkinProfile(profile, origin) {
@@ -167,7 +183,13 @@ async function handler(req, res) {
     }
 
     if (req.method === 'GET' && url.pathname === '/health') {
-      return send(res, 200, { ok: true, service: 'noctra-server', api: 2, providers: ['customskinapi', 'auth', 'social'] });
+      return send(res, 200, {
+        ok: true,
+        service: 'noctra-server',
+        api: 3,
+        providers: ['customskinapi', 'auth', 'social', 'realtime'],
+        liveConnections: events.connectionCount()
+      });
     }
 
     // CustomSkinLoader profile document
@@ -191,14 +213,16 @@ async function handler(req, res) {
       });
     }
 
-    // Avatar redirect / lookup
+    // Avatar lookup. Noctra never proxies to third-party skin hosts: if the
+    // player has not published a skin the client falls back to its bundled
+    // Steve texture instead.
     const avatarMatch = url.pathname.match(/^\/(?:csl\/)?avatar\/([A-Za-z0-9_]{3,16})$/i);
     if (req.method === 'GET' && avatarMatch) {
       const profile = readProfile(avatarMatch[1]);
       if (profile?.skin) {
-        return send(res, 302, '', { 'Location': `/csl/textures/${profile.skin}` });
+        return send(res, 302, '', { Location: `/csl/textures/${profile.skin}` });
       }
-      return send(res, 302, '', { 'Location': `https://mc-heads.net/avatar/${avatarMatch[1]}/64` });
+      return send(res, 404, { error: 'Avatar not found.' });
     }
 
     // Social Media delivery (preserves full resolution)
@@ -284,6 +308,19 @@ async function handler(req, res) {
         updatedAt: new Date().toISOString()
       };
       atomicWrite(profilePath(username), JSON.stringify(profile, null, 2));
+
+      // Tell friends to re-render the avatar immediately.
+      try {
+        const owner = db.getUserByUsername(username);
+        if (owner) {
+          events.publish(db.getFriendIds(owner.id), 'skin:updated', {
+            userId: owner.id,
+            name: username,
+            skinUrl: profile.skin ? `${originOf(req)}/csl/textures/${profile.skin}` : null
+          });
+        }
+      } catch {}
+
       return send(res, 200, {
         ok: true,
         username,
@@ -433,42 +470,107 @@ async function handler(req, res) {
     // ── Noctra Social APIs (Noctra authenticated users only) ─────────────
     if (url.pathname.startsWith('/v1/social/')) {
       const authHeader = req.headers.authorization || '';
-      const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+      const headerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+      // EventSource cannot set headers, so the stream also accepts ?token=
+      const token = headerToken || String(url.searchParams.get('token') || '').trim();
       const authUser = db.getUserBySession(token);
       if (!authUser) {
         return send(res, 401, { ok: false, error: 'Unauthorized. Noctra account session required.' });
       }
+      const origin = originOf(req);
+
+      // ── Realtime event stream ──────────────────────────────────────────
+      if (req.method === 'GET' && url.pathname === '/v1/social/stream') {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+          'X-Accel-Buffering': 'no',
+          'Access-Control-Allow-Origin': '*'
+        });
+        if (res.flushHeaders) res.flushHeaders();
+        if (req.socket && req.socket.setNoDelay) req.socket.setNoDelay(true);
+        if (req.socket && req.socket.setTimeout) req.socket.setTimeout(0);
+
+        const unsubscribe = events.subscribe(authUser.id, res);
+
+        // Coming online is itself a realtime event for every friend.
+        try {
+          db.updatePresence(authUser.id, { status: 'online', activity: 'In Launcher', serverAddress: null });
+          events.publish(db.getFriendIds(authUser.id), 'presence', {
+            userId: authUser.id,
+            status: 'online',
+            activity: 'In Launcher',
+            serverAddress: null
+          });
+        } catch {}
+
+        const close = () => {
+          unsubscribe();
+          try {
+            events.publish(db.getFriendIds(authUser.id), 'presence', {
+              userId: authUser.id,
+              status: 'offline',
+              activity: null,
+              serverAddress: null
+            });
+          } catch {}
+        };
+        req.on('close', close);
+        req.on('error', close);
+        return undefined;
+      }
 
       if (req.method === 'GET' && url.pathname === '/v1/social/friends') {
-        const friends = db.getFriends(authUser.id);
-        const origin = originOf(req);
-        const enriched = friends.map((f) => {
-          const profile = readProfile(f.name);
-          return {
-            ...f,
-            skinUrl: (profile && profile.skin) ? `${origin}/csl/textures/${profile.skin}` : null
-          };
-        });
-        return send(res, 200, { ok: true, friends: enriched });
+        const friends = db.getFriends(authUser.id).map((f) => withSkin(f, origin));
+        return send(res, 200, { ok: true, friends, serverTime: Date.now() }, { 'Cache-Control': 'no-store' });
       }
 
       if (req.method === 'GET' && url.pathname === '/v1/social/requests') {
-        const requests = db.getFriendRequests(authUser.id);
-        const origin = originOf(req);
-        const mapReq = (r) => {
-          const profile = readProfile(r.name);
-          return {
-            ...r,
-            skinUrl: (profile && profile.skin) ? `${origin}/csl/textures/${profile.skin}` : null
-          };
-        };
+        const reqs = db.getFriendRequests(authUser.id);
         return send(res, 200, {
           ok: true,
           requests: {
-            received: (requests.received || []).map(mapReq),
-            sent: (requests.sent || []).map(mapReq)
+            received: (reqs.received || []).map((r) => withSkin(r, origin)),
+            sent: (reqs.sent || []).map((r) => withSkin(r, origin))
           }
-        });
+        }, { 'Cache-Control': 'no-store' });
+      }
+
+      // Every conversation preloaded in one round trip.
+      if (req.method === 'GET' && url.pathname === '/v1/social/conversations') {
+        const perFriend = Number(url.searchParams.get('perFriend') || 40);
+        const conversations = db.getConversations(authUser.id, perFriend);
+        return send(res, 200, { ok: true, conversations, serverTime: Date.now() }, { 'Cache-Control': 'no-store' });
+      }
+
+      // Polling fallback used only while the stream is disconnected.
+      if (req.method === 'GET' && url.pathname === '/v1/social/updates') {
+        const since = Number(url.searchParams.get('since') || 0);
+        return send(res, 200, { ok: true, ...db.getUpdatesSince(authUser.id, since) }, { 'Cache-Control': 'no-store' });
+      }
+
+      if (req.method === 'GET' && url.pathname === '/v1/social/blocked') {
+        const blocked = db.listBlocked(authUser.id).map((b) => withSkin(b, origin));
+        return send(res, 200, { ok: true, blocked }, { 'Cache-Control': 'no-store' });
+      }
+
+      if (req.method === 'POST' && url.pathname === '/v1/social/typing') {
+        const body = await readJson(req);
+        const friendId = String(body.friendId || '').trim();
+        if (friendId) events.setTyping(authUser.id, friendId, Boolean(body.isTyping));
+        return send(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });
+      }
+
+      if (req.method === 'POST' && url.pathname === '/v1/social/read') {
+        const body = await readJson(req);
+        const friendId = String(body.friendId || '').trim();
+        if (!friendId) return send(res, 400, { ok: false, error: 'Friend ID required' });
+        const result = db.markMessagesRead(authUser.id, friendId);
+        if (result.messageIds.length) {
+          events.publish(friendId, 'message:read', { readerId: authUser.id, messageIds: result.messageIds });
+        }
+        return send(res, 200, { ok: true, ...result }, { 'Cache-Control': 'no-store' });
       }
 
       if (req.method === 'POST' && url.pathname === '/v1/social/upload') {
@@ -493,15 +595,12 @@ async function handler(req, res) {
           fs.writeFileSync(targetPath, buffer);
         }
 
-        const origin = originOf(req);
-        const publicUrl = `${origin}/v1/social/media/${filename}`;
-
         return send(res, 200, {
           ok: true,
-          url: publicUrl,
+          url: `${origin}/v1/social/media/${filename}`,
           name: originalName,
           size: buffer.length
-        });
+        }, { 'Cache-Control': 'no-store' });
       }
 
       if (req.method === 'POST' && url.pathname === '/v1/social/requests/send') {
@@ -509,7 +608,11 @@ async function handler(req, res) {
         const targetUsername = String(body.username || body.targetUsername || '').trim();
         try {
           const result = db.sendFriendRequest(authUser.id, targetUsername);
-          return send(res, 200, { ok: true, ...result });
+          const participants = result.participants || [];
+          events.publish(participants, result.mutual ? 'friends:changed' : 'request:changed', {
+            actorId: authUser.id
+          });
+          return send(res, 200, { ok: true, ...result }, { 'Cache-Control': 'no-store' });
         } catch (err) {
           return send(res, 400, { ok: false, error: err.message });
         }
@@ -521,7 +624,11 @@ async function handler(req, res) {
         const action = String(body.action || '').trim().toLowerCase();
         try {
           const result = db.respondFriendRequest(requestId, authUser.id, action);
-          return send(res, 200, result);
+          events.publish(result.participants || [], 'request:changed', { actorId: authUser.id, action: result.action });
+          if (result.action === 'accepted') {
+            events.publish(result.participants || [], 'friends:changed', { actorId: authUser.id });
+          }
+          return send(res, 200, result, { 'Cache-Control': 'no-store' });
         } catch (err) {
           return send(res, 400, { ok: false, error: err.message });
         }
@@ -537,7 +644,12 @@ async function handler(req, res) {
           const body = await readJson(req);
           try {
             const result = db.setMessageReaction(messageId, authUser.id, body.reaction);
-            return send(res, 200, result);
+            events.publish(result.participants || [], 'message:reaction', {
+              messageId,
+              reactions: result.reactions,
+              actorId: authUser.id
+            });
+            return send(res, 200, result, { 'Cache-Control': 'no-store' });
           } catch (err) {
             return send(res, 400, { ok: false, error: err.message });
           }
@@ -547,9 +659,15 @@ async function handler(req, res) {
         if (!friendId) return send(res, 400, { ok: false, error: 'Friend ID required' });
 
         if (req.method === 'GET') {
-          const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 50)));
-          const messages = db.getMessages(authUser.id, friendId, limit);
-          return send(res, 200, { ok: true, messages });
+          const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 50)));
+          const beforeParam = url.searchParams.get('before');
+          const before = beforeParam ? Number(beforeParam) : null;
+          const markRead = url.searchParams.get('markRead') !== '0' && !before;
+          const page = db.getMessages(authUser.id, friendId, { limit, before, markRead });
+          if (markRead) {
+            events.publish(friendId, 'message:read', { readerId: authUser.id, messageIds: null });
+          }
+          return send(res, 200, { ok: true, ...page }, { 'Cache-Control': 'no-store' });
         }
 
         if (req.method === 'POST') {
@@ -557,14 +675,21 @@ async function handler(req, res) {
           const content = String(body.content || '').trim();
           const mediaUrl = body.mediaUrl || body.media_url || null;
           const mediaName = body.mediaName || body.media_name || null;
+          const mediaKind = body.mediaKind || body.media_kind || null;
           const isMedia = body.isMedia ?? body.is_media ?? Boolean(mediaUrl);
+          if (content.length > MESSAGE_LIMIT) {
+            return send(res, 400, { ok: false, error: `Message is too long (maximum ${MESSAGE_LIMIT} characters).` });
+          }
           try {
             const message = db.sendMessage(authUser.id, friendId, content, {
               mediaUrl,
               mediaName,
+              mediaKind,
               isMedia: isMedia ? 1 : 0
             });
-            return send(res, 200, { ok: true, message });
+            events.setTyping(authUser.id, friendId, false);
+            events.publish([friendId, authUser.id], 'message:new', { message });
+            return send(res, 200, { ok: true, message }, { 'Cache-Control': 'no-store' });
           } catch (err) {
             return send(res, 400, { ok: false, error: err.message });
           }
@@ -573,49 +698,70 @@ async function handler(req, res) {
 
       if (req.method === 'POST' && url.pathname === '/v1/social/presence') {
         const body = await readJson(req);
-        db.updatePresence(authUser.id, {
+        const next = {
           status: body.status || 'online',
           activity: body.activity || 'In Launcher',
           serverAddress: body.serverAddress || null
-        });
-        return send(res, 200, { ok: true });
+        };
+        const previous = db.getPresence(authUser.id);
+        db.updatePresence(authUser.id, next);
+
+        const changed = !previous ||
+          previous.status !== next.status ||
+          (previous.activity || null) !== (next.activity || null) ||
+          (previous.server_address || null) !== (next.serverAddress || null) ||
+          (Date.now() - (previous.last_seen || 0)) > 120_000;
+
+        if (changed) {
+          events.publish(db.getFriendIds(authUser.id), 'presence', { userId: authUser.id, ...next });
+        }
+        return send(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });
       }
 
       if (req.method === 'POST' && url.pathname === '/v1/social/friends/update') {
         const body = await readJson(req);
         const friendId = String(body.friendId || '').trim();
-        db.updateFriendAttributes(authUser.id, friendId, {
-          isBestFriend: body.isBestFriend,
-          nickname: body.nickname
-        });
-        return send(res, 200, { ok: true });
+        try {
+          db.updateFriendAttributes(authUser.id, friendId, {
+            isBestFriend: body.isBestFriend,
+            nickname: body.nickname
+          });
+        } catch (err) {
+          return send(res, 400, { ok: false, error: err.message });
+        }
+        events.publish(authUser.id, 'friends:changed', { actorId: authUser.id, friendId });
+        return send(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });
       }
 
       if (req.method === 'DELETE' && url.pathname.startsWith('/v1/social/friends/')) {
         const friendId = decodeURIComponent(url.pathname.slice('/v1/social/friends/'.length)).trim();
-        db.removeFriend(authUser.id, friendId);
-        return send(res, 200, { ok: true });
+        const result = db.removeFriend(authUser.id, friendId);
+        events.publish(result.participants || [], 'friends:changed', { actorId: authUser.id, friendId });
+        return send(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });
       }
 
       if (req.method === 'POST' && url.pathname === '/v1/social/block') {
         const body = await readJson(req);
         const targetId = String(body.targetId || '').trim();
-        db.blockUser(authUser.id, targetId);
-        return send(res, 200, { ok: true });
+        if (!targetId) return send(res, 400, { ok: false, error: 'Target ID required' });
+        const result = db.blockUser(authUser.id, targetId);
+        events.publish(result.participants || [], 'friends:changed', { actorId: authUser.id, friendId: targetId, blocked: true });
+        return send(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });
+      }
+
+      if (req.method === 'POST' && url.pathname === '/v1/social/unblock') {
+        const body = await readJson(req);
+        const targetId = String(body.targetId || body.blockedId || '').trim();
+        if (!targetId) return send(res, 400, { ok: false, error: 'Target ID required' });
+        db.unblockUser(authUser.id, targetId);
+        events.publish(authUser.id, 'blocks:changed', { actorId: authUser.id, targetId });
+        return send(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });
       }
 
       if (req.method === 'GET' && url.pathname === '/v1/social/search') {
         const q = String(url.searchParams.get('q') || '').trim();
-        const results = db.searchUsers(q, authUser.id);
-        const origin = originOf(req);
-        const enriched = results.map((u) => {
-          const profile = readProfile(u.name);
-          return {
-            ...u,
-            skinUrl: (profile && profile.skin) ? `${origin}/csl/textures/${profile.skin}` : null
-          };
-        });
-        return send(res, 200, { ok: true, results: enriched });
+        const results = db.searchUsers(q, authUser.id).map((u) => withSkin(u, origin));
+        return send(res, 200, { ok: true, results }, { 'Cache-Control': 'no-store' });
       }
 
       return send(res, 404, { ok: false, error: 'Social endpoint not found' });
@@ -623,12 +769,21 @@ async function handler(req, res) {
 
     return send(res, 404, { error: 'Not found.' });
   } catch (error) {
+    if (res.headersSent) {
+      try { res.end(); } catch {}
+      return undefined;
+    }
     return send(res, 400, { error: error.message || 'Invalid request.' });
   }
 }
 
 function createServer() {
-  return http.createServer(handler);
+  const server = http.createServer(handler);
+  // SSE connections must never be culled by the default keep-alive timeout.
+  server.keepAliveTimeout = 0;
+  server.headersTimeout = 0;
+  server.requestTimeout = 0;
+  return server;
 }
 
 function listen(port = PORT, host = '0.0.0.0') {
