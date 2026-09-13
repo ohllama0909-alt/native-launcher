@@ -82,6 +82,21 @@ export default function Shell({
     );
   }, [locale]);
 
+  /* Relay emits `{ type, message }` payloads; the drawer wants title + body. */
+  const notifyRelay = useCallback((payload, body) => {
+    if (typeof payload === 'string') {
+      notify(payload, body);
+      return;
+    }
+    if (!payload?.message) return;
+    const title = payload.type === 'error'
+      ? 'Relay error'
+      : payload.type === 'success'
+        ? 'Relay'
+        : 'Relay';
+    notify(title, payload.message);
+  }, [notify]);
+
   const handleLaunch = (cluster, options = {}) => {
     if (!cluster) return;
     if (!account || account.id === 'guest' || accounts.length === 0) {
@@ -92,7 +107,7 @@ export default function Shell({
     notify(
       t('notify.launching'),
       options?.quickJoinServer
-        ? `Connecting to ${options.quickJoinServer} with ${cluster.name || cluster.mc_version || cluster.version}…`
+        ? `Connecting to ${options.quickJoinServer} with ${cluster.name || cluster.mc_version || cluster.version}\u2026`
         : t('notify.starting', {
             name: cluster.name || cluster.mc_version || cluster.version,
             version: `${cluster.mc_version || cluster.version} ${cluster.mc_loader || cluster.loader}`
@@ -100,14 +115,16 @@ export default function Shell({
     );
   };
 
-  const handleJoinServer = (friend) => {
-    if (!friend?.serverAddress) return;
-    const cluster = instancesManager.activeCluster || instancesManager.clusters[0];
+  /* Accepts a friend object or a raw server address. */
+  const handleJoinServer = (target) => {
+    const serverAddress = typeof target === 'string' ? target : target?.serverAddress;
+    if (!serverAddress) return;
+    const cluster = instancesManager.activeCluster || instancesManager.clusters?.[0] || instancesManager.instances?.[0];
     if (!cluster) {
       notify('No instance found', 'Please install or create a Minecraft instance first to join.');
       return;
     }
-    handleLaunch(cluster, { quickJoinServer: friend.serverAddress });
+    handleLaunch(cluster, { quickJoinServer: serverAddress });
   };
 
   const handleOpenCluster = (cluster, tab = 'overview') => {
@@ -214,7 +231,7 @@ export default function Shell({
             account={account}
             social={social}
             onJoinServer={handleJoinServer}
-            onNotify={notify}
+            onNotify={notifyRelay}
           />
         )}
 
