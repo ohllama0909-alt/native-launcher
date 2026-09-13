@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Camera, Check, LogOut, Search, Trash2, X } from 'lucide-react';
+import { Info, LogOut, Search, ShieldCheck, Trash2, UserPlus, Users, X } from 'lucide-react';
 import RelayAvatar from './RelayAvatar';
 import GroupAvatarBadge from './GroupAvatarBadge';
 import './relay-groups.css';
@@ -104,7 +104,10 @@ export function GroupSettingsModal({
           </button>
         </header>
 
-        <nav className="relay-tabs">
+        <div className="relay-settings-layout">
+        <aside className="relay-settings-sidebar">
+          <span className="relay-settings-sidebar__label">Group settings</span>
+          <nav className="relay-tabs">
           {['overview', 'members', canModerate ? 'invite' : null].filter(Boolean).map((key) => (
             <button
               key={key}
@@ -112,10 +115,20 @@ export function GroupSettingsModal({
               className={`relay-tab${tab === key ? ' is-active' : ''}`}
               onClick={() => setTab(key)}
             >
-              {key === 'overview' ? 'Overview' : key === 'members' ? `Members · ${members.length}` : 'Add members'}
+              {key === 'overview' ? <Info size={15} /> : key === 'members' ? <Users size={15} /> : <UserPlus size={15} />}
+              <span>{key === 'overview' ? 'Overview' : key === 'members' ? 'Members' : 'Invites'}</span>
+              {key === 'members' && <b>{members.length}</b>}
             </button>
           ))}
-        </nav>
+          </nav>
+          <div className="relay-settings-role">
+            <ShieldCheck size={14} />
+            <span>Your role</span>
+            <strong>{ROLE_LABEL[myRole] || 'Member'}</strong>
+          </div>
+        </aside>
+
+        <section className="relay-settings-content">
 
         {tab === 'overview' && (
           <div className="relay-modal__body">
@@ -373,6 +386,8 @@ export function GroupSettingsModal({
             </div>
           </div>
         )}
+        </section>
+        </div>
       </div>
     </div>
   );
