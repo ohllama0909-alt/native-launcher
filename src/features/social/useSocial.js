@@ -733,10 +733,23 @@ export function useSocial(account) {
     Object.values(typingSentRef.current).forEach((state) => clearTimeout(state?.timer));
   }, []);
 
-  const unreadTotal = useMemo(
-    () => friends.reduce((total, friend) => total + (friend.muted ? 0 : friend.unreadCount || 0), 0),
-    [friends]
-  );
+  // Relay writes its optimistic mute state here, so the nav badge agrees with
+  // the toggle the moment it is flipped rather than after the next refresh.
+  const readMutedIds = () => {
+    try {
+      return JSON.parse(localStorage.getItem('noctra_relay_store_v5') || '{}')?.mutedIds || {};
+    } catch {
+      return {};
+    }
+  };
+
+  const unreadTotal = useMemo(() => {
+    const mutedIds = readMutedIds();
+    return friends.reduce((total, friend) => {
+      const muted = mutedIds[friend.id] ?? friend.muted;
+      return total + (muted ? 0 : friend.unreadCount || 0);
+    }, 0);
+  }, [friends]);
   const pendingRequestsTotal = requests.received?.length || 0;
   const badgeTotal = unreadTotal + pendingRequestsTotal;
 

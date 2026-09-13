@@ -278,30 +278,6 @@
   letter-spacing: -0.015em;
 }
 
-.account-login-secondary-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.account-login-sec-btn {
-  flex: 1;
-  height: 32px;
-  border: 1px solid rgba(210, 210, 210, 0.1);
-  border-radius: 8px;
-  background: rgba(10, 8, 10, 0.5);
-  color: rgba(210, 210, 210, 0.6);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color .15s var(--ease), color .15s var(--ease), background .15s var(--ease);
-}
-
-.account-login-sec-btn:hover {
-  border-color: rgba(210, 210, 210, 0.25);
-  color: rgba(242, 242, 242, 1);
-  background: rgba(25, 23, 25, 0.7);
-}
 
 .account-login-error {
   border-radius: var(--radius-sm, 6px);
@@ -396,40 +372,68 @@
   color: var(--text-primary, rgba(242, 242, 242, 1));
 }
 
-/* ---------- account list ---------- */
+/* ---------- saved accounts ---------- */
 
-.account-login-existing {
-  margin: -6px 0 6px;
+.account-login-saved {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.account-login-saved-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: rgba(210, 210, 210, 0.4);
+}
+
+.account-login-saved-head small {
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0;
+  font-size: 10px;
 }
 
 .account-login-list {
-  max-height: 132px;
+  max-height: 156px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   overflow-y: auto;
+  padding-right: 2px;
+}
+
+.account-login-list::-webkit-scrollbar { width: 4px; }
+.account-login-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
 }
 
 .account-login-item {
-  min-height: 40px;
+  min-height: 44px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 4px 8px;
-  border: 1px solid rgba(210, 210, 210, 0.12);
-  border-radius: 8px;
-  background: rgba(10, 8, 10, 0.6);
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
-  transition: background .15s var(--ease), border-color .15s var(--ease);
+  transition: background-color .15s var(--ease), border-color .15s var(--ease);
 }
 
 .account-login-item:hover {
-  background: rgba(30, 28, 30, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .account-login-item.active {
-  border-color: var(--brand-border, rgba(160, 81, 162, 0.8));
-  background: var(--brand-subtle, rgba(160, 81, 162, 0.15));
+  border-color: var(--brand-border, rgba(160, 81, 162, 0.55));
+  background: var(--brand-subtle, rgba(160, 81, 162, 0.12));
 }
 
 .account-login-item-text {
@@ -437,45 +441,63 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 1px;
 }
 
 .account-login-item-text strong {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -.005em;
   white-space: nowrap;
   color: rgba(242, 242, 242, 1);
 }
 
 .account-login-item-text small {
-  color: rgba(210, 210, 210, 0.45);
+  color: rgba(210, 210, 210, 0.42);
   font-size: 10px;
 }
 
-.account-login-item-text small.is-native {
-  color: var(--brand-soft, var(--brand, rgba(160, 81, 162, 0.9)));
-  font-weight: 600;
-}
+.account-login-item-text small.is-native { color: var(--brand-soft, var(--brand, rgba(160, 81, 162, 0.9))); font-weight: 600; }
+.account-login-item-text small.is-ms { color: var(--color-gold, #ffba08); font-weight: 600; }
 
-.account-login-item-text small.is-ms {
-  color: var(--color-gold, #ffba08);
-  font-weight: 600;
+.account-login-item-active {
+  flex: none;
+  height: 18px;
+  padding: 0 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 99px;
+  background: var(--brand, rgba(160, 81, 162, 1));
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
 
 .account-login-item-remove {
+  flex: none;
   width: 24px;
   height: 24px;
   display: grid;
   place-items: center;
   border: none;
+  border-radius: 6px;
   background: none;
   cursor: pointer;
-  color: rgba(210, 210, 210, 0.4);
-  transition: color .15s var(--ease);
+  opacity: 0;
+  color: rgba(210, 210, 210, 0.45);
+  transition: color .15s var(--ease), opacity .15s var(--ease), background-color .15s var(--ease);
 }
+
+.account-login-item:hover .account-login-item-remove,
+.account-login-item-remove:focus-visible { opacity: 1; }
 
 .account-login-item-remove:hover {
   color: var(--danger, rgba(225, 75, 75, 1));
+  background: rgba(225, 75, 75, 0.12);
 }
 
 /* ---------- Dedicated Noctra Auth Form (Login / Register / Verify) ---------- */

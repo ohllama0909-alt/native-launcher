@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('native', {
   maximize: () => ipcRenderer.send('window:maximize'),
   close: () => ipcRenderer.send('window:close'),
   openExternal: (url) => ipcRenderer.invoke('external:open', url),
+  showNotification: (title, body) => ipcRenderer.invoke('app:showNotification', { title, body }),
   onMaximizedChange: (callback) =>
     ipcRenderer.on('window:maximized', (_event, isMaximized) => callback(isMaximized)),
   instances: {

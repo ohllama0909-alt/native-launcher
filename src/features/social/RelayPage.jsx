@@ -59,6 +59,43 @@ const dayLabelOf = (stamp) => {
   return date.toLocaleDateString([], { day: 'numeric', month: 'long' });
 };
 
+/** "Last seen today at 14:30" / "… yesterday at …" / "… on 12 Sep at …". */
+const formatLastSeen = (stamp) => {
+  if (!stamp) return 'Offline';
+  const date = new Date(stamp);
+  if (Number.isNaN(date.getTime())) return 'Offline';
+
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (dayKeyOf(date.getTime()) === dayKeyOf(today.getTime())) return `Last seen today at ${time}`;
+  if (dayKeyOf(date.getTime()) === dayKeyOf(yesterday.getTime())) return `Last seen yesterday at ${time}`;
+  return `Last seen on ${date.toLocaleDateString([], { day: 'numeric', month: 'short' })} at ${time}`;
+};
+
+/** Synthesized two-tone ping. No audio asset, no autoplay policy issues. */
+const playPingChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.26);
+    osc.onended = () => ctx.close().catch(() => {});
+  } catch {}
+};
+
 const QUICK_GIFS = [
   { label: 'GG', url: 'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif' },
   { label: 'Hype', url: 'https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif' },
@@ -89,6 +126,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [selectedId, setSelectedId] = useState(() => persisted?.lastSelectedId || null);
+  const [mutedIds, setMutedIds] = useState(() => persisted?.mutedIds || {});
   const [uploads, setUploads] = useState({});
 
   const [inboxQuery, setInboxQuery] = useState('');
@@ -110,7 +148,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const fileInputRef = useRef(null);
   const atBottomRef = useRef(true);
   const dragDepthRef = useRef(0);
-  const notifyRef = useRef({ selfId: null, friends: [], groups: [] });
+  const notifyRef = useRef({ selfId: null, friends: [], groups: [], mutedIds: {}, activeId: null });
 
   useEffect(() => {
     return social?.subscribe?.((event) => relayGroups.handleSocialEvent(event));
@@ -124,9 +162,9 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify({ lastSelectedId: selectedId }));
+      localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify({ lastSelectedId: selectedId, mutedIds }));
     } catch {}
-  }, [selectedId]);
+  }, [selectedId, mutedIds]);
 
   useEffect(() => {
     if (!previewMediaModal) return undefined;
@@ -175,6 +213,8 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
       }
 
       const status = String(friend.status || 'offline').toLowerCase();
+      const lastSeenAt = friend.lastSeen || friend.lastMessageTime || 0;
+      const muted = mutedIds[friend.id] ?? Boolean(friend.muted);
 
       return {
         id: friend.id,
@@ -186,14 +226,15 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         model: friend.model || 'classic',
         status,
         pinned: Boolean(friend.pinned),
-        muted: Boolean(friend.muted),
+        muted,
         activity:
           friend.activity ||
           (status === 'in-game'
             ? `In-game: ${friend.serverAddress || 'Server'}`
             : status === 'offline' ? 'Offline' : 'In Launcher'),
         serverAddress: friend.serverAddress,
-        lastSeen: friend.lastSeen ? formatTime(friend.lastSeen) : 'Offline',
+        lastSeenAt,
+        lastSeen: formatLastSeen(lastSeenAt),
         lastMessage: snippet,
         lastTime: time,
         lastStamp: lastMsg?.createdAt || friend.lastMessageTime || 0,
@@ -203,10 +244,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         lastPending,
         lastFailed,
         isTyping: Boolean(social?.typingBy?.[friend.id]),
-        unread: friend.muted ? 0 : (friend.unreadCount || 0)
+        unread: muted ? 0 : (friend.unreadCount || 0)
       };
     });
-  }, [social?.friends, social?.conversations, social?.typingBy, selfId]);
+  }, [social?.friends, social?.conversations, social?.typingBy, selfId, mutedIds]);
 
   const formattedGroups = useMemo(() => {
     return (relayGroups.groups || []).map((group) => {
@@ -224,17 +265,20 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         snippet = `${group.memberCount || group.members?.length || 0} members`;
       }
 
+      const muted = mutedIds[group.id] ?? Boolean(group.muted);
+
       return {
         ...group,
         kind: 'group',
         nickname: group.name,
+        muted,
         lastStamp: group.lastMessage?.createdAt || group.createdAt || 0,
         lastTime: formatTime(group.lastMessage?.createdAt || group.createdAt),
         lastMessage: snippet,
-        unread: group.muted ? 0 : (group.unreadCount || 0)
+        unread: muted ? 0 : (group.unreadCount || 0)
       };
     });
-  }, [relayGroups.groups, selfId]);
+  }, [relayGroups.groups, selfId, mutedIds]);
 
   const allThreads = useMemo(() => {
     const dms = [...mergedFriends].sort((a, b) => (b.lastStamp || 0) - (a.lastStamp || 0));
@@ -280,44 +324,47 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   // ── Desktop notifications ───────────────────────────────────────────
 
   useEffect(() => {
-    notifyRef.current = { selfId, friends: mergedFriends, groups: formattedGroups };
-  }, [selfId, mergedFriends, formattedGroups]);
-
-  useEffect(() => {
-    if (typeof Notification === 'undefined') return;
-    if (Notification.permission === 'default') Notification.requestPermission().catch(() => {});
-  }, []);
+    notifyRef.current = {
+      selfId,
+      friends: mergedFriends,
+      groups: formattedGroups,
+      mutedIds,
+      activeId: activeEntity?.id || null
+    };
+  }, [selfId, mergedFriends, formattedGroups, mutedIds, activeEntity?.id]);
 
   useEffect(() => {
     if (!social?.subscribe) return undefined;
     return social.subscribe((event) => {
-      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      if (typeof document !== 'undefined' && document.hasFocus()) return;
-
       const state = notifyRef.current;
       let title = null;
       let body = '';
+      let threadId = null;
 
       if (event?.type === 'message:new' && event.message && event.message.senderId !== state.selfId) {
-        const friend = state.friends.find((item) => item.id === event.message.senderId);
-        if (friend?.muted) return;
+        threadId = event.message.senderId;
+        const friend = state.friends.find((item) => item.id === threadId);
+        if (state.mutedIds[threadId] ?? friend?.muted) return;
         title = friend?.nickname || friend?.name || 'New message';
         body = event.message.content || event.message.mediaName || 'Sent an attachment';
       } else if (event?.type === 'group:message') {
         const message = event.data?.message ?? event.message;
-        const groupId = event.data?.groupId ?? event.groupId;
+        threadId = event.data?.groupId ?? event.groupId;
         if (!message || message.senderId === state.selfId || message.isSystem) return;
-        const group = state.groups.find((item) => item.id === groupId);
-        if (group?.muted) return;
-        title = group?.name ? `${group.name}` : 'New group message';
+        const group = state.groups.find((item) => item.id === threadId);
+        if (state.mutedIds[threadId] ?? group?.muted) return;
+        title = group?.name || 'New group message';
         body = `${message.senderName || 'Member'}: ${message.content || message.mediaName || 'Sent an attachment'}`;
       }
 
       if (!title) return;
-      try {
-        const notification = new Notification(title, { body, silent: false });
-        notification.onclick = () => window.focus();
-      } catch {}
+
+      const windowFocused = typeof document !== 'undefined' && document.hasFocus();
+      const lookingAtThread = windowFocused && state.activeId === threadId;
+      if (lookingAtThread) return;
+
+      playPingChime();
+      window.native?.showNotification?.(title, body);
     });
   }, [social]);
 
@@ -344,7 +391,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     }
     return {
       status: 'offline',
-      text: entity.lastSeen && entity.lastSeen !== 'Offline' ? `Last seen ${entity.lastSeen}` : 'Offline',
+      text: entity.lastSeen || 'Offline',
       color: 'var(--fg-muted)'
     };
   }, []);
@@ -494,11 +541,19 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     else await social?.updateFriend?.(entity.id, { pinned: !entity.pinned });
   };
 
-  const handleToggleMute = async (entity) => {
+  const handleToggleMute = (entity) => {
     if (!entity) return;
     setShowMenuDropdown(false);
-    if (entity.kind === 'group') await relayGroups.setGroupPrefs(entity.id, { muted: !entity.muted });
-    else await social?.updateFriend?.(entity.id, { muted: !entity.muted });
+    const next = !entity.muted;
+
+    // Local state + localStorage win immediately so a friends/groups refresh
+    // can never flip the toggle back while the request is in flight.
+    setMutedIds((previous) => ({ ...previous, [entity.id]: next }));
+
+    const request = entity.kind === 'group'
+      ? relayGroups.setGroupPrefs(entity.id, { muted: next })
+      : social?.updateFriend?.(entity.id, { muted: next });
+    Promise.resolve(request).catch(() => {});
   };
 
   const handleToggleReaction = async (messageId, emoji) => {

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Notification, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const gameLauncher = require('./launcher');
@@ -106,6 +106,29 @@ ipcMain.handle('external:open', async (_event, value) => {
   const url = new URL(String(value));
   if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Unsupported link');
   await shell.openExternal(url.href);
+});
+
+// Native OS toast. The renderer's own Notification constructor is unreliable
+// inside a frameless Electron window, so Relay routes every ping through here.
+ipcMain.handle('app:showNotification', (_event, payload = {}) => {
+  if (!Notification.isSupported()) return { ok: false };
+
+  const notification = new Notification({
+    title: String(payload.title || 'Noctra Relay').slice(0, 120),
+    body: String(payload.body || '').slice(0, 300),
+    icon: appIcon,
+    silent: true // the chime is played by the renderer
+  });
+
+  notification.on('click', () => {
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  });
+
+  notification.show();
+  return { ok: true };
 });
 
 gameLauncher.init({ app, getWin: () => win }, ipcMain);

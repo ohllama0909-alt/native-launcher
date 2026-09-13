@@ -15,6 +15,19 @@ function endpoint(path, params) {
   return search ? base + '?' + search : base;
 }
 
+async function fetchJson(url) {
+  try {
+    const response = await fetch(url);
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+function primaryFile(version) {
+  return (version?.files || []).find((entry) => entry.primary) || version?.files?.[0] || null;
+}
+
 /**
  * Every content type Native can install, and where each one lands on disk.
  * `folder` maps to the allow-list in the main process; modpacks go through the
@@ -92,6 +105,8 @@ export default function BrowseView({
   const [detailData, setDetailData] = useState(null);
   const [detailVersions, setDetailVersions] = useState([]);
   const [instancePickerOpen, setInstancePickerOpen] = useState(false);
+  const [depPrompt, setDepPrompt] = useState(null);
+  const [resolvingDeps, setResolvingDeps] = useState(false);
 
   const resultsRef = useRef(null);
 
@@ -279,6 +294,121 @@ export default function BrowseView({
     }
   };
 
+  /* Pick the build that matches the instance, else the newest one. */
+  const pickVersion = useCallback(async (projectId) => {
+    const params = {};
+    if (targetVersion) params.game_versions = JSON.stringify([targetVersion]);
+    if (loaderFacet) params.loaders = JSON.stringify([loaderFacet]);
+
+    let list = await fetchJson(endpoint('/project/' + projectId + '/version', params));
+    if (!Array.isArray(list) || list.length === 0) {
+      list = await fetchJson(endpoint('/project/' + projectId + '/version'));
+    }
+    return Array.isArray(list) && list.length ? list[0] : null;
+  }, [targetVersion, loaderFacet]);
+
+  /* Walk the dependency graph: required deps recursively, optional one level. */
+  const resolveDependencies = useCallback(async (rootVersion) => {
+    const required = [];
+    const optional = [];
+    const seen = new Set([rootVersion.project_id]);
+    const queue = (rootVersion.dependencies || []).slice();
+    let guard = 0;
+
+    while (queue.length > 0 && guard < 40) {
+      guard += 1;
+      const entry = queue.shift();
+      const kind = entry?.dependency_type;
+      if (kind !== 'required' && kind !== 'optional') continue;
+      if (entry.project_id && seen.has(entry.project_id)) continue;
+
+      let version = entry.version_id
+        ? await fetchJson(endpoint('/version/' + entry.version_id))
+        : null;
+      if (!version && entry.project_id) version = await pickVersion(entry.project_id);
+      if (!version?.project_id || seen.has(version.project_id)) continue;
+      seen.add(version.project_id);
+
+      const file = primaryFile(version);
+      if (!file?.url) continue;
+      const project = await fetchJson(endpoint('/project/' + version.project_id));
+
+      const item = {
+        projectId: version.project_id,
+        title: project?.title || version.name || version.project_id,
+        versionNumber: version.version_number,
+        file,
+        kind
+      };
+
+      if (kind === 'required') {
+        required.push(item);
+        (version.dependencies || []).forEach((child) => queue.push(child));
+      } else {
+        optional.push(item);
+      }
+    }
+
+    return { required, optional };
+  }, [pickVersion]);
+
+  const installBundle = async (project, mainVersion, extras) => {
+    const id = project.project_id;
+    markBusy(id, true);
+
+    try {
+      for (const extra of extras) {
+        if (installedKeys.has(extra.projectId)) continue;
+        await window.native.mods.install({
+          instanceId: target.id,
+          projectId: extra.projectId,
+          url: extra.file.url,
+          filename: extra.file.filename,
+          folder: 'mods',
+          metadata: {
+            title: extra.title,
+            description: '',
+            iconUrl: '',
+            author: '',
+            source: 'modrinth',
+            version: extra.versionNumber
+          }
+        });
+      }
+
+      const file = primaryFile(mainVersion);
+      if (!file?.url) throw new Error(t('browse.noFile'));
+
+      await window.native.mods.install({
+        instanceId: target.id,
+        projectId: id,
+        url: file.url,
+        filename: file.filename,
+        folder: activeType.folder || 'mods',
+        metadata: {
+          title: project.title,
+          description: project.description,
+          iconUrl: project.icon_url,
+          author: project.author,
+          source: 'modrinth',
+          version: mainVersion.version_number
+        }
+      });
+
+      await refreshInstalled();
+      onNotify?.(
+        t('browse.installed'),
+        extras.length > 0
+          ? `${project.title} and ${extras.length} ${extras.length === 1 ? 'dependency' : 'dependencies'} added to ${target.name}`
+          : t('browse.addedTo', { name: project.title, instance: target.name })
+      );
+    } catch (err) {
+      onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
+    } finally {
+      markBusy(id, false);
+    }
+  };
+
   const installContent = async (project) => {
     if (!target?.id) {
       onNotify?.(t('browse.noInstanceSelected'), t('browse.createBeforeInstall'));
@@ -287,6 +417,7 @@ export default function BrowseView({
 
     const id = project.project_id;
     markBusy(id, true);
+    setResolvingDeps(true);
 
     try {
       /* Ask for versions that actually match the instance rather than
@@ -318,32 +449,55 @@ export default function BrowseView({
       }
 
       const version = versions[0];
-      const file = (version.files || []).find((entry) => entry.primary) || version.files?.[0];
-      if (!file?.url) throw new Error(t('browse.noFile'));
+      if (!primaryFile(version)?.url) throw new Error(t('browse.noFile'));
 
-      await window.native.mods.install({
-        instanceId: target.id,
-        projectId: id,
-        url: file.url,
-        filename: file.filename,
-        folder: activeType.folder || 'mods',
-        metadata: {
-          title: project.title,
-          description: project.description,
-          iconUrl: project.icon_url,
-          author: project.author,
-          source: 'modrinth',
-          version: version.version_number
-        }
-      });
+      const { required, optional } = activeType.id === 'mod'
+        ? await resolveDependencies(version)
+        : { required: [], optional: [] };
 
-      await refreshInstalled();
-      onNotify?.(t('browse.installed'), t('browse.addedTo', { name: project.title, instance: target.name }));
+      const missingRequired = required.filter((item) => !installedKeys.has(item.projectId));
+      const offeredOptional = optional.filter((item) => !installedKeys.has(item.projectId));
+
+      if (missingRequired.length > 0 || offeredOptional.length > 0) {
+        markBusy(id, false);
+        setResolvingDeps(false);
+        setDepPrompt({
+          project,
+          version,
+          required: missingRequired,
+          optional: offeredOptional,
+          selected: {}
+        });
+        return;
+      }
+
+      markBusy(id, false);
+      setResolvingDeps(false);
+      await installBundle(project, version, []);
+      return;
     } catch (err) {
       onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
     } finally {
       markBusy(id, false);
+      setResolvingDeps(false);
     }
+  };
+
+  const toggleOptionalDep = (projectId) => {
+    setDepPrompt((previous) => (previous
+      ? { ...previous, selected: { ...previous.selected, [projectId]: !previous.selected[projectId] } }
+      : previous));
+  };
+
+  const confirmDepPrompt = async () => {
+    const prompt = depPrompt;
+    if (!prompt) return;
+    setDepPrompt(null);
+    const extras = [
+      ...prompt.required,
+      ...prompt.optional.filter((item) => prompt.selected[item.projectId])
+    ];
+    await installBundle(prompt.project, prompt.version, extras);
   };
 
   const handleInstall = (project) => {
@@ -395,6 +549,15 @@ export default function BrowseView({
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [detail]);
+
+  useEffect(() => {
+    if (!depPrompt) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setDepPrompt(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [depPrompt]);
 
   const totalPages = Math.max(1, Math.ceil(totalHits / PAGE_SIZE));
   const pageNumbers = useMemo(() => {
@@ -464,6 +627,14 @@ export default function BrowseView({
             </aside>
           </div>
         </div>
+
+        <DependencyPrompt
+          prompt={depPrompt}
+          targetName={target?.name}
+          onToggle={toggleOptionalDep}
+          onCancel={() => setDepPrompt(null)}
+          onConfirm={confirmDepPrompt}
+        />
       </div>
     );
   }
@@ -630,6 +801,7 @@ export default function BrowseView({
             ) : (
               <span>{t('browse.resultCount', { count: formatNumber(totalHits) })}</span>
             )}
+            {resolvingDeps && <span className="browse-dep-checking">Checking dependencies…</span>}
           </div>
 
           {packProgress && (
@@ -909,6 +1081,79 @@ export default function BrowseView({
           </div>
         </div>
       )}
+      <DependencyPrompt
+        prompt={depPrompt}
+        targetName={target?.name}
+        onToggle={toggleOptionalDep}
+        onCancel={() => setDepPrompt(null)}
+        onConfirm={confirmDepPrompt}
+      />
+    </div>
+  );
+}
+
+/** Plain confirmation sheet listing the extra files an install will pull in. */
+function DependencyPrompt({ prompt, targetName, onToggle, onCancel, onConfirm }) {
+  if (!prompt) return null;
+
+  const chosenOptional = prompt.optional.filter((item) => prompt.selected[item.projectId]);
+  const total = 1 + prompt.required.length + chosenOptional.length;
+
+  return (
+    <div className="dep-prompt-backdrop" onClick={onCancel} data-testid="dep-prompt-backdrop">
+      <div className="dep-prompt" onClick={(event) => event.stopPropagation()} data-testid="dep-prompt">
+        <h2 className="dep-prompt-title">Install {prompt.project.title}</h2>
+        <p className="dep-prompt-text">
+          {prompt.required.length > 0
+            ? `This mod needs other files to run. They will be added to ${targetName || 'this instance'}.`
+            : `Optional add-ons are available for this mod. Pick any you want in ${targetName || 'this instance'}.`}
+        </p>
+
+        {prompt.required.length > 0 && (
+          <section className="dep-prompt-section">
+            <h3 className="dep-prompt-heading">Required · {prompt.required.length}</h3>
+            <ul className="dep-prompt-list">
+              {prompt.required.map((item) => (
+                <li className="dep-prompt-row" key={item.projectId}>
+                  <span className="dep-prompt-name">{item.title}</span>
+                  <span className="dep-prompt-version">{item.versionNumber}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {prompt.optional.length > 0 && (
+          <section className="dep-prompt-section">
+            <h3 className="dep-prompt-heading">Optional · {prompt.optional.length}</h3>
+            <ul className="dep-prompt-list">
+              {prompt.optional.map((item) => (
+                <li className="dep-prompt-row" key={item.projectId}>
+                  <label className="dep-prompt-check">
+                    <input
+                      type="checkbox"
+                      data-testid={`dep-optional-${item.projectId}`}
+                      checked={Boolean(prompt.selected[item.projectId])}
+                      onChange={() => onToggle(item.projectId)}
+                    />
+                    <span className="dep-prompt-name">{item.title}</span>
+                  </label>
+                  <span className="dep-prompt-version">{item.versionNumber}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <footer className="dep-prompt-actions">
+          <button type="button" className="dep-prompt-cancel" onClick={onCancel} data-testid="dep-prompt-cancel">
+            Cancel
+          </button>
+          <button type="button" className="dep-prompt-confirm" onClick={onConfirm} data-testid="dep-prompt-confirm">
+            Install {total} {total === 1 ? 'file' : 'files'}
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }
