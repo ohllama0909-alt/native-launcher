@@ -1,320 +1,617 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
- * Hook for managing Noctra Social (friends, requests, chat, presence).
+ * Relay social state.
+ *
+ * Everything is event driven: one Server-Sent-Events connection in the main
+ * process pushes `social:event` frames here, and every conversation is
+ * preloaded up front so switching threads is instant and unread badges are
+ * always accurate. HTTP polling only runs as a slow reconciliation fallback.
  */
-export function useSocial(activeAccount) {
-  const isNoctra = Boolean(
-    activeAccount?.type === 'noctra' && (activeAccount?.token || activeAccount?.sessionToken)
-  );
+
+const social = () => (typeof window !== 'undefined' ? window.native?.social : null);
+
+const EMPTY_THREAD = { messages: [], hasMore: false, oldestTime: null, loading: false };
+const TYPING_TTL = 6000;
+const RECONCILE_INTERVAL = 20_000;
+const PER_FRIEND_PRELOAD = 40;
+
+function sortMessages(list) {
+  return [...list].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+}
+
+/** Merge incoming messages into a thread, replacing optimistic placeholders. */
+function mergeMessages(existing, incoming) {
+  const byId = new Map();
+  for (const message of existing) byId.set(message.id, message);
+
+  for (const message of incoming) {
+    if (!message || !message.id) continue;
+    // A confirmed message replaces its optimistic twin (same author + body).
+    if (!String(message.id).startsWith('optimistic-')) {
+      for (const [id, candidate] of byId) {
+        if (!String(id).startsWith('optimistic-')) continue;
+        const sameAuthor = candidate.senderId === message.senderId;
+        const sameBody = (candidate.content || '') === (message.content || '') &&
+          (candidate.mediaUrl || null) === (message.mediaUrl || null);
+        if (sameAuthor && sameBody) {
+          byId.delete(id);
+          break;
+        }
+      }
+    }
+    const previous = byId.get(message.id);
+    byId.set(message.id, previous ? { ...previous, ...message } : message);
+  }
+
+  return sortMessages([...byId.values()]);
+}
+
+export function useSocial(account) {
+  const isNoctra = Boolean(account?.type === 'noctra' && (account?.token || account?.sessionToken));
+  const selfId = account?.id || null;
 
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState({ received: [], sent: [] });
-  const [activeChatFriend, setActiveChatFriendState] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [conversations, setConversations] = useState({});
+  const [blocked, setBlocked] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [typingBy, setTypingBy] = useState({});
+  const [streamStatus, setStreamStatus] = useState('connecting');
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [socialError, setSocialError] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [socialError, setSocialError] = useState(null);
+
   const [contextMenu, setContextMenu] = useState(null);
   const [nicknameModalFriend, setNicknameModalFriend] = useState(null);
 
-  const pollTimerRef = useRef(null);
-  const activeFriendIdRef = useRef(null);
-  const messageRequestRef = useRef(0);
+  const activeChatIdRef = useRef(null);
+  const cursorRef = useRef(0);
+  const typingTimersRef = useRef({});
+  const typingSentRef = useRef({});
 
-  const setActiveChatFriend = useCallback((friend) => {
-    const nextId = friend?.id || null;
-    activeFriendIdRef.current = nextId;
-    messageRequestRef.current += 1;
-    setMessages([]);
-    setLoadingMessages(Boolean(nextId));
-    setActiveChatFriendState(friend || null);
-  }, []);
+  useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
 
-  const fetchFriendsAndRequests = useCallback(async () => {
-    if (!window.native?.social || !isNoctra) return;
-    try {
-      const [friendsRes, requestsRes] = await Promise.all([
-        window.native.social.getFriends(),
-        window.native.social.getRequests()
-      ]);
-      if (friendsRes?.friends) {
-        setFriends(friendsRes.friends);
-        setActiveChatFriendState((prev) => {
-          if (!prev?.id) return prev;
-          const fresh = friendsRes.friends.find((friend) => friend.id === prev.id);
-          return fresh ? { ...prev, ...fresh } : prev;
-        });
+  const activeChatFriend = useMemo(
+    () => friends.find((friend) => friend.id === activeChatId) || null,
+    [friends, activeChatId]
+  );
+
+  const thread = conversations[activeChatId] || EMPTY_THREAD;
+  const messages = thread.messages;
+
+  // Loading ------------------------------------------------------------------
+
+  const loadFriends = useCallback(async () => {
+    const api = social();
+    if (!api || !isNoctra) return;
+    const res = await api.getFriends();
+    if (Array.isArray(res?.friends)) setFriends(res.friends);
+    if (res?.ok === false && res?.error) setSocialError(res.error);
+    else setSocialError(null);
+  }, [isNoctra]);
+
+  const loadRequests = useCallback(async () => {
+    const api = social();
+    if (!api || !isNoctra) return;
+    const res = await api.getRequests();
+    if (res?.requests) setRequests(res.requests);
+  }, [isNoctra]);
+
+  const loadConversations = useCallback(async () => {
+    const api = social();
+    if (!api || !isNoctra) return;
+    const res = await api.getConversations(PER_FRIEND_PRELOAD);
+    if (res?.conversations) {
+      setConversations((previous) => {
+        const next = { ...previous };
+        for (const [friendId, payload] of Object.entries(res.conversations)) {
+          const existing = next[friendId] || EMPTY_THREAD;
+          next[friendId] = {
+            ...existing,
+            messages: mergeMessages(existing.messages, payload.messages || []),
+            hasMore: Boolean(payload.hasMore),
+            oldestTime: payload.oldestTime ?? existing.oldestTime,
+            loading: false
+          };
+        }
+        return next;
+      });
+      let newest = cursorRef.current;
+      for (const payload of Object.values(res.conversations)) {
+        for (const message of payload.messages || []) {
+          if ((message.createdAt || 0) > newest) newest = message.createdAt;
+        }
       }
-      if (requestsRes?.requests) setRequests(requestsRes.requests);
-      setSocialError(null);
-    } catch (err) {
-      setSocialError(err.message || 'Failed to refresh social state.');
-      console.error('[Social] Failed to fetch social state:', err);
+      cursorRef.current = newest;
     }
   }, [isNoctra]);
 
-  useEffect(() => {
-    if (isNoctra) {
-      fetchFriendsAndRequests();
-      pollTimerRef.current = setInterval(fetchFriendsAndRequests, 3500);
-    } else {
+  const loadBlocked = useCallback(async () => {
+    const api = social();
+    if (!api || !isNoctra) return;
+    const res = await api.getBlocked?.();
+    if (Array.isArray(res?.blocked)) setBlocked(res.blocked);
+  }, [isNoctra]);
+
+  const refresh = useCallback(async () => {
+    if (!isNoctra) {
       setFriends([]);
       setRequests({ received: [], sent: [] });
-      setActiveChatFriend(null);
-    }
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    };
-  }, [isNoctra, fetchFriendsAndRequests, setActiveChatFriend]);
-
-  const fetchMessages = useCallback(async (friendId, showLoading = false) => {
-    if (!window.native?.social || !friendId || !isNoctra) return;
-    const requestId = ++messageRequestRef.current;
-    if (showLoading) setLoadingMessages(true);
-    try {
-      const res = await window.native.social.getMessages(friendId);
-      if (
-        requestId === messageRequestRef.current &&
-        activeFriendIdRef.current === friendId &&
-        res?.ok &&
-        Array.isArray(res.messages)
-      ) {
-        setMessages(res.messages);
-      }
-    } catch (err) {
-      console.error('[Social] Failed to fetch messages:', err);
-    } finally {
-      if (requestId === messageRequestRef.current) setLoadingMessages(false);
-    }
-  }, [isNoctra]);
-
-  useEffect(() => {
-    const friendId = activeChatFriend?.id;
-    activeFriendIdRef.current = friendId || null;
-    if (!friendId || !isNoctra) {
-      setMessages([]);
-      setLoadingMessages(false);
-      return undefined;
-    }
-
-    fetchMessages(friendId, true);
-    const msgTimer = setInterval(() => fetchMessages(friendId, false), 4000);
-    return () => clearInterval(msgTimer);
-  }, [activeChatFriend?.id, isNoctra, fetchMessages]);
-
-  const sendRequest = async (targetUsername) => {
-    if (!window.native?.social) return { ok: false, error: 'Social not available' };
-    try {
-      const res = await window.native.social.sendRequest(targetUsername);
-      if (res?.ok) {
-        await fetchFriendsAndRequests();
-        return { ok: true, target: res.target };
-      }
-      return { ok: false, error: res?.error || 'Failed to send request' };
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const respondRequest = async (requestId, action) => {
-    if (!window.native?.social) return undefined;
-    try {
-      const res = await window.native.social.respondRequest(requestId, action);
-      if (res?.ok) await fetchFriendsAndRequests();
-      return res;
-    } catch (err) {
-      console.error('[Social] Error responding to request:', err);
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const sendMessage = async (content, options = {}) => {
-    const targetId = options.friendId || activeFriendIdRef.current;
-    if (!targetId || !window.native?.social) return { ok: false, error: 'No recipient selected' };
-
-    const text = String(content || '').trim();
-    if (!text && !options.mediaUrl) return { ok: false, error: 'Empty message' };
-
-    const createdAt = Date.now();
-    const tempId = `optimistic-${createdAt}-${Math.random().toString(36).slice(2, 8)}`;
-    const optimistic = {
-      id: tempId,
-      senderId: activeAccount?.id || 'me',
-      receiverId: targetId,
-      content: text,
-      mediaUrl: options.mediaUrl || null,
-      mediaName: options.mediaName || null,
-      isMedia: options.isMedia ?? Boolean(options.mediaUrl),
-      reaction: null,
-      isRead: 0,
-      createdAt,
-      optimistic: true
-    };
-
-    if (activeFriendIdRef.current === targetId) {
-      setMessages((prev) => [...prev, optimistic]);
-    }
-
-    const snippet = text || options.mediaName || 'Sent attachment';
-    setFriends((prev) => prev.map((friend) => friend.id === targetId ? {
-      ...friend,
-      lastMessageContent: snippet,
-      lastMessageTime: createdAt,
-      lastMessageSenderId: activeAccount?.id || 'me'
-    } : friend));
-
-    try {
-      const res = await window.native.social.sendMessage(targetId, text, {
-        mediaUrl: options.mediaUrl || null,
-        mediaName: options.mediaName || null,
-        isMedia: options.isMedia ?? Boolean(options.mediaUrl)
-      });
-      if (res?.ok && res.message) {
-        if (activeFriendIdRef.current === targetId) {
-          setMessages((prev) => prev.map((message) => message.id === tempId ? res.message : message));
-        }
-        return { ok: true, message: res.message };
-      }
-      throw new Error(res?.error || 'Failed to send message');
-    } catch (err) {
-      setMessages((prev) => prev.filter((message) => message.id !== tempId));
-      await fetchFriendsAndRequests();
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const uploadMedia = async (dataUrl, filename) => {
-    if (!window.native?.social?.uploadMedia) return { ok: false, error: 'Upload not supported' };
-    try {
-      return await window.native.social.uploadMedia(dataUrl, filename);
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const setMessageReaction = async (messageId, reaction) => {
-    if (!window.native?.social?.setMessageReaction || !messageId) {
-      return { ok: false, error: 'Reactions are unavailable' };
-    }
-
-    let previousReactions = null;
-    setMessages((prev) => prev.map((message) => {
-      if (message.id !== messageId) return message;
-      previousReactions = message.reactions || [];
-      // Optimistically we just don't do complex logic here since we don't have our own userId easily accessible
-      // We rely on RelayPage local state or the server response for the exact new state.
-      return message; 
-    }));
-
-    try {
-      const res = await window.native.social.setMessageReaction(messageId, reaction);
-      if (!res?.ok) throw new Error(res?.error || 'Failed to save reaction');
-      setMessages((prev) => prev.map((message) =>
-        message.id === messageId ? { ...message, reactions: res.reactions || [] } : message
-      ));
-      return res;
-    } catch (err) {
-      setMessages((prev) => prev.map((message) =>
-        message.id === messageId ? { ...message, reactions: previousReactions } : message
-      ));
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const updateFriend = async (friendId, attributes) => {
-    if (!window.native?.social) return undefined;
-    try {
-      const res = await window.native.social.updateFriend(friendId, attributes);
-      if (res?.ok) await fetchFriendsAndRequests();
-      return res;
-    } catch (err) {
-      console.error('[Social] Error updating friend:', err);
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const unfriend = async (friendId) => {
-    if (!window.native?.social) return undefined;
-    try {
-      const res = await window.native.social.unfriend(friendId);
-      if (res?.ok) {
-        if (activeFriendIdRef.current === friendId) setActiveChatFriend(null);
-        await fetchFriendsAndRequests();
-      }
-      return res;
-    } catch (err) {
-      console.error('[Social] Error unfriending:', err);
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const block = async (targetId) => {
-    if (!window.native?.social) return undefined;
-    try {
-      const res = await window.native.social.block(targetId);
-      if (res?.ok) {
-        if (activeFriendIdRef.current === targetId) setActiveChatFriend(null);
-        await fetchFriendsAndRequests();
-      }
-      return res;
-    } catch (err) {
-      console.error('[Social] Error blocking:', err);
-      return { ok: false, error: err.message };
-    }
-  };
-
-  const searchPlayers = async (query) => {
-    setSearchQuery(query);
-    if (!query || query.trim().length < 2) {
-      setSearchResults([]);
+      setConversations({});
+      setInitialLoading(false);
       return;
     }
-    setSearchLoading(true);
-    try {
-      const res = await window.native.social.searchUsers(query.trim());
-      setSearchResults(res?.ok && Array.isArray(res.results) ? res.results : []);
-    } catch (err) {
-      console.error('[Social] Search error:', err);
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
+    await Promise.all([loadFriends(), loadRequests(), loadConversations(), loadBlocked()]);
+    setInitialLoading(false);
+  }, [isNoctra, loadFriends, loadRequests, loadConversations, loadBlocked]);
 
-  const unreadTotal = friends.reduce((sum, friend) => sum + (friend.unreadCount || 0), 0);
+  useEffect(() => {
+    setInitialLoading(true);
+    refresh();
+  }, [refresh, account?.id]);
+
+  // Slow reconciliation only - realtime events do the heavy lifting.
+  useEffect(() => {
+    if (!isNoctra) return undefined;
+    const timer = setInterval(() => {
+      loadFriends();
+      loadRequests();
+    }, RECONCILE_INTERVAL);
+    return () => clearInterval(timer);
+  }, [isNoctra, loadFriends, loadRequests]);
+
+  // Realtime -----------------------------------------------------------------
+
+  const applyMessage = useCallback((message) => {
+    if (!message) return;
+    const friendId = message.senderId === selfId ? message.receiverId : message.senderId;
+    if ((message.createdAt || 0) > cursorRef.current) cursorRef.current = message.createdAt;
+
+    setConversations((previous) => {
+      const existing = previous[friendId] || EMPTY_THREAD;
+      return {
+        ...previous,
+        [friendId]: { ...existing, messages: mergeMessages(existing.messages, [message]) }
+      };
+    });
+
+    const isIncoming = message.senderId !== selfId;
+    const isOpen = activeChatIdRef.current === friendId;
+
+    setFriends((previous) => previous.map((friend) => {
+      if (friend.id !== friendId) return friend;
+      return {
+        ...friend,
+        lastMessageContent: message.content || message.mediaName || 'Sent attachment',
+        lastMessageTime: message.createdAt,
+        lastMessageSenderId: message.senderId,
+        lastMessageIsMedia: Boolean(message.isMedia),
+        unreadCount: isIncoming && !isOpen
+          ? (friend.unreadCount || 0) + 1
+          : (isOpen ? 0 : friend.unreadCount || 0)
+      };
+    }));
+
+    if (isIncoming && isOpen) social()?.markRead?.(friendId);
+    if (isIncoming) {
+      setTypingBy((previous) => (previous[friendId] ? { ...previous, [friendId]: false } : previous));
+    }
+  }, [selfId]);
+
+  const handleEvent = useCallback((event) => {
+    if (!event?.type) return;
+
+    switch (event.type) {
+      case 'message:new':
+        applyMessage(event.message);
+        break;
+
+      case 'message:reaction':
+        setConversations((previous) => {
+          const next = { ...previous };
+          for (const [friendId, item] of Object.entries(next)) {
+            if (!item.messages.some((m) => m.id === event.messageId)) continue;
+            next[friendId] = {
+              ...item,
+              messages: item.messages.map((m) => (
+                m.id === event.messageId ? { ...m, reactions: event.reactions || [] } : m
+              ))
+            };
+          }
+          return next;
+        });
+        break;
+
+      case 'message:read':
+        setConversations((previous) => {
+          const friendId = event.readerId;
+          const item = previous[friendId];
+          if (!item) return previous;
+          return {
+            ...previous,
+            [friendId]: {
+              ...item,
+              messages: item.messages.map((m) => (
+                m.senderId === selfId && (!event.messageIds || event.messageIds.includes(m.id))
+                  ? { ...m, isRead: 1 }
+                  : m
+              ))
+            }
+          };
+        });
+        break;
+
+      case 'typing': {
+        const friendId = event.userId;
+        setTypingBy((previous) => ({ ...previous, [friendId]: Boolean(event.isTyping) }));
+        clearTimeout(typingTimersRef.current[friendId]);
+        if (event.isTyping) {
+          typingTimersRef.current[friendId] = setTimeout(() => {
+            setTypingBy((previous) => ({ ...previous, [friendId]: false }));
+          }, TYPING_TTL);
+        }
+        break;
+      }
+
+      case 'presence':
+        setFriends((previous) => previous.map((friend) => (
+          friend.id === event.userId
+            ? {
+              ...friend,
+              status: event.status || 'offline',
+              activity: event.status === 'offline' ? null : (event.activity || 'In Launcher'),
+              serverAddress: event.status === 'offline' ? null : (event.serverAddress || null),
+              lastSeen: event.at || Date.now()
+            }
+            : friend
+        )));
+        break;
+
+      case 'skin:updated':
+        setFriends((previous) => previous.map((friend) => (
+          friend.id === event.userId ? { ...friend, skinUrl: event.skinUrl || null } : friend
+        )));
+        break;
+
+      case 'request:changed':
+        loadRequests();
+        break;
+
+      case 'friends:changed':
+        loadFriends();
+        loadRequests();
+        loadConversations();
+        break;
+
+      case 'blocks:changed':
+        loadBlocked();
+        loadFriends();
+        break;
+
+      default:
+        break;
+    }
+  }, [applyMessage, loadRequests, loadFriends, loadConversations, loadBlocked, selfId]);
+
+  useEffect(() => {
+    const api = social();
+    if (!api?.onSocialEvent) return undefined;
+    return api.onSocialEvent(handleEvent);
+  }, [handleEvent]);
+
+  useEffect(() => {
+    const api = social();
+    if (!api?.onStreamStatus) return undefined;
+    return api.onStreamStatus((payload) => {
+      setStreamStatus(payload?.status || 'idle');
+      // Catch up on anything missed while the socket was down.
+      if (payload?.status === 'connected') {
+        api.getUpdates?.(cursorRef.current).then((res) => {
+          for (const message of res?.messages || []) applyMessage(message);
+          loadFriends();
+          loadRequests();
+        }).catch(() => {});
+      }
+    });
+  }, [applyMessage, loadFriends, loadRequests]);
+
+  // Actions ------------------------------------------------------------------
+
+  const setActiveChatFriend = useCallback((friend) => {
+    const friendId = typeof friend === 'string' ? friend : friend?.id || null;
+    setActiveChatId(friendId);
+    if (!friendId) return;
+    setFriends((previous) => previous.map((item) => (
+      item.id === friendId ? { ...item, unreadCount: 0 } : item
+    )));
+    social()?.markRead?.(friendId);
+  }, []);
+
+  const loadOlder = useCallback(async (friendId = activeChatIdRef.current) => {
+    const api = social();
+    if (!api || !friendId) return;
+    const current = conversations[friendId];
+    if (!current || !current.hasMore || current.loading) return;
+
+    setConversations((previous) => ({
+      ...previous,
+      [friendId]: { ...(previous[friendId] || EMPTY_THREAD), loading: true }
+    }));
+
+    const res = await api.getMessages(friendId, 50, { before: current.oldestTime, markRead: false });
+    setConversations((previous) => {
+      const existing = previous[friendId] || EMPTY_THREAD;
+      return {
+        ...previous,
+        [friendId]: {
+          ...existing,
+          messages: mergeMessages(existing.messages, res?.messages || []),
+          hasMore: Boolean(res?.hasMore),
+          oldestTime: res?.oldestTime ?? existing.oldestTime,
+          loading: false
+        }
+      };
+    });
+  }, [conversations]);
+
+  const sendMessage = useCallback(async (friendId, content, mediaOptions = {}) => {
+    const api = social();
+    const targetId = friendId || activeChatIdRef.current;
+    if (!api || !targetId) return { ok: false, error: 'No conversation selected.' };
+
+    const optimistic = {
+      id: `optimistic-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      senderId: selfId,
+      receiverId: targetId,
+      content: content || '',
+      mediaUrl: mediaOptions.mediaUrl || null,
+      mediaName: mediaOptions.mediaName || null,
+      mediaKind: mediaOptions.mediaKind || null,
+      isMedia: Boolean(mediaOptions.isMedia || mediaOptions.mediaUrl),
+      isRead: 0,
+      createdAt: Date.now(),
+      reactions: [],
+      pending: true
+    };
+
+    setConversations((previous) => {
+      const existing = previous[targetId] || EMPTY_THREAD;
+      return {
+        ...previous,
+        [targetId]: { ...existing, messages: mergeMessages(existing.messages, [optimistic]) }
+      };
+    });
+
+    const res = await api.sendMessage(targetId, content, mediaOptions);
+
+    if (res?.ok && res.message) {
+      applyMessage(res.message);
+    } else {
+      setConversations((previous) => {
+        const existing = previous[targetId] || EMPTY_THREAD;
+        return {
+          ...previous,
+          [targetId]: {
+            ...existing,
+            messages: existing.messages.map((m) => (
+              m.id === optimistic.id ? { ...m, pending: false, failed: true } : m
+            ))
+          }
+        };
+      });
+      if (res?.error) setSocialError(res.error);
+    }
+    return res;
+  }, [applyMessage, selfId]);
+
+  const uploadMedia = useCallback(async (dataUrl, filename) => {
+    const api = social();
+    if (!api) return { ok: false };
+    return api.uploadMedia(dataUrl, filename);
+  }, []);
+
+  /** Optimistic reaction toggle keyed on the signed-in user. */
+  const setMessageReaction = useCallback(async (messageId, reaction) => {
+    const api = social();
+    if (!api) return { ok: false };
+
+    const patchReactions = (updater) => {
+      setConversations((previous) => {
+        const next = { ...previous };
+        for (const [friendId, item] of Object.entries(next)) {
+          if (!item.messages.some((m) => m.id === messageId)) continue;
+          next[friendId] = {
+            ...item,
+            messages: item.messages.map((message) => (
+              message.id === messageId ? { ...message, reactions: updater(message) } : message
+            ))
+          };
+        }
+        return next;
+      });
+    };
+
+    patchReactions((message) => {
+      const current = message.reactions || [];
+      const mine = current.find((r) => r.userId === selfId && r.reaction === reaction);
+      const withoutMine = current.filter((r) => !(r.userId === selfId && r.reaction === reaction));
+      return mine ? withoutMine : [...withoutMine, { userId: selfId, reaction }];
+    });
+
+    const res = await api.setMessageReaction(messageId, reaction);
+    if (res?.ok && Array.isArray(res.reactions)) {
+      patchReactions(() => res.reactions);
+    }
+    return res;
+  }, [selfId]);
+
+  /** Debounced typing indicator: one "start" then a single "stop". */
+  const notifyTyping = useCallback((friendId = activeChatIdRef.current) => {
+    const api = social();
+    if (!api?.setTyping || !friendId) return;
+    const state = typingSentRef.current[friendId];
+    if (!state?.active) {
+      api.setTyping(friendId, true).catch(() => {});
+    }
+    clearTimeout(state?.timer);
+    typingSentRef.current[friendId] = {
+      active: true,
+      timer: setTimeout(() => {
+        typingSentRef.current[friendId] = { active: false };
+        api.setTyping(friendId, false).catch(() => {});
+      }, 2500)
+    };
+  }, []);
+
+  const stopTyping = useCallback((friendId = activeChatIdRef.current) => {
+    const api = social();
+    if (!api?.setTyping || !friendId) return;
+    clearTimeout(typingSentRef.current[friendId]?.timer);
+    typingSentRef.current[friendId] = { active: false };
+    api.setTyping(friendId, false).catch(() => {});
+  }, []);
+
+  const sendRequest = useCallback(async (username) => {
+    const api = social();
+    if (!api) return { ok: false };
+    const res = await api.sendRequest(username);
+    if (res?.ok) { loadRequests(); loadFriends(); }
+    else if (res?.error) setSocialError(res.error);
+    return res;
+  }, [loadRequests, loadFriends]);
+
+  const respondRequest = useCallback(async (requestId, action) => {
+    const api = social();
+    if (!api) return { ok: false };
+    setRequests((previous) => ({
+      received: (previous.received || []).filter((r) => r.id !== requestId),
+      sent: (previous.sent || []).filter((r) => r.id !== requestId)
+    }));
+    const res = await api.respondRequest(requestId, action);
+    loadRequests();
+    if (action === 'accept') { loadFriends(); loadConversations(); }
+    return res;
+  }, [loadRequests, loadFriends, loadConversations]);
+
+  const updateFriend = useCallback(async (friendId, data) => {
+    const api = social();
+    if (!api) return { ok: false };
+    setFriends((previous) => previous.map((friend) => (
+      friend.id === friendId ? { ...friend, ...data } : friend
+    )));
+    const res = await api.updateFriend(friendId, data);
+    loadFriends();
+    return res;
+  }, [loadFriends]);
+
+  const unfriend = useCallback(async (friendId) => {
+    const api = social();
+    if (!api) return { ok: false };
+    setFriends((previous) => previous.filter((friend) => friend.id !== friendId));
+    if (activeChatIdRef.current === friendId) setActiveChatId(null);
+    const res = await api.unfriend(friendId);
+    loadFriends();
+    return res;
+  }, [loadFriends]);
+
+  const block = useCallback(async (targetId) => {
+    const api = social();
+    if (!api) return { ok: false };
+    setFriends((previous) => previous.filter((friend) => friend.id !== targetId));
+    if (activeChatIdRef.current === targetId) setActiveChatId(null);
+    const res = await api.block(targetId);
+    loadFriends();
+    loadBlocked();
+    return res;
+  }, [loadFriends, loadBlocked]);
+
+  const unblock = useCallback(async (targetId) => {
+    const api = social();
+    if (!api?.unblock) return { ok: false };
+    setBlocked((previous) => previous.filter((item) => item.id !== targetId));
+    const res = await api.unblock(targetId);
+    loadBlocked();
+    return res;
+  }, [loadBlocked]);
+
+  const searchPlayers = useCallback(async (query) => {
+    const api = social();
+    setSearchQuery(query);
+    if (!api || !query || query.trim().length < 2) {
+      setSearchResults([]);
+      return [];
+    }
+    setSearchLoading(true);
+    const res = await api.searchUsers(query.trim());
+    setSearchLoading(false);
+    const results = Array.isArray(res?.results) ? res.results : [];
+    setSearchResults(results);
+    return results;
+  }, []);
+
+  const reconnect = useCallback(() => {
+    social()?.reconnectStream?.();
+  }, []);
+
+  useEffect(() => () => {
+    Object.values(typingTimersRef.current).forEach(clearTimeout);
+    Object.values(typingSentRef.current).forEach((state) => clearTimeout(state?.timer));
+  }, []);
+
+  const unreadTotal = useMemo(
+    () => friends.reduce((total, friend) => total + (friend.unreadCount || 0), 0),
+    [friends]
+  );
   const pendingRequestsTotal = requests.received?.length || 0;
+  const badgeTotal = unreadTotal + pendingRequestsTotal;
 
   return {
     isNoctra,
+    selfId,
     friends,
     requests,
+    blocked,
+    conversations,
     activeChatFriend,
+    activeChatId,
     setActiveChatFriend,
     messages,
-    loadingMessages,
+    hasMoreMessages: thread.hasMore,
+    loadingMessages: Boolean(thread.loading),
+    initialLoading,
+    loadOlder,
+    typingBy,
+    streamStatus,
+    isRealtime: streamStatus === 'connected',
+    reconnect,
     searchQuery,
     searchResults,
     searchLoading,
     socialError,
+    setSocialError,
     contextMenu,
     setContextMenu,
     nicknameModalFriend,
     setNicknameModalFriend,
-    badgeTotal: unreadTotal + pendingRequestsTotal,
+    badgeTotal,
     pendingRequestsTotal,
     unreadTotal,
-    refresh: fetchFriendsAndRequests,
+    refresh,
     sendRequest,
     respondRequest,
     sendMessage,
     uploadMedia,
     setMessageReaction,
+    notifyTyping,
+    stopTyping,
     updateFriend,
     unfriend,
     block,
+    unblock,
     searchPlayers
   };
 }
