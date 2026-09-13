@@ -22,7 +22,39 @@ Node server (server/server.js legacy social API, server/relay-routes.js relay AP
 SQLite (server/db/schema.js, db/social.js, db/relay.js)
 ```
 
-## Implemented — June 2026 (this session)
+## Implemented — June 2026 (batch 2)
+Approved batch: 4 P0 Relay fixes + UI cleanups. Constraint honoured: *files edited only,
+nothing run or built.* Verified by the testing agent as a **static code review**
+(`/app/test_reports/iteration_1.json`) — all four P0 items PASS; runtime verification is
+still owed by the user in the launcher.
+
+1. **Last-seen formatting** — `formatLastSeen()` in `RelayPage.jsx`: "Last seen today at
+   HH:mm", "… yesterday at HH:mm", "Last seen on 12 Sep at 14:30", else "Offline".
+   Online/in-game presence text unchanged.
+2. **Mute no longer reverts** — `mutedIds` persisted in `noctra_relay_store_v5`, applied as
+   an override in `mergedFriends`/`formattedGroups`, toggled synchronously before the
+   network call; `useSocial.unreadTotal` reads the same override so the nav badge agrees.
+3. **Real desktop notifications + chime** — `ipcMain.handle('app:showNotification')` in
+   `electron/main.js` (electron `Notification`, silent, click restores/focuses the window),
+   exposed as `window.native.showNotification`; renderer plays a synthesized 587.33→880Hz
+   Web Audio chime. Skips self, muted threads and the thread already on screen.
+4. **Gradients removed** — `.relay-inbox::before` wash and the dot-grid on
+   `.relay-chat-main` deleted; skeletons and image scrims are flat; every surface uses
+   `--page` / `--page-elevated` / `--component-bg` / `--hairline`.
+
+Also in this batch:
+- **Mod dependency prompt** (`BrowseView.jsx`): `resolveDependencies()` walks required deps
+  recursively (40-step guard + seen-set) and optional deps once; `DependencyPrompt` shows a
+  plain required list plus unchecked optional checkboxes and an "Install N files" confirm;
+  `installBundle()` installs deps before the main file and skips already-installed ones.
+- **Browse page flattened**: no gradients, no card lift/glow, solid token surfaces,
+  `.dep-prompt-*` styles added.
+- **Update dialog rebuilt**: zero icons, plain headline/subline per status, `vX → vY` row,
+  changelog list, two buttons.
+- **Login saved-accounts selector**: drawer toggle removed, always-visible clean list with
+  avatar, account type, "Active" chip and hover-only remove.
+
+## Implemented — June 2026 (batch 1)
 Batch approved by the user: **P0 + P1 + P2 + design remake**. Constraint honoured:
 *files edited only, nothing run or built.*
 

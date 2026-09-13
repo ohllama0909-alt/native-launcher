@@ -43,7 +43,6 @@ export default function AccountSwitcherModal({
 
   // Navigation view: 'main' | 'noctra-login' | 'noctra-register' | 'noctra-verify'
   const [view, setView] = useState('main');
-  const [showAccounts, setShowAccounts] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -90,7 +89,6 @@ export default function AccountSwitcherModal({
   useEffect(() => {
     if (!open) {
       setView('main');
-      setShowAccounts(false);
       setError('');
       setLoginInput('');
       setPasswordInput('');
@@ -352,56 +350,44 @@ export default function AccountSwitcherModal({
                     <strong className="account-login-btn-brand">{t('account.native')}</strong>
                   </button>
 
-                  {/* Existing accounts switcher toggle */}
+                  {/* Saved accounts */}
                   {accounts.length > 0 && (
-                    <div className="account-login-secondary-actions">
-                      <button
-                        type="button"
-                        className="account-login-sec-btn"
-                        onClick={() => setShowAccounts((v) => !v)}
-                      >
-                        <span>{showAccounts ? t('common.close') : `${t('account.switch')} (${accounts.length})`}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Existing accounts drawer */}
-                  {showAccounts && accounts.length > 0 && (
-                    <div className="account-login-existing">
+                    <div className="account-login-saved">
+                      <div className="account-login-saved-head">
+                        <span>Saved accounts</span>
+                        <small>{accounts.length}</small>
+                      </div>
                       <div className="account-login-list">
                         {accounts.map((acc) => {
                           const active = acc.id === activeId;
+                          const choose = () => {
+                            onSwitchAccount?.(acc.id);
+                            if (firstRun) onClose?.();
+                          };
                           return (
                             <div
                               key={acc.id}
                               className={`account-login-item ${active ? 'active' : ''}`}
                               role="button"
                               tabIndex={0}
-                              onClick={() => {
-                                onSwitchAccount?.(acc.id);
-                                setShowAccounts(false);
-                                if (firstRun) onClose?.();
-                              }}
+                              onClick={choose}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  onSwitchAccount?.(acc.id);
-                                  setShowAccounts(false);
-                                  if (firstRun) onClose?.();
-                                }
+                                if (e.key === 'Enter' || e.key === ' ') choose();
                               }}
                             >
-                              <PlayerAvatar account={acc} kind="avatar" size={28} />
+                              <PlayerAvatar account={acc} kind="avatar" size={30} />
                               <div className="account-login-item-text">
                                 <strong>{acc.name}</strong>
                                 <small className={acc.type === 'microsoft' ? 'is-ms' : 'is-native'}>
                                   {acc.type === 'microsoft' ? t('account.microsoft') : t('account.native')}
                                 </small>
                               </div>
-                              {active && <NativeIcon name="check-circle" size={15} />}
+                              {active && <span className="account-login-item-active">Active</span>}
                               <button
                                 type="button"
                                 className="account-login-item-remove"
                                 title={t('account.remove')}
+                                aria-label={t('account.remove')}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onRemoveAccount?.(acc.id);

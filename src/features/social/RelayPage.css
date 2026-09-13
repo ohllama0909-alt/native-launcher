@@ -60,16 +60,6 @@
   user-select: none;
 }
 
-.relay-inbox::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 180px;
-  background: radial-gradient(120% 100% at 0% 0%, var(--brand-subtle), transparent 72%);
-  opacity: 0.7;
-  pointer-events: none;
-}
-
 .relay-inbox-header {
   position: relative;
   padding: 20px 16px 14px;
@@ -389,9 +379,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background:
-    radial-gradient(circle at 1px 1px, var(--hairline) 1px, transparent 0) 0 0 / 26px 26px,
-    var(--page);
+  background: var(--page);
 }
 
 .relay-chat-header {
@@ -556,17 +544,17 @@
   height: 34px;
   max-width: 320px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, var(--component-bg) 0%, var(--component-bg-hover) 50%, var(--component-bg) 100%);
-  background-size: 220% 100%;
-  animation: relay-shimmer 1.4s infinite linear;
+  background: var(--component-bg);
+  border: 1px solid var(--hairline);
+  animation: relay-skeleton-pulse 1.4s infinite ease-in-out;
 }
 
-.relay-skeleton-bubble:nth-child(2) { max-width: 220px; margin-left: auto; }
-.relay-skeleton-bubble:nth-child(3) { max-width: 270px; }
+.relay-skeleton-bubble:nth-child(2) { max-width: 220px; margin-left: auto; animation-delay: 0.12s; }
+.relay-skeleton-bubble:nth-child(3) { max-width: 270px; animation-delay: 0.24s; }
 
-@keyframes relay-shimmer {
-  from { background-position: 120% 0; }
-  to { background-position: -120% 0; }
+@keyframes relay-skeleton-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
 }
 
 .relay-date-divider {
@@ -824,7 +812,7 @@
   padding: 10px 12px;
   display: grid;
   gap: 6px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .relay-media-uploading-text { font-size: 11px; color: #fff; }
@@ -838,7 +826,6 @@
   gap: 4px;
   padding: 8px;
   opacity: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), transparent 45%);
   transition: opacity var(--relay-fast) var(--relay-ease);
 }
 
@@ -1239,6 +1226,10 @@
   transform-origin: bottom right;
   animation: relay-pop 180ms var(--relay-ease);
 }
+
+.relay-gif-popover { width: 292px; }
+
+.relay-emoji-popover { width: 268px; }
 
 .relay-popover-header {
   display: flex;
