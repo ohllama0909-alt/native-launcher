@@ -174,34 +174,9 @@ function initSchema(db) {
       FOREIGN KEY (message_id) REFERENCES group_messages(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
-
-    -- Query performance indexes
-    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
-    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_friends_user ON friends(user_id);
-    CREATE INDEX IF NOT EXISTS idx_friends_friend ON friends(friend_id);
-    CREATE INDEX IF NOT EXISTS idx_requests_receiver ON friend_requests(receiver_id, status);
-    CREATE INDEX IF NOT EXISTS idx_requests_sender ON friend_requests(sender_id, status);
-    CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages(sender_id, receiver_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_pair_created ON messages(sender_id, receiver_id, created_at);
-    CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(receiver_id, sender_id, is_read);
-    CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
-    CREATE INDEX IF NOT EXISTS idx_messages_reply ON messages(reply_to);
-    CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id);
-    CREATE INDEX IF NOT EXISTS idx_presence_user ON presence(user_id);
-    CREATE INDEX IF NOT EXISTS idx_blocks_pair ON blocks(user_id, blocked_id);
-    CREATE INDEX IF NOT EXISTS idx_groups_owner ON groups(owner_id);
-    CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
-    CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id, role);
-    CREATE INDEX IF NOT EXISTS idx_group_messages_room ON group_messages(group_id, created_at);
-    CREATE INDEX IF NOT EXISTS idx_group_messages_sender ON group_messages(sender_id);
-    CREATE INDEX IF NOT EXISTS idx_group_messages_reply ON group_messages(reply_to);
-    CREATE INDEX IF NOT EXISTS idx_group_reactions_message ON group_message_reactions(message_id);
   `);
 
-  // Safe migrations for databases created by older builds.
+  // Safe migrations for databases created by older builds (must run before indexes).
   const safeAddColumn = (table, columnDef) => {
     try {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
@@ -227,6 +202,33 @@ function initSchema(db) {
   safeAddColumn('groups', 'description TEXT DEFAULT NULL');
   safeAddColumn('groups', 'icon_url TEXT DEFAULT NULL');
   safeAddColumn('groups', 'updated_at INTEGER DEFAULT 0');
+
+  // Query performance indexes (run after all columns exist)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_friends_user ON friends(user_id);
+    CREATE INDEX IF NOT EXISTS idx_friends_friend ON friends(friend_id);
+    CREATE INDEX IF NOT EXISTS idx_requests_receiver ON friend_requests(receiver_id, status);
+    CREATE INDEX IF NOT EXISTS idx_requests_sender ON friend_requests(sender_id, status);
+    CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages(sender_id, receiver_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_pair_created ON messages(sender_id, receiver_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(receiver_id, sender_id, is_read);
+    CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+    CREATE INDEX IF NOT EXISTS idx_messages_reply ON messages(reply_to);
+    CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id);
+    CREATE INDEX IF NOT EXISTS idx_presence_user ON presence(user_id);
+    CREATE INDEX IF NOT EXISTS idx_blocks_pair ON blocks(user_id, blocked_id);
+    CREATE INDEX IF NOT EXISTS idx_groups_owner ON groups(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id, role);
+    CREATE INDEX IF NOT EXISTS idx_group_messages_room ON group_messages(group_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_group_messages_sender ON group_messages(sender_id);
+    CREATE INDEX IF NOT EXISTS idx_group_messages_reply ON group_messages(reply_to);
+    CREATE INDEX IF NOT EXISTS idx_group_reactions_message ON group_message_reactions(message_id);
+  `);
 
   // `messages.reaction` was the original single-reaction column. Reactions now
   // live in `message_reactions`; migrate any leftover values across once and

@@ -4,6 +4,7 @@ const http = require('http');
 const path = require('path');
 const db = require('./db');
 const events = require('./social-events');
+const { handleRelayRoutes } = require('./relay-routes');
 const { sendVerificationCodeEmail } = require('./mailer');
 
 /**
@@ -180,6 +181,16 @@ async function handler(req, res) {
         'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Noctra-Token',
         'Access-Control-Max-Age': '600'
       });
+    }
+
+    try {
+      const handled = await handleRelayRoutes(req, res);
+      if (handled) return;
+    } catch (relayError) {
+      if (!res.headersSent) {
+        return send(res, 500, { ok: false, error: relayError.message || 'Relay route failed.' });
+      }
+      return;
     }
 
     if (req.method === 'GET' && url.pathname === '/health') {
