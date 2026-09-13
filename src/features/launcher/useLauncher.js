@@ -94,7 +94,9 @@ export default function useLauncher() {
       instanceId: instance?.id || null
     });
     api.launch(instance, {
-      username: account?.name ?? 'Player',
+      ...account,
+      username: account?.name ?? account?.username ?? 'Player',
+      name: account?.name ?? account?.username ?? 'Player',
       useMicrosoft: Boolean(account?.isMicrosoft)
     }, options);
   };

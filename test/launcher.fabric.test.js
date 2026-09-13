@@ -90,3 +90,21 @@ test('a loader-named asset index is mirrored under the game version', () => {
     fs.rmSync(temp, { recursive: true, force: true });
   }
 });
+
+test('launch handles payload object without throwing ReferenceError on payload', async () => {
+  const launcherMod = require('../electron/launcher');
+  let errorCaught = null;
+  try {
+    await launcherMod._internals.launch({
+      instance: { id: 'test-inst', version: '1.20.1', loader: 'Vanilla' },
+      account: { name: 'Player' }
+    });
+  } catch (err) {
+    errorCaught = err;
+  }
+  if (errorCaught) {
+    assert.notEqual(errorCaught.name, 'ReferenceError');
+    assert.ok(!errorCaught.message.includes('payload is not defined'));
+  }
+});
+

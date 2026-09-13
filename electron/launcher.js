@@ -292,11 +292,54 @@ function rememberInstall(instance, opts) {
   }
 }
 
-async function launch({ instance, account }) {
+async function launch(payloadOrInstance = {}, maybeAccount = null, maybeOptions = {}) {
+  let payload;
+  if (payloadOrInstance && (payloadOrInstance.instance || payloadOrInstance.account)) {
+    payload = { ...payloadOrInstance };
+  } else {
+    payload = {
+      instance: payloadOrInstance,
+      account: maybeAccount,
+      ...maybeOptions
+    };
+  }
+
   if (activeChild || launchInProgress) {
     setState('error', activeChild ? 'The game is already running.' : 'A launch is already in progress.');
     return;
   }
+
+  const rawInstance = payload.instance;
+  if (!rawInstance) {
+    setState('error', 'No instance specified to launch.');
+    return;
+  }
+
+  const mcVersion = rawInstance.version || rawInstance.mc_version;
+  if (!mcVersion) {
+    setState('error', 'Instance is missing Minecraft version.');
+    return;
+  }
+
+  const loader = String(rawInstance.loader || rawInstance.mc_loader || 'Vanilla');
+  const loaderVersion = rawInstance.loaderVersion || rawInstance.mc_loader_version || null;
+
+  const instance = {
+    ...rawInstance,
+    id: rawInstance.id || `instance-${mcVersion}`,
+    version: mcVersion,
+    loader,
+    loaderVersion
+  };
+
+  const rawAccount = payload.account;
+  const username = rawAccount?.username || rawAccount?.name || 'Player';
+  const account = {
+    ...rawAccount,
+    username,
+    name: username,
+    useMicrosoft: Boolean(rawAccount?.useMicrosoft || rawAccount?.isMicrosoft)
+  };
 
   launchInProgress = true;
   cumulativeDownloadedBytes = 0;
@@ -307,91 +350,98 @@ async function launch({ instance, account }) {
   currentDetail = 'Preparing…';
   currentPhase = 'preparing';
   try {
-  const settings = settingsMod.get();
+    const settings = settingsMod.get();
 
-  // Per-instance overrides fall back to the global settings when disabled.
-  const ov = instance.overrides || {};
-  const memory = ov.memory?.enabled ? ov.memory : settings.memory;
-  const resolution = ov.resolution?.enabled ? ov.resolution : settings.resolution;
-  const jvmArgs = typeof ov.jvmArgs === 'string' && ov.jvmArgs.trim()
-    ? ov.jvmArgs.trim().split(/\s+/)
-    : null;
+    // Per-instance overrides fall back to the global settings when disabled.
+    const ov = instance.overrides || {};
+    const memory = ov.memory?.enabled ? ov.memory : settings.memory;
+    const resolution = ov.resolution?.enabled ? ov.resolution : settings.resolution;
+    const jvmArgs = typeof ov.jvmArgs === 'string' && ov.jvmArgs.trim()
+      ? ov.jvmArgs.trim().split(/\s+/)
+      : null;
 
-  // resolve the right Java for this MC version (auto-download if needed),
-  // unless the instance pins its own Java binary.
-  let javaPath;
-  const overrideJava = ov.java?.enabled && ov.java.path ? ov.java.path : null;
-  if (overrideJava) {
-    javaPath = overrideJava;
-  } else {
-    try {
-      javaPath = await javaMod.ensureJava(instance.version, {
-        setState,
-        sendProgress: (p) => send('launcher:progress', p)
-      });
-    } catch (err) {
-      setState('error', `Java setup failed: ${err.message}`);
-      return;
+    // resolve the right Java for this MC version (auto-download if needed),
+    // unless the instance pins its own Java binary.
+    let javaPath;
+    const overrideJava = ov.java?.enabled && ov.java.path ? ov.java.path : null;
+    if (overrideJava) {
+      javaPath = overrideJava;
+    } else {
+      try {
+        javaPath = await javaMod.ensureJava(mcVersion, {
+          setState,
+          sendProgress: (p) => send('launcher:progress', p)
+        });
+      } catch (err) {
+        setState('error', `Java setup failed: ${err.message}`);
+        return;
+      }
     }
-  }
 
-  // Microsoft account when signed in, offline auth otherwise
-  let authorization = null;
-  if (account?.useMicrosoft) {
-    setState('preparing', 'Refreshing Microsoft account…');
-    authorization = await auth.getMclcAuth();
-    if (!authorization) {
-      setState('error', 'Microsoft session expired — please sign in again.');
-      return;
+    // Microsoft account when signed in, offline auth otherwise
+    let authorization = null;
+    if (account?.useMicrosoft) {
+      setState('preparing', 'Refreshing Microsoft account…');
+      authorization = await auth.getMclcAuth();
+      if (!authorization) {
+        setState('error', 'Microsoft session expired — please sign in again.');
+        return;
+      }
     }
-  }
 
-  const opts = {
-    root: rootDir(),
-    version: { number: instance.version, type: 'release' },
-    memory: { min: `${memory.min}G`, max: `${memory.max}G` },
-    window: {
-      width: resolution.width,
-      height: resolution.height,
-      fullscreen: resolution.fullscreen
-    },
-    overrides: { gameDirectory: instanceDir(instance.id) },
-    authorization: authorization ?? Authenticator.getAuth(account?.username || 'Player'),
-    javaPath
-  };
-  if (jvmArgs) opts.customArgs = jvmArgs;
+    const authResult = authorization ?? (await Authenticator.getAuth(username));
 
-  if (payload?.quickJoinServer) {
-    const isModern = (() => {
-      const v = String(instance.version || '');
-      const parts = v.split('.').map(Number);
-      return parts[0] > 1 || (parts[0] === 1 && parts[1] >= 20);
-    })();
-    opts.quickPlay = {
-      type: isModern ? 'multiplayer' : 'legacy',
-      identifier: String(payload.quickJoinServer)
+    const opts = {
+      root: rootDir(),
+      version: { number: mcVersion, type: 'release' },
+      memory: { min: `${memory.min}G`, max: `${memory.max}G` },
+      window: {
+        width: resolution.width,
+        height: resolution.height,
+        fullscreen: resolution.fullscreen
+      },
+      overrides: { gameDirectory: instanceDir(instance.id) },
+      authorization: authResult,
+      javaPath
     };
-  }
+    if (jvmArgs) opts.customArgs = jvmArgs;
 
-  try {
-    const loader = String(instance.loader || instance.mc_loader || 'Vanilla');
-    if (loader === 'Fabric') {
-      setState('preparing', 'Resolving Fabric…');
-      opts.version.custom = await resolveFabric(instance.version, instance.loaderVersion);
-    } else if (loader === 'Forge') {
-      setState('preparing', 'Resolving Forge…');
-      opts.forge = await resolveForge(instance.version, instance.loaderVersion);
+    if (payload?.quickJoinServer) {
+      const rawTarget = String(payload.quickJoinServer).trim();
+      const [host, port = '25565'] = rawTarget.split(':');
+      const isModern = (() => {
+        const v = String(mcVersion || '');
+        const parts = v.split('.').map(Number);
+        return parts[0] > 1 || (parts[0] === 1 && parts[1] >= 20);
+      })();
+      opts.quickPlay = {
+        type: isModern ? 'multiplayer' : 'legacy',
+        identifier: rawTarget
+      };
+      const joinArgs = isModern
+        ? ['--quickPlayMultiplayer', rawTarget]
+        : ['--server', host, '--port', port];
+      opts.customLaunchArgs = (opts.customLaunchArgs || []).concat(joinArgs);
     }
 
-    if (loader !== 'Vanilla') {
-      setState('preparing', 'Setting up CustomSkinLoader…');
-      const wardrobe = await wardrobeMod.prepareFabricInstance(instance, account, (detail) => setState('preparing', detail));
-      if (wardrobe?.warning) launcher.emit('debug', `[Noctra Client]: Wardrobe integration: ${wardrobe.warning}`);
+    try {
+      if (loader === 'Fabric') {
+        setState('preparing', 'Resolving Fabric…');
+        opts.version.custom = await resolveFabric(mcVersion, loaderVersion);
+      } else if (loader === 'Forge') {
+        setState('preparing', 'Resolving Forge…');
+        opts.forge = await resolveForge(mcVersion, loaderVersion);
+      }
+
+      if (loader !== 'Vanilla') {
+        setState('preparing', 'Setting up CustomSkinLoader…');
+        const wardrobe = await wardrobeMod.prepareFabricInstance(instance, account, (detail) => setState('preparing', detail));
+        if (wardrobe?.warning) launcher.emit('debug', `[Noctra Client]: Wardrobe integration: ${wardrobe.warning}`);
+      }
+    } catch (err) {
+      setState('error', err.message);
+      return;
     }
-  } catch (err) {
-    setState('error', err.message);
-    return;
-  }
 
   fs.mkdirSync(instanceDir(instance.id), { recursive: true });
   // Heal installs made by an older build before launching again.
@@ -662,6 +712,7 @@ module.exports = {
     ensureFabricLibraries,
     resolveFabric,
     ensureCanonicalAssetIndex,
-    rememberInstall
+    rememberInstall,
+    launch
   }
 };
