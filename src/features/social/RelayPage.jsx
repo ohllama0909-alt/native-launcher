@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
-  BadgeCheck,
   CheckCheck,
   Check,
   ChevronDown,
@@ -253,36 +252,36 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
   // Unified presence helper: guarantees inbox & header stay in sync
   const getPresence = useCallback((entity) => {
-    if (!entity) return { status: 'offline', text: 'Offline', color: '#77717c', isVerified: false };
+    if (!entity) return { status: 'offline', text: 'Offline', color: 'var(--fg-muted, #77717c)', isVerified: false };
     if (entity.kind === 'group') {
       const count = entity.members?.length || 2;
-      return { status: 'in-launcher', text: `${count} members`, color: '#b05acb', isVerified: false };
+      return { status: 'in-launcher', text: `${count} members`, color: 'var(--brand, #b05acb)', isVerified: false };
     }
     if (entity.isTyping) {
-      return { status: 'in-launcher', text: 'typing...', color: '#b05acb', isVerified: entity.isVerified };
+      return { status: 'in-launcher', text: 'typing...', color: 'var(--brand, #b05acb)', isVerified: false };
     }
     const st = String(entity.status || 'offline').toLowerCase();
     if (st === 'in-game') {
       return {
         status: 'in-game',
         text: entity.activity || (entity.serverAddress ? `In-game: ${entity.serverAddress}` : 'In-game'),
-        color: '#55db72',
-        isVerified: entity.isVerified
+        color: 'var(--online, #55db72)',
+        isVerified: false
       };
     }
     if (st === 'online' || st === 'in-launcher' || st === 'in-menus') {
       return {
         status: 'in-launcher',
         text: entity.activity || 'In Launcher',
-        color: '#b05acb',
-        isVerified: entity.isVerified
+        color: 'var(--brand, #b05acb)',
+        isVerified: false
       };
     }
     return {
       status: 'offline',
       text: entity.lastSeen && entity.lastSeen !== 'Offline' ? `Last seen ${entity.lastSeen}` : 'Offline',
-      color: '#77717c',
-      isVerified: entity.isVerified
+      color: 'var(--fg-muted, #77717c)',
+      isVerified: false
     };
   }, []);
 
@@ -878,9 +877,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                 <div className="relay-peer-meta">
                   <div className="relay-peer-name-row">
                     <span className="relay-peer-name">{activeEntity?.nickname || activeEntity?.name || 'Chat'}</span>
-                    {activePresence.isVerified && (
-                      <BadgeCheck size={13} className="relay-verified-icon" title="Verified Noctra account" />
-                    )}
                   </div>
                   <div className="relay-peer-status-row">
                     <span className={`relay-peer-status-text ${activePresence.status}`}>{activePresence.text}</span>
@@ -1044,7 +1040,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                           onClick={() => setActiveReactionPickerMsgId(isPickerOpen ? null : msg.id)}
                           title="Add reaction"
                         >
-                          <Smile size={13} />
+                          <Smile size={14} />
                         </button>
 
                         {isPickerOpen && (
@@ -1054,7 +1050,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                                 key={em}
                                 type="button"
                                 className="relay-msg-reaction-btn"
-                                onClick={() => handleToggleReaction(msg.id, em)}
+                                onClick={() => {
+                                  handleToggleReaction(msg.id, em);
+                                  setActiveReactionPickerMsgId(null);
+                                }}
                               >
                                 {em}
                               </button>
@@ -1062,7 +1061,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                           </div>
                         )}
 
-                        {msg.content && !msg.isVoice && (
+                        {msg.content && !msg.isVoice && !msg.isMedia && (
                           <div className="relay-message-bubble">
                             <p className="relay-message-text">{msg.content}</p>
                           </div>
@@ -1112,6 +1111,11 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                                 </div>
                               )}
                             </div>
+                            {msg.content && (
+                              <div className="relay-media-caption">
+                                <p className="relay-message-text">{msg.content}</p>
+                              </div>
+                            )}
                             <div className="relay-media-meta-row">
                               <span className="relay-media-meta-filename">
                                 {msg.time} {msg.mediaName || 'Image'}

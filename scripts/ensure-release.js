@@ -61,7 +61,7 @@ async function gh(method, url, body) {
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const message = (data && data.message) || res.statusText;
-    throw new Error(`${method} ${url.replace(api, '')} -> ${res.status} ${message}`);
+    throw new Error(`${method} ${url} -> ${res.status} ${message}`);
   }
   return data;
 }
