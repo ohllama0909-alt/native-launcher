@@ -48,7 +48,7 @@ export const DEFAULT_APPEARANCE = {
   contrast: 'normal',
   radius: 'soft',
   scale: 100,
-  wallpaperDim: 72,
+  wallpaperDim: 95,
   animations: true,
   glow: true
 };
@@ -131,8 +131,8 @@ function sanitize(raw) {
     surface: surfaceIds.includes(source.surface) ? source.surface : DEFAULT_APPEARANCE.surface,
     contrast: contrastIds.includes(source.contrast) ? source.contrast : DEFAULT_APPEARANCE.contrast,
     radius: radiusIds.includes(source.radius) ? source.radius : DEFAULT_APPEARANCE.radius,
-    scale: Math.round(clamp(source.scale ?? DEFAULT_APPEARANCE.scale, 80, 130)),
-    wallpaperDim: Math.round(clamp(source.wallpaperDim ?? DEFAULT_APPEARANCE.wallpaperDim, 0, 95)),
+    scale: 100,
+    wallpaperDim: 95,
     animations: source.animations !== false,
     glow: source.glow !== false
   };

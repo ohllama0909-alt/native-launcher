@@ -204,41 +204,7 @@ export default function AppearancePanel() {
           </div>
         </div>
 
-        <div className="ap-row">
-          <div className="ap-row-info">
-            <span className="ap-row-title">{t('appearance.scale')}</span>
-            <span className="ap-row-desc">{t('appearance.scaleDesc')}</span>
-          </div>
-          <div className="ap-slider-wrap">
-            <input
-              type="range"
-              min="80"
-              max="130"
-              step="5"
-              value={appearance.scale}
-              onChange={(event) => update({ scale: Number(event.target.value) })}
-            />
-            <span className="ap-slider-value">{appearance.scale}%</span>
-          </div>
-        </div>
 
-        <div className="ap-row">
-          <div className="ap-row-info">
-            <span className="ap-row-title">{t('appearance.wallpaperDim')}</span>
-            <span className="ap-row-desc">{t('appearance.wallpaperDimDesc')}</span>
-          </div>
-          <div className="ap-slider-wrap">
-            <input
-              type="range"
-              min="0"
-              max="95"
-              step="5"
-              value={appearance.wallpaperDim}
-              onChange={(event) => update({ wallpaperDim: Number(event.target.value) })}
-            />
-            <span className="ap-slider-value">{appearance.wallpaperDim}%</span>
-          </div>
-        </div>
 
         <div className="ap-wallpaper-preview">
           <div className="ap-wallpaper-art" />

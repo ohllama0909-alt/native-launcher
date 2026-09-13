@@ -8,7 +8,6 @@ import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import LockerView from '../skins/LockerView.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import RelayPage from '../social/RelayPage.jsx';
-import ActiveChatOverlay from '../social/ActiveChatOverlay.jsx';
 import FriendContextMenu from '../social/FriendContextMenu.jsx';
 import NicknameModal from '../social/NicknameModal.jsx';
 import useSocial from '../social/useSocial.js';
@@ -318,18 +317,7 @@ export default function Shell({
         onCreate={(values) => handleCreateInstance(values)}
       />
 
-      {currentTab !== 'relay' && social.activeChatFriend && (
-        <ActiveChatOverlay
-          friend={social.activeChatFriend}
-          messages={social.messages}
-          loading={social.loadingMessages}
-          onSendMessage={social.sendMessage}
-          onClose={() => social.setActiveChatFriend(null)}
-          onOpenRelay={() => {
-            setCurrentTab('relay');
-          }}
-        />
-      )}
+
 
       {social.contextMenu && (
         <FriendContextMenu
