@@ -1,844 +1,1502 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
-  Search, UserPlus, Bell, ShieldOff, Hash, Smile, Paperclip, SendHorizontal,
-  Image as ImageIcon, Check, CheckCheck, ChevronDown, Star, Pin, MoreVertical,
-  Gamepad2, Users, X, Loader2, AlertCircle, Wifi, WifiOff, ArrowDown, Clock
+  BadgeCheck,
+  CheckCheck,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  FileText,
+  Image as ImageIcon,
+  Maximize2,
+  MessageSquare,
+  Mic,
+  MoreHorizontal,
+  Paperclip,
+  Pin,
+  Search,
+  Send,
+  Smile,
+  Users,
+  X
 } from 'lucide-react';
-import RelayAvatar from './RelayAvatar';
+import RelayAvatar from './RelayAvatar.jsx';
 import './RelayPage.css';
 
-/**
- * Noctra Relay - realtime friends & messaging surface.
- *
- * Layout is Discord-shaped: conversation rail on the left, message stream in
- * the middle, profile panel on the right. Every colour, radius, shadow and
- * easing comes from the appearance tokens in src/styles/theme.css, so the page
- * follows the user's surface / contrast / radius / glow / motion settings.
- */
-
-const STORE_KEY = 'noctra_relay_store_v5';
-const REACTION_PALETTE = ['\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDD25', '\uD83D\uDC4D', '\uD83D\uDE2E', '\uD83D\uDE22', '\uD83C\uDF89', '\uD83D\uDC80'];
-const EMOJI_PICKER = [
-  '\uD83D\uDE00', '\uD83D\uDE02', '\uD83D\uDE05', '\uD83D\uDE0D', '\uD83D\uDE0E', '\uD83E\uDD29', '\uD83D\uDE14', '\uD83D\uDE2D',
-  '\uD83D\uDE21', '\uD83D\uDC4D', '\uD83D\uDC4F', '\uD83D\uDE4C', '\uD83E\uDD1D', '\uD83D\uDD25', '\u2B50', '\u2728',
-  '\uD83C\uDF89', '\uD83C\uDFAE', '\u26CF\uFE0F', '\uD83D\uDDE1\uFE0F', '\uD83D\uDEE1\uFE0F', '\uD83D\uDC80', '\uD83D\uDC7E', '\uD83E\uDD16'
-];
+const RELAY_STORAGE_KEY = 'noctra_relay_store_v4';
 const MESSAGE_MAX = 2000;
-const GROUP_WINDOW = 5 * 60 * 1000;
 
-function readStore() {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY)) || {};
-  } catch {
-    return {};
-  }
-}
+const formatTime = (stamp) => {
+  if (!stamp) return '';
+  const date = new Date(stamp);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+};
 
-function writeStore(patch) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ ...readStore(), ...patch }));
-  } catch {}
-}
+const dayKeyOf = (stamp) => {
+  const date = new Date(stamp || Date.now());
+  if (isNaN(date.getTime())) return 'unknown';
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+};
 
-function formatClock(timestamp) {
-  if (!timestamp) return '';
-  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDayLabel(timestamp) {
-  const date = new Date(timestamp);
+const dayLabelOf = (stamp) => {
+  const date = new Date(stamp || Date.now());
+  if (isNaN(date.getTime())) return '';
   const today = new Date();
-  const yesterday = new Date(today.getTime() - 86_400_000);
-  const sameDay = (a, b) => a.toDateString() === b.toDateString();
-  if (sameDay(date, today)) return 'Today';
-  if (sameDay(date, yesterday)) return 'Yesterday';
-  return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
-}
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (dayKeyOf(date.getTime()) === dayKeyOf(today.getTime())) return 'Today';
+  if (dayKeyOf(date.getTime()) === dayKeyOf(yesterday.getTime())) return 'Yesterday';
+  return date.toLocaleDateString([], { day: 'numeric', month: 'long' });
+};
 
-function formatRelative(timestamp) {
-  if (!timestamp) return '';
-  const diff = Date.now() - timestamp;
-  if (diff < 60_000) return 'now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
-  if (diff < 604_800_000) return `${Math.floor(diff / 86_400_000)}d`;
-  return new Date(timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
+// Popular quick reaction GIFs
+const QUICK_GIFS = [
+  { label: 'GG', url: 'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif' },
+  { label: 'Hype', url: 'https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif' },
+  { label: 'Diamond', url: 'https://media.giphy.com/media/26FfcbCyEGvpDaPS8/giphy.gif' },
+  { label: 'Salute', url: 'https://media.giphy.com/media/3o7btXkbsV26U95Uly/giphy.gif' },
+  { label: 'Clap', url: 'https://media.giphy.com/media/nbvFVPiEiJH6JOGIok/giphy.gif' },
+  { label: 'Dance', url: 'https://media.giphy.com/media/13k4VSc3ngLPUY/giphy.gif' }
+];
 
-function statusLabel(friend) {
-  if (!friend) return '';
-  if (friend.status === 'offline') return `Last seen ${formatRelative(friend.lastSeen)}`;
-  if (friend.serverAddress) return `Playing on ${friend.serverAddress}`;
-  return friend.activity || 'In Launcher';
-}
+const EMOJIS = ['\u{1F600}', '\u{1F602}', '\u{1F525}', '\u2694\uFE0F', '\u{1F48E}', '\u{1F480}', '\u26CF\uFE0F', '\u{1F34E}', '\u{1F6E1}\uFE0F', '\u{1F36A}', '\u{1F3F9}', '\u{1F44D}', '\u2764\uFE0F', '\u{1F680}', '\u{1F440}', '\u{1F60E}'];
+const REACTION_PALETTE = ['\u2764\uFE0F', '\u{1F602}', '\u{1F525}', '\u{1F44D}', '\u{1F62E}', '\u{1F622}', '\u{1F389}', '\u{1F480}'];
 
-function statusKind(friend) {
-  if (!friend || friend.status === 'offline') return 'offline';
-  if (friend.serverAddress || friend.status === 'in-game') return 'in-game';
-  if (friend.status === 'idle' || friend.status === 'away') return 'idle';
-  return 'online';
-}
-
-/** Collapse reaction rows into `{ emoji, count, mine }` chips. */
-function groupReactions(reactions, selfId) {
-  const map = new Map();
-  for (const item of reactions || []) {
-    if (!item?.reaction) continue;
-    const entry = map.get(item.reaction) || { emoji: item.reaction, count: 0, mine: false };
-    entry.count += 1;
-    if (item.userId === selfId) entry.mine = true;
-    map.set(item.reaction, entry);
+function loadPersistedState() {
+  try {
+    const raw = localStorage.getItem(RELAY_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
   }
-  return [...map.values()];
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 export default function RelayPage({ account, social, onJoinServer, onNotify }) {
-  const {
-    isNoctra, selfId, friends, requests, blocked, messages, typingBy, streamStatus,
-    activeChatFriend, activeChatId, setActiveChatFriend, hasMoreMessages, loadingMessages,
-    initialLoading, loadOlder, socialError, searchResults, searchLoading, searchPlayers,
-    sendMessage, uploadMedia, setMessageReaction, notifyTyping, stopTyping,
-    sendRequest, respondRequest, updateFriend, unfriend, block, unblock,
-    setContextMenu, setNicknameModalFriend, pendingRequestsTotal, reconnect, conversations
-  } = social;
+  const persisted = useMemo(() => loadPersistedState(), []);
+  const selfId = social?.selfId || account?.id || null;
 
-  const [view, setView] = useState('chats');
-  const [filter, setFilter] = useState('');
-  const [addQuery, setAddQuery] = useState('');
-  const [draft, setDraft] = useState('');
-  const [picker, setPicker] = useState(null); // 'emoji' | 'attach' | null
-  const [showProfile, setShowProfile] = useState(true);
-  const [pinnedIds, setPinnedIds] = useState(() => readStore().pinnedIds || []);
-  const [drafts, setDrafts] = useState({});
-  const [atBottom, setAtBottom] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [reactionFor, setReactionFor] = useState(null);
+  // Conversations & threads state (no seed data: strictly real database & user records)
+  const [pinnedIds, setPinnedIds] = useState(() => persisted?.pinnedIds || []);
+  const [groups, setGroups] = useState(() => persisted?.groups || []);
+  const [localConversations, setLocalConversations] = useState(() => persisted?.conversations || {});
+  const [selectedId, setSelectedId] = useState(() => persisted?.lastSelectedId || null);
 
-  const scrollRef = useRef(null);
-  const bottomRef = useRef(null);
-  const composerRef = useRef(null);
-  const fileRef = useRef(null);
+  // Query & input states
+  const [inboxQuery, setInboxQuery] = useState('');
+  const [messageQuery, setMessageQuery] = useState('');
+  const [composerText, setComposerText] = useState('');
+  const [stagedFile, setStagedFile] = useState(null);
+  const [collapsed, setCollapsed] = useState({ pinned: false, groups: false, direct: false });
 
-  // Restore the last open conversation once friends arrive.
+  // UI popovers
+  const [showNewGroupModal, setShowNewGroupModal] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+  const [activeReactionPickerMsgId, setActiveReactionPickerMsgId] = useState(null);
+  const [previewMediaModal, setPreviewMediaModal] = useState(null);
+
+  const [sending, setSending] = useState(false);
+  const [recordingVoice, setRecordingVoice] = useState(false);
+
+  // Group creation modal state
+  const [newGroupName, setNewGroupName] = useState('');
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+
+  const messageStreamRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const atBottomRef = useRef(true);
+
+  // Synchronize with social.activeChatFriend if set by an external action
   useEffect(() => {
-    if (activeChatId || !friends.length) return;
-    const last = readStore().lastSelectedId;
-    const target = friends.find((friend) => friend.id === last) || null;
-    if (target) setActiveChatFriend(target);
-  }, [friends, activeChatId, setActiveChatFriend]);
+    if (social?.activeChatFriend?.id && social.activeChatFriend.id !== selectedId) {
+      setSelectedId(social.activeChatFriend.id);
+    }
+  }, [social?.activeChatFriend?.id, selectedId]);
 
+  // Persist pins, groups and local drafts (the server owns real messages)
   useEffect(() => {
-    if (activeChatId) writeStore({ lastSelectedId: activeChatId });
-  }, [activeChatId]);
-
-  useEffect(() => { writeStore({ pinnedIds }); }, [pinnedIds]);
-
-  // Keep per-conversation drafts so switching threads never loses text.
-  useEffect(() => {
-    setDraft(drafts[activeChatId] || '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChatId]);
-
-  const rememberDraft = useCallback((value) => {
-    setDraft(value);
-    setDrafts((previous) => ({ ...previous, [activeChatId]: value }));
-  }, [activeChatId]);
-
-  const conversationList = useMemo(() => {
-    const term = filter.trim().toLowerCase();
-    const decorated = friends.map((friend) => ({
-      ...friend,
-      pinned: pinnedIds.includes(friend.id),
-      sortTime: friend.lastMessageTime || friend.friendsSince || 0
-    }));
-    const matched = term
-      ? decorated.filter((friend) => (
-        friend.name?.toLowerCase().includes(term) || friend.nickname?.toLowerCase().includes(term)
-      ))
-      : decorated;
-
-    return matched.sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      if (a.isBestFriend !== b.isBestFriend) return a.isBestFriend ? -1 : 1;
-      if (a.sortTime !== b.sortTime) return b.sortTime - a.sortTime;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-  }, [friends, filter, pinnedIds]);
-
-  const onlineCount = useMemo(
-    () => friends.filter((friend) => friend.status !== 'offline').length,
-    [friends]
-  );
-
-  // Build render rows: day dividers + grouped messages.
-  const rows = useMemo(() => {
-    const output = [];
-    let lastDay = null;
-    let previous = null;
-
-    for (const message of messages || []) {
-      const day = new Date(message.createdAt).toDateString();
-      if (day !== lastDay) {
-        output.push({ kind: 'divider', id: `divider-${day}`, label: formatDayLabel(message.createdAt) });
-        lastDay = day;
-        previous = null;
-      }
-      const grouped = Boolean(
-        previous &&
-        previous.senderId === message.senderId &&
-        message.createdAt - previous.createdAt < GROUP_WINDOW
-      );
-      output.push({ kind: 'message', id: message.id, message, grouped });
-      previous = message;
-    }
-    return output;
-  }, [messages]);
-
-  const isTyping = Boolean(activeChatId && typingBy?.[activeChatId]);
-
-  // Scrolling ---------------------------------------------------------------
-
-  const scrollToBottom = useCallback((behavior = 'smooth') => {
-    bottomRef.current?.scrollIntoView({ behavior, block: 'end' });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!activeChatId) return;
-    requestAnimationFrame(() => scrollToBottom('auto'));
-  }, [activeChatId, scrollToBottom]);
-
-  useEffect(() => {
-    if (atBottom) scrollToBottom('smooth');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages?.length, isTyping]);
-
-  const handleScroll = useCallback((event) => {
-    const el = event.currentTarget;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setAtBottom(distance < 120);
-    if (el.scrollTop < 80 && hasMoreMessages && !loadingMessages) {
-      const previousHeight = el.scrollHeight;
-      loadOlder(activeChatId).then(() => {
-        requestAnimationFrame(() => {
-          el.scrollTop = el.scrollHeight - previousHeight + el.scrollTop;
-        });
-      });
-    }
-  }, [hasMoreMessages, loadingMessages, loadOlder, activeChatId]);
-
-  // Actions -----------------------------------------------------------------
-
-  const handleSend = useCallback(async () => {
-    const content = draft.trim();
-    if (!content || !activeChatId) return;
-    rememberDraft('');
-    stopTyping(activeChatId);
-    const res = await sendMessage(activeChatId, content);
-    if (res?.ok === false && res?.error) onNotify?.({ type: 'error', message: res.error });
-    scrollToBottom('smooth');
-  }, [draft, activeChatId, rememberDraft, stopTyping, sendMessage, onNotify, scrollToBottom]);
-
-  const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSend();
-      return;
-    }
-    if (event.key === 'Escape') setPicker(null);
-  }, [handleSend]);
-
-  const handleDraftChange = useCallback((event) => {
-    rememberDraft(event.target.value.slice(0, MESSAGE_MAX));
-    if (activeChatId) notifyTyping(activeChatId);
-  }, [rememberDraft, notifyTyping, activeChatId]);
-
-  const handleFiles = useCallback(async (fileList) => {
-    const file = fileList?.[0];
-    if (!file || !activeChatId) return;
-    if (file.size > 25 * 1024 * 1024) {
-      onNotify?.({ type: 'error', message: 'Attachments must be 25MB or smaller.' });
-      return;
-    }
-    setUploading(true);
     try {
-      const dataUrl = await fileToDataUrl(file);
-      const upload = await uploadMedia(dataUrl, file.name);
-      if (!upload?.ok || !upload.url) {
-        onNotify?.({ type: 'error', message: upload?.error || 'Upload failed.' });
-        return;
+      localStorage.setItem(
+        RELAY_STORAGE_KEY,
+        JSON.stringify({
+          pinnedIds,
+          groups,
+          conversations: localConversations,
+          lastSelectedId: selectedId
+        })
+      );
+    } catch {}
+  }, [pinnedIds, groups, localConversations, selectedId]);
+
+  // Escape closes the lightbox
+  useEffect(() => {
+    if (!previewMediaModal) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setPreviewMediaModal(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewMediaModal]);
+
+  // Unified friends list: live backend friends + live conversation previews
+  const mergedFriends = useMemo(() => {
+    const live = social?.friends || [];
+    const conversations = social?.conversations || {};
+
+    return live.map((f) => {
+      const thread = conversations[f.id];
+      const lastMsg = thread?.messages?.length ? thread.messages[thread.messages.length - 1] : null;
+
+      let snippet = 'No messages yet';
+      let isMine = f.lastMessageSenderId === selfId;
+      let time = f.lastMessageTime ? formatTime(f.lastMessageTime) : '';
+      let isAttachment = Boolean(f.lastMessageIsMedia);
+
+      if (lastMsg) {
+        isMine = lastMsg.senderId === selfId;
+        const label = lastMsg.mediaName || 'Attachment';
+        if (lastMsg.isMedia || lastMsg.mediaUrl) {
+          snippet = isMine ? `You: ${label}` : label;
+          isAttachment = true;
+        } else {
+          snippet = isMine ? `You: ${lastMsg.content || ''}` : (lastMsg.content || '');
+        }
+        time = formatTime(lastMsg.createdAt);
+      } else if (f.lastMessageContent) {
+        snippet = isMine ? `You: ${f.lastMessageContent}` : f.lastMessageContent;
       }
-      await sendMessage(activeChatId, '', {
-        mediaUrl: upload.url,
-        mediaName: upload.name || file.name,
-        mediaKind: file.type.startsWith('image/') ? 'image' : (file.type.startsWith('audio/') ? 'audio' : 'file'),
-        isMedia: true
-      });
-      scrollToBottom('smooth');
-    } finally {
-      setUploading(false);
-      setPicker(null);
+
+      const status = String(f.status || 'offline').toLowerCase();
+
+      return {
+        id: f.id,
+        name: f.name,
+        nickname: f.nickname || f.name,
+        uuid: f.uuid,
+        skinUrl: f.skinUrl || null,
+        model: f.model || 'classic',
+        status,
+        isVerified: Boolean(f.isVerified),
+        activity:
+          f.activity ||
+          (status === 'in-game'
+            ? `In-game: ${f.serverAddress || 'Server'}`
+            : status === 'offline'
+              ? 'Offline'
+              : 'In Launcher'),
+        serverAddress: f.serverAddress,
+        lastSeen: f.lastSeen ? formatTime(f.lastSeen) : 'Offline',
+        lastMessage: snippet,
+        lastTime: time,
+        lastStamp: lastMsg?.createdAt || f.lastMessageTime || 0,
+        isAttachment,
+        isMine,
+        isTyping: Boolean(social?.typingBy?.[f.id]),
+        unread: f.unreadCount || 0
+      };
+    });
+  }, [social?.friends, social?.conversations, social?.typingBy, selfId]);
+
+  // All conversational items: groups + friends, most recent first
+  const allThreads = useMemo(() => {
+    const dms = [...mergedFriends].sort((a, b) => (b.lastStamp || 0) - (a.lastStamp || 0));
+    return [...groups, ...dms];
+  }, [groups, mergedFriends]);
+
+  // Active entity derived dynamically so presence never desynchronizes
+  const activeEntity = useMemo(() => {
+    if (!selectedId && allThreads.length > 0) return allThreads[0];
+    return allThreads.find((t) => t.id === selectedId) || allThreads[0] || null;
+  }, [allThreads, selectedId]);
+
+  const isGroupThread = activeEntity?.kind === 'group';
+
+  // Auto-select the first thread if nothing valid is selected
+  useEffect(() => {
+    if (!selectedId && allThreads.length > 0) {
+      setSelectedId(allThreads[0].id);
+    } else if (selectedId && !allThreads.some((t) => t.id === selectedId) && allThreads.length > 0) {
+      setSelectedId(allThreads[0].id);
     }
-  }, [activeChatId, uploadMedia, sendMessage, onNotify, scrollToBottom]);
+  }, [selectedId, allThreads]);
 
-  const handleDrop = useCallback((event) => {
-    event.preventDefault();
-    handleFiles(event.dataTransfer?.files);
-  }, [handleFiles]);
-
-  const handleAddFriend = useCallback(async (username) => {
-    const name = (username || addQuery).trim();
-    if (!name) return;
-    const res = await sendRequest(name);
-    if (res?.ok) {
-      setAddQuery('');
-      searchPlayers('');
-      onNotify?.({ type: 'success', message: `Friend request sent to ${name}.` });
-    } else {
-      onNotify?.({ type: 'error', message: res?.error || 'Could not send that friend request.' });
+  // Keep the hook's active conversation in sync (drives read receipts & unread reset)
+  const setActiveChatFriend = social?.setActiveChatFriend;
+  useEffect(() => {
+    if (!setActiveChatFriend) return;
+    if (activeEntity && activeEntity.kind !== 'group') {
+      if (social?.activeChatId !== activeEntity.id) setActiveChatFriend(activeEntity);
+    } else if (social?.activeChatId) {
+      setActiveChatFriend(null);
     }
-  }, [addQuery, sendRequest, searchPlayers, onNotify]);
+  }, [activeEntity, social?.activeChatId, setActiveChatFriend]);
 
-  const openContextMenu = useCallback((event, friend) => {
-    event.preventDefault();
-    setContextMenu({ friend, x: event.clientX, y: event.clientY });
-  }, [setContextMenu]);
-
-  const togglePin = useCallback((friendId) => {
-    setPinnedIds((previous) => (
-      previous.includes(friendId) ? previous.filter((id) => id !== friendId) : [...previous, friendId]
-    ));
+  // Unified presence helper: guarantees inbox & header stay in sync
+  const getPresence = useCallback((entity) => {
+    if (!entity) return { status: 'offline', text: 'Offline', color: '#77717c', isVerified: false };
+    if (entity.kind === 'group') {
+      const count = entity.members?.length || 2;
+      return { status: 'in-launcher', text: `${count} members`, color: '#b05acb', isVerified: false };
+    }
+    if (entity.isTyping) {
+      return { status: 'in-launcher', text: 'typing...', color: '#b05acb', isVerified: entity.isVerified };
+    }
+    const st = String(entity.status || 'offline').toLowerCase();
+    if (st === 'in-game') {
+      return {
+        status: 'in-game',
+        text: entity.activity || (entity.serverAddress ? `In-game: ${entity.serverAddress}` : 'In-game'),
+        color: '#55db72',
+        isVerified: entity.isVerified
+      };
+    }
+    if (st === 'online' || st === 'in-launcher' || st === 'in-menus') {
+      return {
+        status: 'in-launcher',
+        text: entity.activity || 'In Launcher',
+        color: '#b05acb',
+        isVerified: entity.isVerified
+      };
+    }
+    return {
+      status: 'offline',
+      text: entity.lastSeen && entity.lastSeen !== 'Offline' ? `Last seen ${entity.lastSeen}` : 'Offline',
+      color: '#77717c',
+      isVerified: entity.isVerified
+    };
   }, []);
 
-  // Gate ---------------------------------------------------------------------
+  // Filtered threads for inbox search
+  const filterList = (list) => {
+    if (!inboxQuery.trim()) return list;
+    const q = inboxQuery.toLowerCase();
+    return list.filter((item) => {
+      const name = (item.nickname || item.name || '').toLowerCase();
+      const lastMsg = (item.lastMessage || '').toLowerCase();
+      return name.includes(q) || lastMsg.includes(q);
+    });
+  };
 
-  if (!isNoctra) {
+  const pinnedList = filterList(allThreads.filter((t) => pinnedIds.includes(t.id)));
+  const groupList = filterList(groups.filter((g) => !pinnedIds.includes(g.id)));
+  const directList = filterList(allThreads.filter((t) => t.kind !== 'group' && !pinnedIds.includes(t.id)));
+
+  // Current conversation messages. Every DM thread is preloaded by useSocial,
+  // so switching conversations renders full history instantly.
+  const currentMessages = useMemo(() => {
+    if (!activeEntity?.id) return [];
+    const local = localConversations[activeEntity.id] || [];
+    if (isGroupThread) return local;
+
+    const thread = social?.conversations?.[activeEntity.id];
+    const serverList = (thread?.messages || []).map((m) => {
+      const isMine = m.senderId === selfId;
+      return {
+        id: String(m.id),
+        senderId: isMine ? 'me' : m.senderId,
+        senderName: isMine ? 'You' : (activeEntity.nickname || activeEntity.name),
+        content: m.content || '',
+        mediaUrl: m.mediaUrl || null,
+        mediaName: m.mediaName || null,
+        isMedia: Boolean((m.isMedia || m.mediaUrl) && m.mediaKind !== 'audio'),
+        isVoice: m.mediaKind === 'audio',
+        duration: m.mediaKind === 'audio' ? (m.content || '') : null,
+        reactions: Array.isArray(m.reactions) ? m.reactions : [],
+        isRead: Boolean(m.isRead),
+        pending: Boolean(m.pending),
+        failed: Boolean(m.failed),
+        createdAt: m.createdAt,
+        time: formatTime(m.createdAt),
+        isMine
+      };
+    });
+
+    // Keep optimistic uploads visible until the server echo arrives
+    const pendingUploads = local.filter((m) => m.isUploading || m.uploadFailed);
+    return [...serverList, ...pendingUploads];
+  }, [activeEntity, isGroupThread, localConversations, social?.conversations, selfId]);
+
+  // Messages filtered by in-conversation search
+  const filteredMessages = useMemo(() => {
+    if (!messageQuery.trim()) return currentMessages;
+    const q = messageQuery.toLowerCase();
+    return currentMessages.filter((m) => {
+      const textMatch = m.content && String(m.content).toLowerCase().includes(q);
+      const mediaMatch = m.mediaName && String(m.mediaName).toLowerCase().includes(q);
+      return textMatch || mediaMatch;
+    });
+  }, [currentMessages, messageQuery]);
+
+  // Insert day dividers between messages
+  const renderedItems = useMemo(() => {
+    const items = [];
+    let lastKey = null;
+    filteredMessages.forEach((msg, index) => {
+      const key = dayKeyOf(msg.createdAt);
+      if (key !== lastKey) {
+        items.push({ isDivider: true, id: `divider-${key}-${index}`, date: dayLabelOf(msg.createdAt) });
+        lastKey = key;
+      }
+      items.push(msg);
+    });
+    return items;
+  }, [filteredMessages]);
+
+  const isTypingHere = Boolean(!isGroupThread && activeEntity && social?.typingBy?.[activeEntity.id]);
+
+  // Auto scroll to the newest message when already pinned to the bottom
+  useEffect(() => {
+    const node = messageStreamRef.current;
+    if (!node) return;
+    if (atBottomRef.current) node.scrollTop = node.scrollHeight;
+  }, [renderedItems.length, isTypingHere]);
+
+  // Jump to the bottom whenever the conversation changes
+  useEffect(() => {
+    atBottomRef.current = true;
+    const node = messageStreamRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [activeEntity?.id]);
+
+  // Track scroll position; load older history when scrolled to the top
+  const handleStreamScroll = (e) => {
+    const node = e.currentTarget;
+    atBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 60;
+    if (node.scrollTop < 48 && !isGroupThread && activeEntity?.id) {
+      const thread = social?.conversations?.[activeEntity.id];
+      if (thread?.hasMore && !thread.loading) social?.loadOlder?.(activeEntity.id);
+    }
+  };
+
+  // Action: select conversation thread
+  const handleSelectThread = (thread) => {
+    if (thread.id === selectedId) return;
+    setSelectedId(thread.id);
+    setMessageQuery('');
+    setStagedFile(null);
+    setShowMenuDropdown(false);
+    setShowEmojiPicker(false);
+    setShowGifPicker(false);
+    setActiveReactionPickerMsgId(null);
+
+    if (social?.setActiveChatFriend) {
+      social.setActiveChatFriend(thread.kind === 'group' ? null : thread);
+    }
+  };
+
+  // Action: pin / unpin conversation
+  const handleTogglePin = (id) => {
+    setPinnedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev]));
+    setShowMenuDropdown(false);
+  };
+
+  // Action: toggle message reaction (server-backed for DMs, local for groups)
+  const handleToggleReaction = async (messageId, reactionEmoji) => {
+    if (!messageId || !reactionEmoji || !activeEntity) return;
+    setActiveReactionPickerMsgId(null);
+
+    if (isGroupThread || String(messageId).startsWith('upload-')) {
+      setLocalConversations((prev) => {
+        const list = prev[activeEntity.id] || [];
+        return {
+          ...prev,
+          [activeEntity.id]: list.map((m) => {
+            if (m.id !== messageId) return m;
+            const current = Array.isArray(m.reactions) ? m.reactions : [];
+            const mine = current.find((r) => r.userId === 'me' && r.reaction === reactionEmoji);
+            const withoutMine = current.filter((r) => !(r.userId === 'me' && r.reaction === reactionEmoji));
+            return {
+              ...m,
+              reactions: mine ? withoutMine : [...withoutMine, { userId: 'me', reaction: reactionEmoji }]
+            };
+          })
+        };
+      });
+      return;
+    }
+
+    try {
+      await social?.setMessageReaction?.(messageId, reactionEmoji);
+    } catch {}
+  };
+
+  // Composer typing -> realtime typing indicator for the peer
+  const handleComposerChange = (e) => {
+    setComposerText(e.target.value);
+    if (!isGroupThread && activeEntity?.id && e.target.value) {
+      social?.notifyTyping?.(activeEntity.id);
+    }
+  };
+
+  // Action: send message / full-resolution attachment
+  const handleSendMessage = async (e) => {
+    e?.preventDefault();
+    const text = composerText.trim().slice(0, MESSAGE_MAX);
+    if ((!text && !stagedFile) || sending || !activeEntity) return;
+
+    setSending(true);
+    const nowTime = formatTime(Date.now());
+    const fileToUpload = stagedFile;
+    setComposerText('');
+    setStagedFile(null);
+    setShowEmojiPicker(false);
+    setShowGifPicker(false);
+    setActiveReactionPickerMsgId(null);
+    atBottomRef.current = true;
+    if (!isGroupThread && activeEntity.id) social?.stopTyping?.(activeEntity.id);
+
+    if (fileToUpload) {
+      const tempId = `upload-${Date.now()}`;
+      const optimisticMsg = {
+        id: tempId,
+        senderId: 'me',
+        senderName: 'You',
+        content: text,
+        mediaUrl: fileToUpload.dataUrl,
+        mediaName: fileToUpload.name,
+        isMedia: fileToUpload.isImage,
+        isUploading: true,
+        createdAt: Date.now(),
+        time: nowTime,
+        isMine: true
+      };
+
+      setLocalConversations((prev) => ({
+        ...prev,
+        [activeEntity.id]: [...(prev[activeEntity.id] || []), optimisticMsg]
+      }));
+
+      try {
+        const res = await social?.uploadMedia?.(fileToUpload.dataUrl, fileToUpload.name);
+        if (!res?.ok || !res.url) throw new Error(res?.error || 'Upload failed');
+        const finalMediaUrl = res.url;
+
+        if (!isGroupThread) {
+          await social?.sendMessage?.(activeEntity.id, text, {
+            mediaUrl: finalMediaUrl,
+            mediaName: fileToUpload.name,
+            mediaKind: fileToUpload.isImage ? 'image' : 'file',
+            isMedia: fileToUpload.isImage
+          });
+          setLocalConversations((prev) => ({
+            ...prev,
+            [activeEntity.id]: (prev[activeEntity.id] || []).filter((m) => m.id !== tempId)
+          }));
+        } else {
+          setLocalConversations((prev) => ({
+            ...prev,
+            [activeEntity.id]: (prev[activeEntity.id] || []).map((m) =>
+              m.id === tempId ? { ...m, isUploading: false, mediaUrl: finalMediaUrl } : m
+            )
+          }));
+        }
+      } catch {
+        setLocalConversations((prev) => ({
+          ...prev,
+          [activeEntity.id]: (prev[activeEntity.id] || []).map((m) =>
+            m.id === tempId ? { ...m, isUploading: false, uploadFailed: true } : m
+          )
+        }));
+        onNotify?.('Upload failed', 'Could not upload the attachment to the server.');
+      }
+    } else if (text) {
+      if (isGroupThread) {
+        const newMsg = {
+          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          senderId: 'me',
+          senderName: 'You',
+          content: text,
+          createdAt: Date.now(),
+          time: nowTime,
+          isMine: true
+        };
+        setLocalConversations((prev) => ({
+          ...prev,
+          [activeEntity.id]: [...(prev[activeEntity.id] || []), newMsg]
+        }));
+        setGroups((prev) =>
+          prev.map((g) => (g.id === activeEntity.id ? { ...g, lastMessage: `You: ${text}`, lastTime: nowTime } : g))
+        );
+      } else {
+        const res = await social?.sendMessage?.(activeEntity.id, text);
+        if (res && res.ok === false && res.error) onNotify?.('Message failed', res.error);
+      }
+    }
+
+    setSending(false);
+  };
+
+  // Action: stage an attachment without downscaling it
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      onNotify?.('Attachment too large', 'Files must be under 25MB.');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    const isImage = file.type.startsWith('image/');
+    reader.onload = (event) => {
+      setStagedFile({
+        name: file.name,
+        size: `${Math.round(file.size / 1024)} KB`,
+        dataUrl: event.target?.result,
+        isImage
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Action: send quick GIF
+  const handleSendGif = async (gif) => {
+    setShowGifPicker(false);
+    if (!activeEntity) return;
+    atBottomRef.current = true;
+
+    if (isGroupThread) {
+      const newMsg = {
+        id: `gif-${Date.now()}`,
+        senderId: 'me',
+        senderName: 'You',
+        content: '',
+        isMedia: true,
+        mediaUrl: gif.url,
+        mediaName: `${gif.label}.gif`,
+        createdAt: Date.now(),
+        time: formatTime(Date.now()),
+        isMine: true
+      };
+      setLocalConversations((prev) => ({
+        ...prev,
+        [activeEntity.id]: [...(prev[activeEntity.id] || []), newMsg]
+      }));
+      return;
+    }
+
+    await social?.sendMessage?.(activeEntity.id, '', {
+      mediaUrl: gif.url,
+      mediaName: `${gif.label}.gif`,
+      mediaKind: 'image',
+      isMedia: true
+    });
+  };
+
+  // Action: record a short voice note and send it as real audio media
+  const handleVoiceNote = async () => {
+    if (!activeEntity) return;
+    if (isGroupThread) {
+      onNotify?.('Voice notes', 'Voice notes are only available in direct messages.');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      onNotify?.('Microphone unavailable', 'No recording device is available on this system.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      const startedAt = Date.now();
+
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) chunks.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        const dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+
+        const upload = await social?.uploadMedia?.(dataUrl, `voice-${startedAt}.webm`);
+        if (!upload?.ok || !upload.url) {
+          onNotify?.('Voice note failed', 'Could not upload the recording.');
+          setRecordingVoice(false);
+          return;
+        }
+        await social?.sendMessage?.(activeEntity.id, `0:${String(seconds).padStart(2, '0')}`, {
+          mediaUrl: upload.url,
+          mediaName: `voice-${startedAt}.webm`,
+          mediaKind: 'audio',
+          isMedia: true
+        });
+        setRecordingVoice(false);
+      };
+
+      setRecordingVoice(true);
+      recorder.start();
+      setTimeout(() => {
+        if (recorder.state !== 'inactive') recorder.stop();
+      }, 7000);
+    } catch {
+      setRecordingVoice(false);
+      onNotify?.('Microphone blocked', 'Allow microphone access to send voice notes.');
+    }
+  };
+
+  // Action: create new group (local squad grouping)
+  const handleCreateGroup = (e) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+
+    const newGroup = {
+      id: `group-${Date.now()}`,
+      name: newGroupName.trim(),
+      nickname: newGroupName.trim(),
+      kind: 'group',
+      members: selectedGroupMembers.length > 0 ? selectedGroupMembers : [account?.name || 'Player'],
+      lastMessage: 'Group created',
+      lastTime: formatTime(Date.now())
+    };
+
+    setGroups((prev) => [newGroup, ...prev]);
+    setSelectedId(newGroup.id);
+    setNewGroupName('');
+    setSelectedGroupMembers([]);
+    setShowNewGroupModal(false);
+    onNotify?.('Group created', `Created "${newGroup.name}" with ${newGroup.members.length} members.`);
+  };
+
+  const activePresence = getPresence(activeEntity);
+  const activeThreadState = !isGroupThread && activeEntity ? social?.conversations?.[activeEntity.id] : null;
+
+  if (social && social.isNoctra === false) {
     return (
-      <div className="relay relay--gate">
-        <div className="relay-gate-card">
-          <div className="relay-gate-icon"><Users size={30} /></div>
-          <h2>Relay needs a Noctra account</h2>
-          <p>Sign in with a Noctra account to message friends, share presence and see who is in game.</p>
+      <div className="relay-page relay-page-gate">
+        <div className="relay-empty-chat">
+          <div className="relay-empty-icon">
+            <MessageSquare size={28} />
+          </div>
+          <h3 className="relay-empty-title">Noctra account required</h3>
+          <p className="relay-empty-desc">
+            Sign in with your Noctra account to use Relay messaging, friends and presence.
+          </p>
         </div>
       </div>
     );
   }
 
-  const activeThread = conversations?.[activeChatId];
-
   return (
-    <div className="relay" data-view={view}>
-      {/* Conversation rail */}
-      <aside className="relay-rail">
-        <header className="relay-rail-head">
-          <div className="relay-rail-title">
-            <h1>Relay</h1>
-            <span className={`relay-stream relay-stream--${streamStatus}`} title={`Realtime: ${streamStatus}`}>
-              {streamStatus === 'connected' ? <Wifi size={13} /> : <WifiOff size={13} />}
-              {streamStatus === 'connected' ? 'Live' : 'Reconnecting'}
-            </span>
-          </div>
-          <div className="relay-search">
-            <Search size={14} />
-            <input
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              placeholder="Find a conversation"
-              aria-label="Find a conversation"
+    <div className="relay-page">
+      {/* ----------------- LEFT INBOX PANEL ----------------- */}
+      <aside className="relay-inbox">
+        <div className="relay-inbox-header">
+          <div className="relay-inbox-title-row">
+            <h2 className="relay-inbox-title">Noctra Relay</h2>
+            <span
+              className={`relay-live-dot ${social?.isRealtime ? 'is-live' : ''}`}
+              title={social?.isRealtime ? 'Realtime connected' : `Realtime ${social?.streamStatus || 'offline'}`}
             />
-            {filter && (
-              <button type="button" className="relay-search-clear" onClick={() => setFilter('')} aria-label="Clear">
-                <X size={12} />
-              </button>
-            )}
           </div>
-          <nav className="relay-tabs">
-            <button type="button" className={view === 'chats' ? 'is-active' : ''} onClick={() => setView('chats')}>
-              <Hash size={14} /> Chats
+          <div className="relay-inbox-search-bar">
+            <Search size={14} className="relay-search-icon" aria-hidden="true" />
+            <input
+              type="text"
+              value={inboxQuery}
+              onChange={(e) => setInboxQuery(e.target.value)}
+              placeholder="Search inbox..."
+              className="relay-inbox-input"
+            />
+            <button
+              type="button"
+              className="relay-inbox-btn"
+              onClick={() => setShowNewGroupModal(true)}
+              title="Create New Group"
+              aria-label="Create New Group"
+            >
+              <Users size={15} />
             </button>
-            <button type="button" className={view === 'requests' ? 'is-active' : ''} onClick={() => setView('requests')}>
-              <Bell size={14} /> Requests
-              {pendingRequestsTotal > 0 && <span className="relay-pill">{pendingRequestsTotal}</span>}
-            </button>
-            <button type="button" className={view === 'blocked' ? 'is-active' : ''} onClick={() => setView('blocked')}>
-              <ShieldOff size={14} /> Blocked
-            </button>
-          </nav>
-        </header>
-
-        <div className="relay-rail-body">
-          {initialLoading && (
-            <div className="relay-skeletons">
-              {[0, 1, 2, 3, 4].map((index) => <div key={index} className="relay-skeleton" />)}
-            </div>
-          )}
-
-          {!initialLoading && conversationList.length === 0 && (
-            <p className="relay-empty-note">No conversations yet. Add a friend to get started.</p>
-          )}
-
-          <ul className="relay-conv-list">
-            {conversationList.map((friend, index) => {
-              const thread = conversations?.[friend.id];
-              const preview = typingBy?.[friend.id]
-                ? 'typing…'
-                : (friend.lastMessageIsMedia
-                  ? 'Attachment'
-                  : friend.lastMessageContent || 'Say hello');
-              const fromSelf = friend.lastMessageSenderId === selfId;
-              return (
-                <li key={friend.id} style={{ '--stagger': `${Math.min(index, 12) * 18}ms` }}>
-                  <button
-                    type="button"
-                    className={`relay-conv ${activeChatId === friend.id ? 'is-active' : ''} ${friend.unreadCount ? 'is-unread' : ''}`}
-                    onClick={() => { setActiveChatFriend(friend); setView('chats'); }}
-                    onContextMenu={(event) => openContextMenu(event, friend)}
-                  >
-                    <RelayAvatar
-                      name={friend.name}
-                      skinUrl={friend.skinUrl}
-                      size={40}
-                      status={statusKind(friend)}
-                      showStatus
-                    />
-                    <span className="relay-conv-text">
-                      <span className="relay-conv-top">
-                        <span className="relay-conv-name">
-                          {friend.nickname || friend.name}
-                          {friend.isBestFriend && <Star size={11} className="relay-best" />}
-                          {friend.pinned && <Pin size={11} className="relay-pinned" />}
-                        </span>
-                        <span className="relay-conv-time">{formatRelative(friend.lastMessageTime)}</span>
-                      </span>
-                      <span className={`relay-conv-preview ${typingBy?.[friend.id] ? 'is-typing' : ''}`}>
-                        {fromSelf && !typingBy?.[friend.id] && <span className="relay-conv-you">You: </span>}
-                        {preview}
-                      </span>
-                    </span>
-                    {friend.unreadCount > 0 && <span className="relay-unread">{friend.unreadCount > 99 ? '99+' : friend.unreadCount}</span>}
-                    {!friend.unreadCount && thread?.messages?.length > 0 && <span className="relay-loaded-dot" title="Conversation loaded" />}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          </div>
         </div>
 
-        <footer className="relay-rail-foot">
-          <RelayAvatar name={account?.name} size={32} status="online" showStatus />
-          <div className="relay-self">
-            <strong>{account?.name}</strong>
-            <span>{onlineCount} of {friends.length} online</span>
-          </div>
-          <button type="button" className="relay-icon-btn" onClick={() => setView('requests')} title="Add friend">
-            <UserPlus size={16} />
-          </button>
-        </footer>
-      </aside>
-
-      {/* Main surface */}
-      <main className="relay-main">
-        {socialError && (
-          <div className="relay-banner">
-            <AlertCircle size={14} /> {socialError}
-            <button type="button" onClick={reconnect}>Retry</button>
-          </div>
-        )}
-
-        {view === 'requests' && (
-          <section className="relay-panel relay-panel--enter">
-            <header className="relay-panel-head">
-              <h2>Friend requests</h2>
-              <p>Add players by their Noctra username.</p>
-            </header>
-
-            <div className="relay-add">
-              <input
-                value={addQuery}
-                maxLength={16}
-                placeholder="Username"
-                onChange={(event) => { setAddQuery(event.target.value); searchPlayers(event.target.value); }}
-                onKeyDown={(event) => { if (event.key === 'Enter') handleAddFriend(); }}
-              />
-              <button type="button" className="relay-primary" onClick={() => handleAddFriend()}>
-                {searchLoading ? <Loader2 size={15} className="relay-spin" /> : <UserPlus size={15} />}
-                Send request
+        <div className="relay-inbox-scroll">
+          {allThreads.length === 0 ? (
+            <div className="relay-empty-inbox">
+              <div className="relay-empty-icon">
+                <MessageSquare size={22} />
+              </div>
+              <div className="relay-empty-title">No conversations yet</div>
+              <div className="relay-empty-desc">
+                Add friends using their Minecraft username or create a group to start chatting.
+              </div>
+              <button type="button" className="relay-empty-btn" onClick={() => setShowNewGroupModal(true)}>
+                <Users size={13} />
+                <span>Create Group</span>
               </button>
             </div>
+          ) : (
+            <>
+              {pinnedList.length > 0 && (
+                <section className="relay-section">
+                  <button
+                    type="button"
+                    className="relay-section-header"
+                    onClick={() => setCollapsed((p) => ({ ...p, pinned: !p.pinned }))}
+                  >
+                    {collapsed.pinned ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                    <span>PINNED</span>
+                    <i className="relay-section-line" />
+                  </button>
+                  {!collapsed.pinned && (
+                    <div className="relay-threads-list">
+                      {pinnedList.map((thread) => (
+                        <ThreadItem
+                          key={thread.id}
+                          thread={thread}
+                          active={thread.id === activeEntity?.id}
+                          presence={getPresence(thread)}
+                          isGroup={thread.kind === 'group'}
+                          onClick={() => handleSelectThread(thread)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
 
-            {searchResults.length > 0 && (
-              <ul className="relay-cards">
-                {searchResults.map((player) => (
-                  <li key={player.id} className="relay-card">
-                    <RelayAvatar name={player.name} skinUrl={player.skinUrl} size={38} />
-                    <div className="relay-card-text"><strong>{player.name}</strong><span>Noctra player</span></div>
-                    <button type="button" className="relay-primary relay-primary--sm" onClick={() => handleAddFriend(player.name)}>Add</button>
-                  </li>
-                ))}
-              </ul>
-            )}
+              {groups.length > 0 && (
+                <section className="relay-section">
+                  <button
+                    type="button"
+                    className="relay-section-header"
+                    onClick={() => setCollapsed((p) => ({ ...p, groups: !p.groups }))}
+                  >
+                    {collapsed.groups ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                    <span>GROUPS</span>
+                    <i className="relay-section-line" />
+                  </button>
+                  {!collapsed.groups && (
+                    <div className="relay-threads-list">
+                      {groupList.length === 0 ? (
+                        <div className="relay-section-empty">No matching groups</div>
+                      ) : (
+                        groupList.map((thread) => (
+                          <ThreadItem
+                            key={thread.id}
+                            thread={thread}
+                            active={thread.id === activeEntity?.id}
+                            presence={getPresence(thread)}
+                            isGroup
+                            onClick={() => handleSelectThread(thread)}
+                          />
+                        ))
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
 
-            <h3 className="relay-subhead">Incoming <span>{requests.received?.length || 0}</span></h3>
-            {(requests.received || []).length === 0 && <p className="relay-empty-note">Nothing waiting for you.</p>}
-            <ul className="relay-cards">
-              {(requests.received || []).map((item) => (
-                <li key={item.id} className="relay-card">
-                  <RelayAvatar name={item.name} skinUrl={item.skinUrl} size={38} />
-                  <div className="relay-card-text"><strong>{item.name}</strong><span>Sent {formatRelative(item.createdAt)} ago</span></div>
-                  <button type="button" className="relay-primary relay-primary--sm" onClick={() => respondRequest(item.id, 'accept')}>Accept</button>
-                  <button type="button" className="relay-ghost relay-ghost--sm" onClick={() => respondRequest(item.id, 'decline')}>Decline</button>
-                </li>
-              ))}
-            </ul>
+              <section className="relay-section">
+                <button
+                  type="button"
+                  className="relay-section-header"
+                  onClick={() => setCollapsed((p) => ({ ...p, direct: !p.direct }))}
+                >
+                  {collapsed.direct ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                  <span>DIRECT MESSAGES</span>
+                  <i className="relay-section-line" />
+                </button>
+                {!collapsed.direct && (
+                  <div className="relay-threads-list">
+                    {directList.length === 0 ? (
+                      <div className="relay-section-empty">No direct messages</div>
+                    ) : (
+                      directList.map((thread) => (
+                        <ThreadItem
+                          key={thread.id}
+                          thread={thread}
+                          active={thread.id === activeEntity?.id}
+                          presence={getPresence(thread)}
+                          onClick={() => handleSelectThread(thread)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+      </aside>
 
-            <h3 className="relay-subhead">Sent <span>{requests.sent?.length || 0}</span></h3>
-            {(requests.sent || []).length === 0 && <p className="relay-empty-note">No outgoing requests.</p>}
-            <ul className="relay-cards">
-              {(requests.sent || []).map((item) => (
-                <li key={item.id} className="relay-card">
-                  <RelayAvatar name={item.name} skinUrl={item.skinUrl} size={38} />
-                  <div className="relay-card-text"><strong>{item.name}</strong><span><Clock size={11} /> Pending</span></div>
-                  <button type="button" className="relay-ghost relay-ghost--sm" onClick={() => respondRequest(item.id, 'cancel')}>Cancel</button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+      {/* ----------------- MAIN CONVERSATION PANEL ----------------- */}
+      <main className="relay-chat-main">
+        {activeEntity ? (
+          <>
+            <header className="relay-chat-header">
+              <div className="relay-peer-info">
+                <div className="relay-peer-avatar-wrapper">
+                  {isGroupThread ? (
+                    <div className="relay-peer-group-avatar">
+                      <CompositeGroupAvatar members={activeEntity.members} />
+                    </div>
+                  ) : (
+                    <RelayAvatar
+                      name={activeEntity?.name}
+                      skinUrl={activeEntity?.skinUrl}
+                      size={38}
+                      className="relay-peer-avatar"
+                    />
+                  )}
+                  <span
+                    className={`relay-peer-presence-dot ${activePresence.status}`}
+                    style={{ backgroundColor: activePresence.color }}
+                  />
+                </div>
 
-        {view === 'blocked' && (
-          <section className="relay-panel relay-panel--enter">
-            <header className="relay-panel-head">
-              <h2>Blocked players</h2>
-              <p>Blocked players cannot message you or send requests.</p>
-            </header>
-            {(blocked || []).length === 0 && <p className="relay-empty-note">You have not blocked anyone.</p>}
-            <ul className="relay-cards">
-              {(blocked || []).map((item) => (
-                <li key={item.id} className="relay-card">
-                  <RelayAvatar name={item.name} skinUrl={item.skinUrl} size={38} />
-                  <div className="relay-card-text"><strong>{item.name}</strong><span>Blocked {formatRelative(item.blockedAt)} ago</span></div>
-                  <button type="button" className="relay-primary relay-primary--sm" onClick={() => unblock(item.id)}>Unblock</button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {view === 'chats' && !activeChatFriend && (
-          <section className="relay-panel relay-panel--center relay-panel--enter">
-            <div className="relay-gate-icon"><Hash size={28} /></div>
-            <h2>Pick a conversation</h2>
-            <p>Every thread is already loaded, so switching is instant.</p>
-          </section>
-        )}
-
-        {view === 'chats' && activeChatFriend && (
-          <section className="relay-chat" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
-            <header className="relay-chat-head">
-              <RelayAvatar
-                name={activeChatFriend.name}
-                skinUrl={activeChatFriend.skinUrl}
-                size={36}
-                status={statusKind(activeChatFriend)}
-                showStatus
-              />
-              <div className="relay-chat-id">
-                <strong>
-                  {activeChatFriend.nickname || activeChatFriend.name}
-                  {activeChatFriend.isVerified && <span className="relay-verified" title="Verified Noctra account">\u2713</span>}
-                </strong>
-                <span className={`relay-chat-status is-${statusKind(activeChatFriend)}`}>{statusLabel(activeChatFriend)}</span>
+                <div className="relay-peer-meta">
+                  <div className="relay-peer-name-row">
+                    <span className="relay-peer-name">{activeEntity?.nickname || activeEntity?.name || 'Chat'}</span>
+                    {activePresence.isVerified && (
+                      <BadgeCheck size={13} className="relay-verified-icon" title="Verified Noctra account" />
+                    )}
+                  </div>
+                  <div className="relay-peer-status-row">
+                    <span className={`relay-peer-status-text ${activePresence.status}`}>{activePresence.text}</span>
+                    {activeEntity?.serverAddress && !isGroupThread && (
+                      <button
+                        type="button"
+                        className="relay-join-inline"
+                        onClick={() => onJoinServer?.(activeEntity)}
+                        title={`Join ${activeEntity.serverAddress}`}
+                      >
+                        Join
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="relay-chat-actions">
-                {activeChatFriend.serverAddress && (
-                  <button type="button" className="relay-ghost relay-ghost--sm" onClick={() => onJoinServer?.(activeChatFriend.serverAddress)}>
-                    <Gamepad2 size={14} /> Join
+
+              <div className="relay-convo-search-bar">
+                <Search size={14} className="relay-search-icon" aria-hidden="true" />
+                <input
+                  type="text"
+                  value={messageQuery}
+                  onChange={(e) => setMessageQuery(e.target.value)}
+                  placeholder="Search in conversation..."
+                  className="relay-convo-search-input"
+                />
+                {messageQuery && (
+                  <button type="button" className="relay-search-clear" onClick={() => setMessageQuery('')} title="Clear filter">
+                    <X size={13} />
                   </button>
                 )}
-                <button type="button" className="relay-icon-btn" onClick={() => togglePin(activeChatFriend.id)} title="Pin conversation">
+              </div>
+
+              <div className="relay-header-actions">
+                <button
+                  type="button"
+                  className={`relay-action-btn ${pinnedIds.includes(activeEntity?.id) ? 'is-active' : ''}`}
+                  onClick={() => activeEntity && handleTogglePin(activeEntity.id)}
+                  title={pinnedIds.includes(activeEntity?.id) ? 'Unpin conversation' : 'Pin conversation'}
+                >
                   <Pin size={16} />
                 </button>
                 <button
                   type="button"
-                  className="relay-icon-btn"
-                  onClick={() => updateFriend(activeChatFriend.id, { isBestFriend: !activeChatFriend.isBestFriend })}
-                  title="Best friend"
+                  className="relay-action-btn"
+                  onClick={() => {
+                    if (isGroupThread) {
+                      onNotify?.('Group members', activeEntity.members?.join(', ') || 'No members listed');
+                    } else {
+                      onNotify?.('Conversation details', `${activeEntity.name} - ${activePresence.text}`);
+                    }
+                  }}
+                  title="Group & Chat Info"
                 >
-                  <Star size={16} className={activeChatFriend.isBestFriend ? 'is-on' : ''} />
-                </button>
-                <button type="button" className="relay-icon-btn" onClick={() => setShowProfile((value) => !value)} title="Profile">
                   <Users size={16} />
                 </button>
                 <button
                   type="button"
-                  className="relay-icon-btn"
-                  onClick={(event) => openContextMenu(event, activeChatFriend)}
-                  title="More"
+                  className="relay-action-btn"
+                  onClick={() => {
+                    const mediaMsgs = currentMessages.filter((m) => m.mediaUrl && m.isMedia);
+                    if (mediaMsgs.length > 0) {
+                      setPreviewMediaModal(mediaMsgs[mediaMsgs.length - 1].mediaUrl);
+                    } else {
+                      onNotify?.('No media', 'No shared media files in this conversation yet.');
+                    }
+                  }}
+                  title="Shared Media"
                 >
-                  <MoreVertical size={16} />
+                  <ImageIcon size={16} />
                 </button>
+
+                <div className="relay-menu-wrapper">
+                  <button
+                    type="button"
+                    className={`relay-action-btn ${showMenuDropdown ? 'is-active' : ''}`}
+                    onClick={() => setShowMenuDropdown((v) => !v)}
+                    title="More actions"
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+
+                  {showMenuDropdown && (
+                    <div className="relay-dropdown-menu">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (activeEntity?.id) handleTogglePin(activeEntity.id);
+                          setShowMenuDropdown(false);
+                        }}
+                      >
+                        <Pin size={13} />
+                        <span>{pinnedIds.includes(activeEntity?.id) ? 'Unpin conversation' : 'Pin conversation'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (activeEntity?.name) {
+                            navigator.clipboard?.writeText(activeEntity.name);
+                            onNotify?.('Copied', `Copied username ${activeEntity.name}`);
+                          }
+                          setShowMenuDropdown(false);
+                        }}
+                      >
+                        <Users size={13} />
+                        <span>Copy Username</span>
+                      </button>
+                      {!isGroupThread && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            social?.setNicknameModalFriend?.(activeEntity);
+                            setShowMenuDropdown(false);
+                          }}
+                        >
+                          <FileText size={13} />
+                          <span>Set nickname</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (activeEntity?.id) {
+                            setLocalConversations((prev) => ({ ...prev, [activeEntity.id]: [] }));
+                            onNotify?.('Chat cleared', 'Local drafts and uploads cleared for this chat.');
+                          }
+                          setShowMenuDropdown(false);
+                        }}
+                      >
+                        <X size={13} />
+                        <span>Clear local history</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </header>
 
-            <div className="relay-stream-wrap">
-              <div className="relay-messages" ref={scrollRef} onScroll={handleScroll}>
-                {hasMoreMessages && (
-                  <div className="relay-load-older">
-                    <button type="button" onClick={() => loadOlder(activeChatId)} disabled={loadingMessages}>
-                      {loadingMessages ? <Loader2 size={13} className="relay-spin" /> : null}
-                      Load earlier messages
-                    </button>
-                  </div>
-                )}
+            <div ref={messageStreamRef} className="relay-message-stream" onScroll={handleStreamScroll}>
+              {activeThreadState?.loading && <div className="relay-stream-loader">Loading earlier messages...</div>}
 
-                {!hasMoreMessages && (
-                  <div className="relay-thread-start">
-                    <RelayAvatar name={activeChatFriend.name} skinUrl={activeChatFriend.skinUrl} size={64} />
-                    <h3>{activeChatFriend.nickname || activeChatFriend.name}</h3>
-                    <p>This is the beginning of your conversation.</p>
+              {renderedItems.length === 0 ? (
+                <div className="relay-empty-stream">
+                  <div className="relay-empty-stream-avatar">
+                    <RelayAvatar name={activeEntity?.name} skinUrl={activeEntity?.skinUrl} size={52} />
                   </div>
-                )}
-
-                {rows.map((row) => {
-                  if (row.kind === 'divider') {
+                  <h3 className="relay-empty-stream-name">{activeEntity?.nickname || activeEntity?.name}</h3>
+                  <p className="relay-empty-stream-text">
+                    This is the beginning of your conversation history.
+                  </p>
+                </div>
+              ) : (
+                renderedItems.map((msg, index) => {
+                  if (msg.isDivider) {
                     return (
-                      <div key={row.id} className="relay-divider"><span>{row.label}</span></div>
+                      <div key={msg.id} className="relay-date-divider">
+                        <span className="relay-date-pill">{msg.date}</span>
+                      </div>
                     );
                   }
 
-                  const { message, grouped } = row;
-                  const mine = message.senderId === selfId;
-                  const chips = groupReactions(message.reactions, selfId);
+                  const isMine = msg.senderId === 'me' || msg.isMine;
+                  const isPickerOpen = activeReactionPickerMsgId === msg.id;
+                  const reactionGroups = Array.isArray(msg.reactions)
+                    ? msg.reactions.reduce((acc, r) => {
+                      acc[r.reaction] = (acc[r.reaction] || 0) + 1;
+                      return acc;
+                    }, {})
+                    : {};
 
                   return (
-                    <article
-                      key={row.id}
-                      className={`relay-msg ${mine ? 'is-mine' : 'is-theirs'} ${grouped ? 'is-grouped' : ''} ${message.pending ? 'is-pending' : ''} ${message.failed ? 'is-failed' : ''}`}
-                      onMouseLeave={() => setReactionFor((current) => (current === message.id ? null : current))}
+                    <div
+                      key={msg.id || index}
+                      className={`relay-message-row ${isMine ? 'is-outgoing' : 'is-incoming'} ${msg.pending ? 'is-pending' : ''} ${msg.failed || msg.uploadFailed ? 'is-failed' : ''}`}
                     >
-                      <div className="relay-msg-gutter">
-                        {!grouped && (
-                          <RelayAvatar
-                            name={mine ? account?.name : activeChatFriend.name}
-                            skinUrl={mine ? null : activeChatFriend.skinUrl}
-                            size={34}
-                          />
-                        )}
-                      </div>
+                      {!isMine && isGroupThread && (
+                        <RelayAvatar name={msg.senderName || msg.senderId} size={26} className="relay-msg-author-avatar" />
+                      )}
 
-                      <div className="relay-msg-body">
-                        {!grouped && (
-                          <div className="relay-msg-meta">
-                            <strong>{mine ? (account?.name || 'You') : (activeChatFriend.nickname || activeChatFriend.name)}</strong>
-                            <time>{formatClock(message.createdAt)}</time>
-                          </div>
+                      <div className="relay-message-content-col">
+                        {!isMine && isGroupThread && (
+                          <span className="relay-msg-author-name">{msg.senderName || msg.senderId}</span>
                         )}
 
-                        <div className="relay-bubble">
-                          {message.content && <p className="relay-text">{message.content}</p>}
-
-                          {message.isMedia && message.mediaUrl && (
-                            (message.mediaKind === 'audio')
-                              ? <audio className="relay-audio" controls src={message.mediaUrl} />
-                              : (/\.(png|jpe?g|gif|webp)$/i.test(message.mediaUrl) || message.mediaKind === 'image')
-                                ? (
-                                  <a className="relay-media" href={message.mediaUrl} target="_blank" rel="noreferrer">
-                                    <img src={message.mediaUrl} alt={message.mediaName || 'Attachment'} loading="lazy" />
-                                  </a>
-                                )
-                                : (
-                                  <a className="relay-file" href={message.mediaUrl} target="_blank" rel="noreferrer">
-                                    <Paperclip size={14} /> {message.mediaName || 'Attachment'}
-                                  </a>
-                                )
-                          )}
-
-                          <span className="relay-msg-foot">
-                            <time className="relay-inline-time">{formatClock(message.createdAt)}</time>
-                            {mine && (
-                              message.pending
-                                ? <Loader2 size={12} className="relay-spin" />
-                                : message.isRead
-                                  ? <CheckCheck size={13} className="relay-read" />
-                                  : <Check size={13} />
-                            )}
-                          </span>
-                        </div>
-
-                        {chips.length > 0 && (
-                          <div className="relay-reactions">
-                            {chips.map((chip) => (
-                              <button
-                                key={chip.emoji}
-                                type="button"
-                                className={`relay-reaction ${chip.mine ? 'is-mine' : ''}`}
-                                onClick={() => setMessageReaction(message.id, chip.emoji)}
-                              >
-                                <span>{chip.emoji}</span>{chip.count}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {message.failed && <span className="relay-failed-note">Not delivered</span>}
-                      </div>
-
-                      <div className="relay-msg-tools">
                         <button
                           type="button"
-                          className="relay-icon-btn relay-icon-btn--tiny"
-                          onClick={() => setReactionFor((current) => (current === message.id ? null : message.id))}
+                          className="relay-msg-react-trigger"
+                          onClick={() => setActiveReactionPickerMsgId(isPickerOpen ? null : msg.id)}
                           title="Add reaction"
                         >
-                          <Smile size={14} />
+                          <Smile size={13} />
                         </button>
-                        {reactionFor === message.id && (
-                          <div className="relay-reaction-palette">
-                            {REACTION_PALETTE.map((emoji) => (
+
+                        {isPickerOpen && (
+                          <div className="relay-msg-reaction-picker">
+                            {REACTION_PALETTE.map((em) => (
                               <button
-                                key={emoji}
+                                key={em}
                                 type="button"
-                                onClick={() => { setMessageReaction(message.id, emoji); setReactionFor(null); }}
+                                className="relay-msg-reaction-btn"
+                                onClick={() => handleToggleReaction(msg.id, em)}
                               >
-                                {emoji}
+                                {em}
                               </button>
                             ))}
                           </div>
                         )}
+
+                        {msg.content && !msg.isVoice && (
+                          <div className="relay-message-bubble">
+                            <p className="relay-message-text">{msg.content}</p>
+                          </div>
+                        )}
+
+                        {msg.isMedia && msg.mediaUrl && (
+                          <div className={`relay-media-card ${msg.isUploading ? 'is-uploading' : ''}`}>
+                            <div
+                              className="relay-media-card-img-wrap"
+                              onClick={() => !msg.isUploading && setPreviewMediaModal(msg.mediaUrl)}
+                            >
+                              <img
+                                src={msg.mediaUrl}
+                                alt={msg.mediaName || 'Attachment'}
+                                className={`relay-media-img ${msg.isUploading ? 'blur-preview' : ''}`}
+                              />
+
+                              {msg.isUploading ? (
+                                <div className="relay-upload-fill-overlay">
+                                  <div className="relay-upload-spinner-ring">
+                                    <div className="relay-upload-spinner-inner" />
+                                  </div>
+                                  <span className="relay-upload-status-text">Uploading high-res image...</span>
+                                </div>
+                              ) : (
+                                <div className="relay-media-overlay">
+                                  <button
+                                    type="button"
+                                    className="relay-media-overlay-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPreviewMediaModal(msg.mediaUrl);
+                                    }}
+                                    title="Zoom full screen"
+                                  >
+                                    <Maximize2 size={13} />
+                                  </button>
+                                  <a
+                                    href={msg.mediaUrl}
+                                    download={msg.mediaName || 'image.png'}
+                                    className="relay-media-overlay-btn"
+                                    onClick={(e) => e.stopPropagation()}
+                                    title="Download original image"
+                                  >
+                                    <Download size={13} />
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                            <div className="relay-media-meta-row">
+                              <span className="relay-media-meta-filename">
+                                {msg.time} {msg.mediaName || 'Image'}
+                              </span>
+                              {msg.uploadFailed && <span className="relay-media-failed">Upload failed</span>}
+                            </div>
+                          </div>
+                        )}
+
+                        {!msg.isMedia && !msg.isVoice && msg.mediaUrl && (
+                          <a className="relay-file-card" href={msg.mediaUrl} download={msg.mediaName || 'attachment'}>
+                            <FileText size={16} />
+                            <span className="relay-file-name">{msg.mediaName || 'Attachment'}</span>
+                            <Download size={13} />
+                          </a>
+                        )}
+
+                        {msg.isVoice && msg.mediaUrl && (
+                          <div className="relay-voice-card">
+                            <audio className="relay-voice-audio" controls src={msg.mediaUrl} preload="none" />
+                            <span className="relay-voice-duration">{msg.duration || ''}</span>
+                          </div>
+                        )}
+
+                        {Object.keys(reactionGroups).length > 0 && (
+                          <div className="relay-msg-reactions-row">
+                            {Object.entries(reactionGroups).map(([emoji, count]) => {
+                              const mine = msg.reactions.some(
+                                (r) => r.reaction === emoji && (r.userId === selfId || r.userId === 'me')
+                              );
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  className={`relay-msg-reaction-badge ${mine ? 'is-mine' : ''}`}
+                                  onClick={() => handleToggleReaction(msg.id, emoji)}
+                                  title="Click to toggle reaction"
+                                >
+                                  <span>{emoji}</span>
+                                  <span>{count}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="relay-msg-meta-row">
+                          <span className="relay-msg-time">{msg.time}</span>
+                          {isMine && !msg.pending && !msg.failed && (
+                            msg.isRead ? (
+                              <CheckCheck size={13} className="relay-read-receipt is-read" title="Read" />
+                            ) : (
+                              <Check size={13} className="relay-read-receipt" title="Delivered" />
+                            )
+                          )}
+                          {isMine && msg.pending && <span className="relay-msg-state">Sending...</span>}
+                          {isMine && msg.failed && <span className="relay-msg-state is-failed">Failed</span>}
+                        </div>
                       </div>
-                    </article>
+                    </div>
                   );
-                })}
+                })
+              )}
 
-                {isTyping && (
-                  <div className="relay-typing">
-                    <RelayAvatar name={activeChatFriend.name} skinUrl={activeChatFriend.skinUrl} size={26} />
-                    <span className="relay-typing-dots"><i /><i /><i /></span>
-                    <span>{activeChatFriend.nickname || activeChatFriend.name} is typing</span>
-                  </div>
-                )}
-
-                <div ref={bottomRef} />
-              </div>
-
-              {!atBottom && (
-                <button type="button" className="relay-jump" onClick={() => scrollToBottom('smooth')}>
-                  <ArrowDown size={14} /> Jump to latest
-                </button>
+              {isTypingHere && (
+                <div className="relay-typing-indicator">
+                  <span className="relay-typing-dots">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span>{activeEntity.nickname || activeEntity.name} is typing</span>
+                </div>
               )}
             </div>
 
-            <footer className="relay-composer">
-              {picker === 'emoji' && (
-                <div className="relay-popover relay-popover--emoji">
-                  {EMOJI_PICKER.map((emoji) => (
-                    <button key={emoji} type="button" onClick={() => rememberDraft(`${draft}${emoji}`)}>{emoji}</button>
-                  ))}
+            {/* ----------------- BOTTOM COMPOSER ----------------- */}
+            <form className="relay-composer-form" onSubmit={handleSendMessage}>
+              {stagedFile && (
+                <div className="relay-staged-preview">
+                  <div className="relay-staged-thumbnail">
+                    {stagedFile.isImage ? (
+                      <img src={stagedFile.dataUrl} alt="preview" />
+                    ) : (
+                      <FileText size={18} className="relay-staged-file-icon" />
+                    )}
+                  </div>
+                  <div className="relay-staged-details">
+                    <span className="relay-staged-name">{stagedFile.name}</span>
+                    <span className="relay-staged-size">{stagedFile.size}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="relay-staged-remove"
+                    onClick={() => setStagedFile(null)}
+                    title="Remove attachment"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               )}
 
-              <div className="relay-composer-box">
-                <button
-                  type="button"
-                  className="relay-icon-btn"
-                  onClick={() => fileRef.current?.click()}
-                  title="Attach a file"
-                  disabled={uploading}
-                >
-                  {uploading ? <Loader2 size={17} className="relay-spin" /> : <Paperclip size={17} />}
-                </button>
+              {showGifPicker && (
+                <div className="relay-quick-popover relay-gif-popover">
+                  <div className="relay-popover-header">
+                    <span>Reaction GIFs</span>
+                    <button type="button" onClick={() => setShowGifPicker(false)}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <div className="relay-gif-grid">
+                    {QUICK_GIFS.map((g) => (
+                      <button key={g.label} type="button" className="relay-gif-item" onClick={() => handleSendGif(g)} title={g.label}>
+                        <img src={g.url} alt={g.label} loading="lazy" />
+                        <span>{g.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {showEmojiPicker && (
+                <div className="relay-quick-popover relay-emoji-popover">
+                  <div className="relay-popover-header">
+                    <span>Emojis & Emotes</span>
+                    <button type="button" onClick={() => setShowEmojiPicker(false)}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <div className="relay-emoji-grid">
+                    {EMOJIS.map((em) => (
+                      <button
+                        key={em}
+                        type="button"
+                        className="relay-emoji-item"
+                        onClick={() => setComposerText((prev) => (prev + em).slice(0, MESSAGE_MAX))}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <input ref={fileInputRef} type="file" accept="image/*,.txt,.log,.zip" hidden onChange={handleFileChange} />
+
+              <div className="relay-composer-container">
                 <input
-                  ref={fileRef}
-                  type="file"
-                  hidden
-                  onChange={(event) => handleFiles(event.target.files)}
-                  accept="image/*,audio/*,.txt,.log,.zip,.json"
-                />
-
-                <textarea
-                  ref={composerRef}
-                  rows={1}
-                  value={draft}
+                  type="text"
+                  value={composerText}
+                  onChange={handleComposerChange}
+                  onBlur={() => !isGroupThread && activeEntity?.id && social?.stopTyping?.(activeEntity.id)}
+                  placeholder={
+                    activeEntity
+                      ? `Type Message to ${activeEntity.nickname || activeEntity.name}...`
+                      : 'Type Message...'
+                  }
+                  className="relay-composer-input"
                   maxLength={MESSAGE_MAX}
-                  onChange={handleDraftChange}
-                  onKeyDown={handleKeyDown}
-                  onBlur={() => stopTyping(activeChatId)}
-                  placeholder={`Message ${activeChatFriend.nickname || activeChatFriend.name}`}
                 />
 
-                <button
-                  type="button"
-                  className="relay-icon-btn"
-                  onClick={() => setPicker((current) => (current === 'emoji' ? null : 'emoji'))}
-                  title="Emoji"
-                >
-                  <Smile size={17} />
-                </button>
-                <button
-                  type="button"
-                  className="relay-send"
-                  onClick={handleSend}
-                  disabled={!draft.trim()}
-                  title="Send"
-                >
-                  <SendHorizontal size={16} />
-                </button>
-              </div>
+                {composerText.length > MESSAGE_MAX - 200 && (
+                  <span className="relay-composer-counter">{MESSAGE_MAX - composerText.length}</span>
+                )}
 
-              <div className="relay-composer-foot">
-                <span><b>Enter</b> to send · <b>Shift+Enter</b> for a new line</span>
-                <span className={draft.length > MESSAGE_MAX - 100 ? 'is-warn' : ''}>{draft.length}/{MESSAGE_MAX}</span>
+                <div className="relay-composer-actions">
+                  <button
+                    type="button"
+                    className={`relay-composer-btn ${showGifPicker ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setShowGifPicker((v) => !v);
+                      setShowEmojiPicker(false);
+                    }}
+                    title="Reaction GIFs"
+                  >
+                    <span className="relay-gif-label">GIF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`relay-composer-btn ${showEmojiPicker ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setShowEmojiPicker((v) => !v);
+                      setShowGifPicker(false);
+                    }}
+                    title="Add Emoji"
+                  >
+                    <Smile size={17} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`relay-composer-btn ${recordingVoice ? 'is-recording' : ''}`}
+                    onClick={handleVoiceNote}
+                    disabled={recordingVoice}
+                    title={recordingVoice ? 'Recording voice note...' : 'Send Voice Memo'}
+                  >
+                    <Mic size={17} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="relay-composer-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach full resolution file or image"
+                  >
+                    <Paperclip size={17} />
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="relay-send-btn"
+                    disabled={(!composerText.trim() && !stagedFile) || sending}
+                    title="Send Message"
+                  >
+                    <Send size={15} />
+                  </button>
+                </div>
               </div>
-            </footer>
-          </section>
+            </form>
+          </>
+        ) : (
+          <div className="relay-empty-chat">
+            <div className="relay-empty-icon">
+              <MessageSquare size={28} />
+            </div>
+            <h3 className="relay-empty-title">No conversation selected</h3>
+            <p className="relay-empty-desc">
+              Choose a friend from the left panel or create a new group to start messaging.
+            </p>
+          </div>
         )}
       </main>
 
-      {/* Profile panel */}
-      {view === 'chats' && activeChatFriend && showProfile && (
-        <aside className="relay-profile">
-          <div className="relay-profile-banner" />
-          <RelayAvatar
-            name={activeChatFriend.name}
-            skinUrl={activeChatFriend.skinUrl}
-            size={78}
-            className="relay-profile-avatar"
-            status={statusKind(activeChatFriend)}
-            showStatus
-          />
-          <h2>{activeChatFriend.nickname || activeChatFriend.name}</h2>
-          {activeChatFriend.nickname && <p className="relay-profile-real">{activeChatFriend.name}</p>}
-          <p className={`relay-profile-status is-${statusKind(activeChatFriend)}`}>{statusLabel(activeChatFriend)}</p>
-
-          <dl className="relay-profile-facts">
-            <div><dt>Friends since</dt><dd>{activeChatFriend.friendsSince ? new Date(activeChatFriend.friendsSince).toLocaleDateString() : '—'}</dd></div>
-            <div><dt>Messages loaded</dt><dd>{activeThread?.messages?.length || 0}</dd></div>
-            <div><dt>Account</dt><dd>{activeChatFriend.isVerified ? 'Verified Noctra' : 'Unverified'}</dd></div>
-          </dl>
-
-          <div className="relay-profile-actions">
-            {activeChatFriend.serverAddress && (
-              <button type="button" className="relay-primary" onClick={() => onJoinServer?.(activeChatFriend.serverAddress)}>
-                <Gamepad2 size={15} /> Join their server
+      {/* ----------------- MODALS ----------------- */}
+      {showNewGroupModal && (
+        <div className="relay-modal-backdrop" onClick={() => setShowNewGroupModal(false)}>
+          <div className="relay-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="relay-modal-header">
+              <h3>Create New Group</h3>
+              <button type="button" onClick={() => setShowNewGroupModal(false)}>
+                <X size={15} />
               </button>
-            )}
-            <button type="button" className="relay-ghost" onClick={() => setNicknameModalFriend(activeChatFriend)}>Set nickname</button>
-            <button type="button" className="relay-ghost" onClick={() => updateFriend(activeChatFriend.id, { isBestFriend: !activeChatFriend.isBestFriend })}>
-              {activeChatFriend.isBestFriend ? 'Remove best friend' : 'Mark best friend'}
-            </button>
-            <button type="button" className="relay-ghost relay-ghost--danger" onClick={() => unfriend(activeChatFriend.id)}>Remove friend</button>
-            <button type="button" className="relay-ghost relay-ghost--danger" onClick={() => block(activeChatFriend.id)}>Block</button>
+            </div>
+            <form onSubmit={handleCreateGroup} className="relay-modal-body">
+              <label className="relay-modal-label">
+                Group Name
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="e.g. Bedwars Squad"
+                  className="relay-modal-input"
+                  maxLength={32}
+                  required
+                />
+              </label>
+
+              <div className="relay-modal-label">
+                Select Members
+                <div className="relay-members-checklist">
+                  {mergedFriends.length === 0 ? (
+                    <div className="relay-modal-empty-members">No friends available to add yet.</div>
+                  ) : (
+                    mergedFriends.map((f) => {
+                      const isChecked = selectedGroupMembers.includes(f.name);
+                      return (
+                        <label key={f.id} className="relay-member-check-row">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedGroupMembers((prev) =>
+                                isChecked ? prev.filter((m) => m !== f.name) : [...prev, f.name]
+                              );
+                            }}
+                          />
+                          <RelayAvatar name={f.name} skinUrl={f.skinUrl} size={24} />
+                          <span className="relay-check-name">{f.nickname || f.name}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="relay-modal-footer">
+                <button type="button" className="relay-modal-cancel" onClick={() => setShowNewGroupModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="relay-modal-submit">
+                  Create Group
+                </button>
+              </div>
+            </form>
           </div>
-        </aside>
+        </div>
+      )}
+
+      {previewMediaModal && (
+        <div className="relay-lightbox-backdrop" onClick={() => setPreviewMediaModal(null)}>
+          <div className="relay-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="relay-lightbox-close"
+              onClick={() => setPreviewMediaModal(null)}
+              title="Close (Esc)"
+            >
+              <X size={18} />
+            </button>
+            <img src={previewMediaModal} alt="Preview" className="relay-lightbox-img" />
+            <div className="relay-lightbox-toolbar">
+              <a
+                href={previewMediaModal}
+                download="screenshot.png"
+                className="relay-lightbox-btn"
+                title="Download original image"
+              >
+                <Download size={15} />
+                <span>Download High-Res</span>
+              </a>
+            </div>
+          </div>
+        </div>
       )}
     </div>
+  );
+}
+
+// Subcomponent: 2x2 Composite Avatar for Groups
+function CompositeGroupAvatar({ members = [] }) {
+  const displayMembers = members.slice(0, 4);
+  return (
+    <div className="relay-composite-avatar">
+      {displayMembers.map((m, i) => (
+        <RelayAvatar key={`${m}-${i}`} name={m} size={15} className="relay-mini-head" />
+      ))}
+      {displayMembers.length < 4 && <span className="relay-mini-placeholder" />}
+    </div>
+  );
+}
+
+// Subcomponent: Individual Thread Item in Inbox
+function ThreadItem({ thread, active, presence, isGroup = false, onClick }) {
+  return (
+    <button type="button" className={`relay-thread-item ${active ? 'is-active' : ''}`} onClick={onClick}>
+      <div className="relay-thread-avatar-wrapper">
+        {isGroup ? (
+          <div className="relay-thread-group-avatar">
+            <CompositeGroupAvatar members={thread.members} />
+          </div>
+        ) : (
+          <RelayAvatar name={thread.name} skinUrl={thread.skinUrl} size={34} className="relay-thread-avatar" />
+        )}
+        <span className={`relay-thread-dot ${presence.status}`} style={{ backgroundColor: presence.color }} />
+        {thread.unread > 0 && (
+          <span className="relay-unread-badge">{thread.unread > 9 ? '9+' : thread.unread}</span>
+        )}
+      </div>
+
+      <div className="relay-thread-info">
+        <div className="relay-thread-top-row">
+          <span className="relay-thread-name">{thread.nickname || thread.name}</span>
+          <span className="relay-thread-time">{thread.lastTime || ''}</span>
+        </div>
+        <div className="relay-thread-bottom-row">
+          {thread.isTyping ? (
+            <span className="relay-thread-snippet is-typing">typing...</span>
+          ) : (
+            <>
+              {thread.isAttachment && <Paperclip size={11} className="relay-snippet-icon" />}
+              <span className="relay-thread-snippet">{thread.lastMessage || 'No messages'}</span>
+              {thread.isMine && <CheckCheck size={11} className="relay-snippet-checks" />}
+            </>
+          )}
+        </div>
+      </div>
+    </button>
   );
 }
