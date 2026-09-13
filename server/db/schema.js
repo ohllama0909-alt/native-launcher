@@ -67,12 +67,23 @@ function initSchema(db) {
       content TEXT NOT NULL,
       media_url TEXT DEFAULT NULL,
       media_name TEXT DEFAULT NULL,
+      media_kind TEXT DEFAULT NULL,
       is_media INTEGER DEFAULT 0,
-      reaction TEXT DEFAULT NULL,
       is_read INTEGER DEFAULT 0,
+      edited_at INTEGER DEFAULT NULL,
       created_at INTEGER NOT NULL,
       FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS message_reactions (
+      message_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      reaction TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (message_id, user_id, reaction),
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS presence (
@@ -103,22 +114,15 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_requests_receiver ON friend_requests(receiver_id, status);
     CREATE INDEX IF NOT EXISTS idx_requests_sender ON friend_requests(sender_id, status);
     CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages(sender_id, receiver_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_pair_created ON messages(sender_id, receiver_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(receiver_id, sender_id, is_read);
     CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+    CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id);
     CREATE INDEX IF NOT EXISTS idx_presence_user ON presence(user_id);
     CREATE INDEX IF NOT EXISTS idx_blocks_pair ON blocks(user_id, blocked_id);
-
-    CREATE TABLE IF NOT EXISTS message_reactions (
-      message_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      reaction TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      PRIMARY KEY (message_id, user_id, reaction),
-      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
   `);
 
-  // Safe migrations for existing databases
+  // Safe migrations for databases created by older builds.
   const safeAddColumn = (table, columnDef) => {
     try {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
@@ -126,8 +130,27 @@ function initSchema(db) {
   };
   safeAddColumn('messages', 'media_url TEXT DEFAULT NULL');
   safeAddColumn('messages', 'media_name TEXT DEFAULT NULL');
+  safeAddColumn('messages', 'media_kind TEXT DEFAULT NULL');
   safeAddColumn('messages', 'is_media INTEGER DEFAULT 0');
-  safeAddColumn('messages', 'reaction TEXT DEFAULT NULL');
+  safeAddColumn('messages', 'edited_at INTEGER DEFAULT NULL');
+
+  // `messages.reaction` was the original single-reaction column. Reactions now
+  // live in `message_reactions`; migrate any leftover values across once and
+  // then stop reading the legacy column entirely.
+  try {
+    const columns = db.prepare('PRAGMA table_info(messages)').all();
+    const hasLegacyReaction = columns.some((column) => column.name === 'reaction');
+    if (hasLegacyReaction) {
+      db.exec(`
+        INSERT INTO message_reactions (message_id, user_id, reaction, created_at)
+        SELECT m.id, m.sender_id, m.reaction, m.created_at
+        FROM messages m
+        WHERE m.reaction IS NOT NULL AND TRIM(m.reaction) != ''
+        ON CONFLICT(message_id, user_id, reaction) DO NOTHING
+      `);
+      db.exec("UPDATE messages SET reaction = NULL WHERE reaction IS NOT NULL");
+    }
+  } catch {}
 }
 
 module.exports = {

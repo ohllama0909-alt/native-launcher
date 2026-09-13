@@ -1,0 +1,107 @@
+/**
+ * Noctra Relay — realtime event bus.
+ *
+ * Keeps one in-process registry of Server-Sent-Event subscribers per user so
+ * every social mutation (message, reaction, request, presence, typing, read
+ * receipt) is pushed to the other party the moment it happens. HTTP polling
+ * still works as a fallback, but it is no longer the primary transport.
+ */
+
+const clients = new Map(); // userId -> Set<ServerResponse>
+const typingState = new Map(); // `${fromId}:${toId}` -> expiresAt
+
+const TYPING_TTL = 6_000;
+
+function frame(type, payload) {
+  const data = JSON.stringify({ type, at: Date.now(), ...payload });
+  return `event: ${type}\ndata: ${data}\n\n`;
+}
+
+/** Register an SSE response for a user. Returns an unsubscribe function. */
+function subscribe(userId, res) {
+  if (!userId || !res) return () => {};
+  if (!clients.has(userId)) clients.set(userId, new Set());
+  clients.get(userId).add(res);
+
+  try {
+    res.write(frame('hello', { userId }));
+  } catch {}
+
+  return () => {
+    const bucket = clients.get(userId);
+    if (!bucket) return;
+    bucket.delete(res);
+    if (bucket.size === 0) clients.delete(userId);
+  };
+}
+
+/** Push an event to one or many users. Silently ignores offline users. */
+function publish(userIds, type, payload = {}) {
+  const targets = Array.isArray(userIds) ? userIds : [userIds];
+  const body = frame(type, payload);
+  for (const userId of targets) {
+    if (!userId) continue;
+    const bucket = clients.get(userId);
+    if (!bucket) continue;
+    for (const res of bucket) {
+      try {
+        res.write(body);
+      } catch {
+        bucket.delete(res);
+      }
+    }
+  }
+}
+
+/** Heartbeat comment so proxies never idle-close a stream. */
+function heartbeat() {
+  for (const bucket of clients.values()) {
+    for (const res of bucket) {
+      try {
+        res.write(': ping\n\n');
+      } catch {
+        bucket.delete(res);
+      }
+    }
+  }
+}
+
+function setTyping(fromId, toId, isTyping) {
+  const key = `${fromId}:${toId}`;
+  if (isTyping) typingState.set(key, Date.now() + TYPING_TTL);
+  else typingState.delete(key);
+  publish(toId, 'typing', { userId: fromId, isTyping: Boolean(isTyping) });
+}
+
+function isTyping(fromId, toId) {
+  const expires = typingState.get(`${fromId}:${toId}`);
+  if (!expires) return false;
+  if (expires < Date.now()) {
+    typingState.delete(`${fromId}:${toId}`);
+    return false;
+  }
+  return true;
+}
+
+function isConnected(userId) {
+  return clients.has(userId);
+}
+
+function connectionCount() {
+  let total = 0;
+  for (const bucket of clients.values()) total += bucket.size;
+  return total;
+}
+
+const heartbeatTimer = setInterval(heartbeat, 15_000);
+if (heartbeatTimer.unref) heartbeatTimer.unref();
+
+module.exports = {
+  subscribe,
+  publish,
+  heartbeat,
+  setTyping,
+  isTyping,
+  isConnected,
+  connectionCount
+};
