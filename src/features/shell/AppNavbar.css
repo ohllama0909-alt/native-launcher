@@ -397,6 +397,30 @@
   box-shadow: 0 0 8px var(--brand-glow);
 }
 
+.rail-lock-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-0, rgba(20, 16, 22, 0.95));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.14));
+  color: var(--brand, rgba(160, 81, 162, 1));
+  pointer-events: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+.rail-btn.is-locked {
+  opacity: 0.85;
+}
+
+.rail-btn.is-locked:hover {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rail-btn,
   .noctra-logo,

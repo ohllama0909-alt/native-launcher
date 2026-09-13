@@ -71,13 +71,13 @@ export default function AccountSwitcherModal({
   }, []);
 
   useEffect(() => {
-    if (!open || firstRun) return undefined;
+    if (!open) return undefined;
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         if (view !== 'main') {
           setView('main');
           setError('');
-        } else {
+        } else if (!firstRun) {
           onClose?.();
         }
       }

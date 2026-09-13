@@ -17,6 +17,7 @@ import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
 import useLauncher from '../launcher/useLauncher.js';
 import useInstances from '../instances/useInstances.js';
 import usePlaytimeTracker from '../instances/usePlaytimeTracker.js';
+import NoctraAccountGate from '../../components/ui/NoctraAccountGate.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './Shell.css';
 
@@ -93,10 +94,22 @@ export default function Shell({
     onOpenUpdater?.();
   }, [onOpenUpdater]);
 
+  const hasValidAccount = Boolean(
+    account &&
+    account.id &&
+    account.id !== 'guest' &&
+    accounts.length > 0
+  );
+
+  const isNoctra = Boolean(
+    hasValidAccount &&
+    (account.type === 'noctra' || account.type === 'native')
+  );
+
   const instancesManager = useInstances(initialInstances);
   const launcher = useLauncher();
   usePlaytimeTracker(instancesManager.recordSession, { launcherState: launcher });
-  const social = useSocial(account);
+  const social = useSocial(isNoctra ? account : null);
 
   const notify = useCallback((title, body) => {
     setNotifications((prev) =>
@@ -134,50 +147,58 @@ export default function Shell({
     activeThreadId: relayActiveThreadId
   };
 
-  useEffect(() => social.subscribe((event) => {
-    const state = relayNotificationRef.current;
-    let title = '';
-    let body = '';
-    let threadId = null;
+  useEffect(() => {
+    if (!isNoctra) return undefined;
+    return social.subscribe((event) => {
+      const state = relayNotificationRef.current;
+      let title = '';
+      let body = '';
+      let threadId = null;
 
-    if (event?.type === 'message:new' && event.message?.senderId !== state.selfId) {
-      threadId = event.message.senderId;
-      const friend = state.friends.find((item) => item.id === threadId);
-      title = friend?.nickname || friend?.name || event.message.senderName || 'New direct message';
-      body = event.message.content || event.message.mediaName || 'Sent an attachment';
-    } else if (event?.type === 'group:message') {
-      const message = event.data?.message ?? event.message;
-      threadId = event.data?.groupId ?? event.groupId;
-      if (!message || message.senderId === state.selfId || message.isSystem) return;
-      title = event.data?.groupName || event.groupName || 'New group message';
-      body = `${message.senderName || 'Member'}: ${message.content || message.mediaName || 'Sent an attachment'}`;
-    } else if (event?.type === 'request:changed' && event.actorId !== state.selfId) {
-      if (event.action === 'accepted') {
-        title = 'Friend request accepted';
-        body = `${event.actorName || 'A player'} accepted your friend request.`;
-      } else if (!event.action || event.action === 'sent') {
-        title = 'New friend request';
-        body = `${event.actorName || 'A player'} wants to be your friend.`;
+      if (event?.type === 'message:new' && event.message?.senderId !== state.selfId) {
+        threadId = event.message.senderId;
+        const friend = state.friends.find((item) => item.id === threadId);
+        // Discord format: Notification title is the author's name
+        title = friend?.nickname || friend?.name || event.message.senderName || 'Direct Message';
+        body = event.message.content || (event.message.mediaName ? `Sent an attachment: ${event.message.mediaName}` : 'Sent an attachment');
+      } else if (event?.type === 'group:message') {
+        const message = event.data?.message ?? event.message;
+        threadId = event.data?.groupId ?? event.groupId;
+        if (!message || message.senderId === state.selfId || message.isSystem) return;
+        // Discord format: Notification title is "Sender (Group)" and body is the clean message text
+        const sender = message.senderName || 'Member';
+        const group = event.data?.groupName || event.groupName || 'Group';
+        title = `${sender} (${group})`;
+        body = message.content || (message.mediaName ? `Sent an attachment: ${message.mediaName}` : 'Sent an attachment');
+      } else if (event?.type === 'request:changed' && event.actorId !== state.selfId) {
+        const actor = event.actorName || 'A player';
+        if (event.action === 'accepted') {
+          title = 'Friend Request Accepted';
+          body = `${actor} accepted your friend request.`;
+        } else if (!event.action || event.action === 'sent') {
+          title = 'Friend Request';
+          body = `${actor} sent you a friend request.`;
+        }
       }
-    }
 
-    if (!title) return;
-    if (threadId) {
-      let mutedIds = {};
-      try {
-        mutedIds = JSON.parse(localStorage.getItem('noctra_relay_store_v5') || '{}').mutedIds || {};
-      } catch {}
-      const friend = state.friends.find((item) => item.id === threadId);
-      if (mutedIds[threadId] ?? friend?.muted) return;
-    }
-    const viewingThread = threadId && state.currentTab === 'relay' &&
-      state.activeThreadId === threadId && document.hasFocus();
-    if (viewingThread) return;
+      if (!title) return;
+      if (threadId) {
+        let mutedIds = {};
+        try {
+          mutedIds = JSON.parse(localStorage.getItem('noctra_relay_store_v5') || '{}').mutedIds || {};
+        } catch {}
+        const friend = state.friends.find((item) => item.id === threadId);
+        if (mutedIds[threadId] ?? friend?.muted) return;
+      }
+      const viewingThread = threadId && state.currentTab === 'relay' &&
+        state.activeThreadId === threadId && document.hasFocus();
+      if (viewingThread) return;
 
-    notify(title, body);
-    playRelayChime();
-    window.native?.showNotification?.(title, body);
-  }), [notify, social.subscribe]);
+      notify(title, body);
+      playRelayChime();
+      window.native?.showNotification?.(title, body);
+    });
+  }, [isNoctra, notify, social.subscribe]);
 
   const handleLaunch = (cluster, options = {}) => {
     if (!cluster) return;
@@ -268,8 +289,9 @@ export default function Shell({
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
-        isAccountOpen={accountSwitcherOpen}
+        isAccountOpen={!hasValidAccount || accountSwitcherOpen}
         account={account}
+        isNoctra={isNoctra}
         notifications={notifications.length}
         onOpenNotifications={() => setNotificationsOpen(true)}
         isMaximized={isMaximized}
@@ -279,7 +301,7 @@ export default function Shell({
         updateStatus={updateStatus}
         networkStatus={networkStatus}
         onOpenUpdater={openUpdater}
-        friendsBadge={social.badgeTotal}
+        friendsBadge={isNoctra ? social.badgeTotal : 0}
       />
 
       <div className="shell-content-layer">
@@ -301,21 +323,37 @@ export default function Shell({
         )}
 
         {currentTab === 'skins' && (
-          <LockerView
-            account={account}
-            onWardrobeChanged={onWardrobeChanged}
-            onNotify={notify}
-          />
+          isNoctra ? (
+            <LockerView
+              account={account}
+              onWardrobeChanged={onWardrobeChanged}
+              onNotify={notify}
+            />
+          ) : (
+            <NoctraAccountGate
+              feature="locker"
+              onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
+              onBackHome={() => setCurrentTab('home')}
+            />
+          )
         )}
 
         {currentTab === 'relay' && (
-          <RelayPage
-            account={account}
-            social={social}
-            onJoinServer={handleJoinServer}
-            onNotify={notifyRelay}
-            onActiveThreadChange={setRelayActiveThreadId}
-          />
+          isNoctra ? (
+            <RelayPage
+              account={account}
+              social={social}
+              onJoinServer={handleJoinServer}
+              onNotify={notifyRelay}
+              onActiveThreadChange={setRelayActiveThreadId}
+            />
+          ) : (
+            <NoctraAccountGate
+              feature="relay"
+              onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
+              onBackHome={() => setCurrentTab('home')}
+            />
+          )
         )}
 
         {currentTab === 'instances' && (
@@ -395,8 +433,13 @@ export default function Shell({
       />
 
       <AccountSwitcherModal
-        open={accountSwitcherOpen}
-        onClose={() => setAccountSwitcherOpen(false)}
+        open={!hasValidAccount || accountSwitcherOpen}
+        firstRun={!hasValidAccount}
+        onClose={() => {
+          if (hasValidAccount) {
+            setAccountSwitcherOpen(false);
+          }
+        }}
         accounts={accounts}
         activeId={activeId}
         onSwitchAccount={onSwitchAccount}
@@ -419,7 +462,7 @@ export default function Shell({
 
 
 
-      {social.contextMenu && (
+      {isNoctra && social.contextMenu && (
         <FriendContextMenu
           context={social.contextMenu}
           onClose={() => social.setContextMenu(null)}
@@ -437,7 +480,7 @@ export default function Shell({
         />
       )}
 
-      {social.nicknameModalFriend && (
+      {isNoctra && social.nicknameModalFriend && (
         <NicknameModal
           friend={social.nicknameModalFriend}
           onClose={() => social.setNicknameModalFriend(null)}

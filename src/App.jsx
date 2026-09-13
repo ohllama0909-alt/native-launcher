@@ -20,7 +20,7 @@ export default function App() {
   const updater = useUpdater();
   const network = useNetwork();
 
-  const activeAccount = accounts.find(a => a.id === activeId) ?? null;
+  const activeAccount = accounts.find(a => a.id === activeId) ?? (accounts.length > 0 ? accounts[0] : null);
   // Cosmetics decorate the account; they must never overwrite its identity
   // (`active.skinId` is a skin id, not an account id).
   const cosmetics = (activeAccount && wardrobe && wardrobe.accountId === activeAccount.id) ? wardrobe.active : null;
@@ -58,7 +58,11 @@ export default function App() {
         ]);
 
         const accs = accountData?.accounts ?? [];
-        const actId = accountData?.activeId ?? null;
+        let actId = accountData?.activeId ?? null;
+        if (accs.length > 0 && (!actId || !accs.some(a => a.id === actId))) {
+          actId = accs[0].id;
+          window.native?.accounts?.setActive?.(actId).catch(() => {});
+        }
         setAccounts(accs);
         setActiveId(actId);
 
@@ -140,8 +144,14 @@ export default function App() {
   const refreshAccounts = async () => {
     const res = await window.native?.accounts?.list();
     if (res) {
-      setAccounts(res.accounts ?? []);
-      setActiveId(res.activeId ?? null);
+      const accs = res.accounts ?? [];
+      let actId = res.activeId ?? null;
+      if (accs.length > 0 && (!actId || !accs.some(a => a.id === actId))) {
+        actId = accs[0].id;
+        window.native?.accounts?.setActive?.(actId).catch(() => {});
+      }
+      setAccounts(accs);
+      setActiveId(actId);
     }
   };
 

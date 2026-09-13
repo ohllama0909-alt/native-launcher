@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, MessageSquare, Minus, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, Lock, MessageSquare, Minus, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -17,18 +17,23 @@ export const NAV_ITEMS = [
   { id: 'browse', labelKey: 'nav.browse', icon: Compass }
 ];
 
-function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = null, tone = null, children, className = '' }) {
+function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = null, tone = null, children, className = '', locked = false, lockTooltip = '' }) {
   return (
     <button
       type="button"
-      className={`rail-btn${active ? ' is-active' : ''}${tone ? ` tone-${tone}` : ''} ${className}`.trim()}
+      className={`rail-btn${active ? ' is-active' : ''}${locked ? ' is-locked' : ''}${tone ? ` tone-${tone}` : ''} ${className}`.trim()}
       onClick={onClick}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      data-tooltip={label}
+      data-tooltip={lockTooltip || label}
     >
       {children || (Icon ? <Icon size={21} strokeWidth={1.9} aria-hidden="true" /> : null)}
       {badge > 0 && <em className="rail-badge">{badge > 99 ? '99+' : badge}</em>}
+      {locked && (
+        <span className="rail-lock-badge" aria-hidden="true">
+          <Lock size={10} strokeWidth={2.4} />
+        </span>
+      )}
       {status ? <i className={`rail-status ${status}`} aria-hidden="true" /> : null}
     </button>
   );
@@ -90,6 +95,7 @@ export default function AppNavbar({
   isAccountOpen = false,
   onOpenNotifications,
   account,
+  isNoctra = false,
   notifications = 0,
   isMaximized,
   onMinimize,
@@ -162,18 +168,23 @@ export default function AppNavbar({
         </button>
 
         <nav className="rail-group" aria-label={t('nav.primary')}>
-          {NAV_ITEMS.map(({ id, labelKey, icon }) => (
-            <RailButton
-              key={id}
-              icon={icon}
-              badge={id === 'relay' ? friendsBadge : 0}
-              active={currentTab === id}
-              onClick={() => onSelectTab(id)}
-              label={t(labelKey)}
-              className={id === 'relay' ? 'rail-relay-btn' : ''}
-              tone={id === 'relay' && friendsBadge > 0 ? 'alert' : null}
-            />
-          ))}
+          {NAV_ITEMS.map(({ id, labelKey, icon }) => {
+            const isRestricted = (id === 'skins' || id === 'relay') && !isNoctra;
+            return (
+              <RailButton
+                key={id}
+                icon={icon}
+                badge={id === 'relay' && isNoctra ? friendsBadge : 0}
+                active={currentTab === id}
+                onClick={() => onSelectTab(id)}
+                label={t(labelKey)}
+                className={id === 'relay' ? 'rail-relay-btn' : ''}
+                tone={id === 'relay' && isNoctra && friendsBadge > 0 ? 'alert' : null}
+                locked={isRestricted}
+                lockTooltip={isRestricted ? `${t(labelKey)} · Noctra Account Required` : null}
+              />
+            );
+          })}
         </nav>
 
         <span className="rail-divider" aria-hidden="true" />
