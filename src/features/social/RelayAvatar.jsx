@@ -1,35 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import fallbackSkin from '../../assets/steve.png';
 
-// In-memory cache for resolved Noctra skin URLs: username.toLowerCase() -> skinUrl
+// Relay is a Noctra-only surface. Avatars resolve from the CustomSkinLoader API
+// and deliberately never contact Mojang head-rendering proxy services.
 const noctraSkinCache = new Map();
 const inFlightRequests = new Map();
+const NEGATIVE_CACHE_TTL = 30_000;
+
+function cachedSkin(key) {
+  const cached = noctraSkinCache.get(key);
+  if (!cached) return undefined;
+  if (cached.url || Date.now() - cached.checkedAt < NEGATIVE_CACHE_TTL) return cached.url;
+  noctraSkinCache.delete(key);
+  return undefined;
+}
 
 export function resolveNoctraSkin(name) {
-  if (!name || name === 'guest') return Promise.resolve(null);
-  const key = name.toLowerCase().trim();
-  if (noctraSkinCache.has(key)) return Promise.resolve(noctraSkinCache.get(key));
+  const key = String(name || '').toLowerCase().trim();
+  if (!key || key === 'guest') return Promise.resolve(null);
+
+  const cached = cachedSkin(key);
+  if (cached !== undefined) return Promise.resolve(cached);
   if (inFlightRequests.has(key)) return inFlightRequests.get(key);
 
   const task = (async () => {
+    const root = String(window.native?.wardrobeApi || 'http://127.0.0.1:3418').replace(/\/+$/, '');
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 3500);
+
     try {
-      const root = String(window.native?.wardrobeApi || 'http://127.0.0.1:3418').replace(/\/+$/, '');
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 3500);
-      const res = await fetch(`${root}/csl/${encodeURIComponent(name)}.json`, { signal: ctrl.signal });
-      clearTimeout(timer);
+      const res = await fetch(`${root}/csl/${encodeURIComponent(key)}.json`, {
+        signal: ctrl.signal,
+        cache: 'no-cache'
+      });
+      if (!res.ok) throw new Error(`Custom skin lookup failed (${res.status})`);
 
-      if (res.ok) {
-        const data = await res.json();
-        const skin = data.skin || data.skins?.default || data.skins?.slim || null;
-        if (skin) {
-          noctraSkinCache.set(key, skin);
-          return skin;
-        }
-      }
-    } catch {}
-
-    noctraSkinCache.set(key, null);
-    return null;
+      const data = await res.json();
+      const skin = data.skin || data.skins?.default || data.skins?.slim || null;
+      noctraSkinCache.set(key, { url: skin, checkedAt: Date.now() });
+      return skin;
+    } catch {
+      // Cache misses briefly so transient startup/network failures can self-heal.
+      noctraSkinCache.set(key, { url: null, checkedAt: Date.now() });
+      return null;
+    } finally {
+      window.clearTimeout(timer);
+    }
   })().finally(() => inFlightRequests.delete(key));
 
   inFlightRequests.set(key, task);
@@ -60,7 +76,6 @@ export function SkinFaceLayer({ src, pixels, offset, onError }) {
 
 export default function RelayAvatar({
   name,
-  uuid,
   skinUrl: initialSkinUrl,
   size = 38,
   className = '',
@@ -68,28 +83,36 @@ export default function RelayAvatar({
   showStatus = false
 }) {
   const pixels = Math.max(16, Math.round(size));
-  const key = (name || '').toLowerCase().trim();
-
-  const [skinUrl, setSkinUrl] = useState(() => initialSkinUrl || noctraSkinCache.get(key) || null);
+  const key = String(name || '').toLowerCase().trim();
+  const [skinUrl, setSkinUrl] = useState(() => initialSkinUrl || cachedSkin(key) || null);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    setHasError(false);
+
     if (initialSkinUrl) {
       setSkinUrl(initialSkinUrl);
-      if (key) noctraSkinCache.set(key, initialSkinUrl);
-      return;
-    }
-
-    if (!skinUrl && key) {
-      let active = true;
-      resolveNoctraSkin(name).then((url) => {
-        if (active && url) setSkinUrl(url);
-      });
+      if (key) noctraSkinCache.set(key, { url: initialSkinUrl, checkedAt: Date.now() });
       return () => { active = false; };
     }
-  }, [name, initialSkinUrl, key, skinUrl]);
 
-  const statusColor = status === 'in-game' ? '#55db72' : status === 'in-launcher' || status === 'online' ? '#b05acb' : '#6a6470';
+    setSkinUrl(cachedSkin(key) || null);
+    if (key) {
+      resolveNoctraSkin(key).then((url) => {
+        if (active) setSkinUrl(url);
+      });
+    }
+
+    return () => { active = false; };
+  }, [initialSkinUrl, key]);
+
+  const resolvedSkin = skinUrl && !hasError ? skinUrl : fallbackSkin;
+  const statusColor = status === 'in-game'
+    ? 'var(--success, #55db72)'
+    : status === 'in-launcher' || status === 'online'
+      ? 'var(--brand, #b05acb)'
+      : 'var(--fg-muted, #6a6470)';
 
   return (
     <div
@@ -99,42 +122,28 @@ export default function RelayAvatar({
         width: pixels,
         height: pixels,
         flex: 'none',
-        borderRadius: Math.round(pixels * 0.22),
+        borderRadius: 'var(--radius-sm, 6px)',
         overflow: 'hidden',
-        background: '#19171e',
+        background: 'var(--component-bg, #19171e)',
         display: 'grid',
         placeItems: 'center'
       }}
     >
-      {skinUrl && !hasError ? (
-        <span
-          role="img"
-          aria-label={name || 'Avatar'}
-          style={{ position: 'absolute', inset: 0, overflow: 'hidden', imageRendering: 'pixelated' }}
-        >
-          {/* Base Face */}
-          <SkinFaceLayer src={skinUrl} pixels={pixels} offset={1} onError={() => setHasError(true)} />
-          {/* Outer Hat Layer */}
-          <SkinFaceLayer src={skinUrl} pixels={pixels} offset={5} />
-        </span>
-      ) : (
-        <img
-          src={`https://mc-heads.net/avatar/${encodeURIComponent(uuid || name || 'MHF_Steve')}/64`}
-          alt={name || 'Avatar'}
-          draggable={false}
-          onError={(e) => {
-            e.currentTarget.src = 'https://mc-heads.net/avatar/MHF_Steve/64';
-          }}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            imageRendering: 'pixelated'
+      <span
+        role="img"
+        aria-label={name || 'Avatar'}
+        style={{ position: 'absolute', inset: 0, overflow: 'hidden', imageRendering: 'pixelated' }}
+      >
+        <SkinFaceLayer
+          src={resolvedSkin}
+          pixels={pixels}
+          offset={1}
+          onError={() => {
+            if (resolvedSkin !== fallbackSkin) setHasError(true);
           }}
         />
-      )}
+        <SkinFaceLayer src={resolvedSkin} pixels={pixels} offset={5} />
+      </span>
 
       {showStatus && status && (
         <span
@@ -147,8 +156,8 @@ export default function RelayAvatar({
             height: Math.max(8, Math.round(pixels * 0.25)),
             borderRadius: '50%',
             backgroundColor: statusColor,
-            border: '2px solid #111013',
-            boxShadow: status === 'in-game' ? '0 0 6px rgba(85, 219, 114, 0.7)' : 'none',
+            border: '2px solid var(--page-elevated, #111013)',
+            boxShadow: status === 'in-game' && 'var(--shadow-brand, 0 0 6px rgba(85, 219, 114, 0.7))',
             zIndex: 2
           }}
         />
