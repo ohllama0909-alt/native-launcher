@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react';
-import { INITIAL_CLUSTERS, getClusterArt } from '../../data/versionsData.js';
+import { useCallback, useEffect, useState } from 'react';
+import { getClusterArt } from '../../data/versionsData.js';
+import {
+  EMPTY_STATS,
+  SEEDED_INSTANCE_IDS,
+  STATS_VERSION,
+  applySession,
+  normalizeStats,
+  summarizeLibrary
+} from './playtimeStats.js';
 
 const STORAGE_KEY = 'native.instances';
 const LEGACY_STORAGE_KEY = 'oneclient.instances';
 
-const DEFAULT_DATA = {
-  instances: INITIAL_CLUSTERS,
-  selectedId: INITIAL_CLUSTERS[0].id
-};
+/* The library starts empty. Instances are only ever created by the user or by
+   an import, so nothing on the instance page is invented. */
+const DEFAULT_DATA = { instances: [], selectedId: null };
 
 function newInstanceId() {
   // Date.now() alone collided when two instances were created in the same ms
@@ -15,23 +22,39 @@ function newInstanceId() {
   return `native-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/**
+ * Always pass saved artwork through the resolver (it replaces stale Vite file
+ * URLs from another build) and normalise the statistics.
+ *
+ * Older builds shipped demo clusters with hand-written playtime, session and
+ * active-day counts. Those instances are reset to zero here, once, so the page
+ * only ever shows time that was really recorded.
+ */
 function hydrate(instance) {
-  // Always pass saved artwork through the resolver. It replaces stale Vite
-  // file URLs from another build while retaining valid custom HTTP artwork.
-  return { ...instance, art: getClusterArt(instance) };
+  const seededFake =
+    SEEDED_INSTANCE_IDS.has(instance?.id) && Number(instance?.statsVersion) < STATS_VERSION;
+
+  const stats = seededFake ? { ...EMPTY_STATS } : normalizeStats(instance);
+
+  return {
+    ...instance,
+    ...stats,
+    // serverJoins was never measured; keep it only if a real counter set it.
+    serverJoins: Number(instance?.statsVersion) >= STATS_VERSION ? instance.serverJoins || 0 : 0,
+    art: getClusterArt(instance)
+  };
+}
+
+function normalizeSaved(saved) {
+  if (!saved?.instances?.length) return null;
+  const instances = saved.instances.map(hydrate);
+  return { instances, selectedId: saved.selectedId || instances[0]?.id || null };
 }
 
 async function loadData() {
   if (window.native?.instances) {
     const saved = await window.native.instances.load();
-    if (saved?.instances?.length) {
-      const instances = saved.instances.map(hydrate);
-      return {
-        instances,
-        selectedId: saved.selectedId || instances[0]?.id || null
-      };
-    }
-    return DEFAULT_DATA;
+    return normalizeSaved(saved) || DEFAULT_DATA;
   }
 
   // Browser / dev fallback. Migrate the pre-rebrand key if it's still around.
@@ -39,14 +62,13 @@ async function loadData() {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
-      const parsed = JSON.parse(raw);
-      if (parsed?.instances?.length) {
-        const migrated = { ...parsed, instances: parsed.instances.map(hydrate) };
+      const parsed = normalizeSaved(JSON.parse(raw));
+      if (parsed) {
         if (key === LEGACY_STORAGE_KEY) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
           localStorage.removeItem(LEGACY_STORAGE_KEY);
         }
-        return migrated;
+        return parsed;
       }
     } catch {
       /* corrupt payload, fall through */
@@ -73,6 +95,29 @@ function compact(values) {
   return result;
 }
 
+/* Statistics are owned by the session recorder, never by a form or an import. */
+const STAT_KEYS = [
+  'playtimeSecs',
+  'sessionCount',
+  'avgSessionSecs',
+  'longestSessionSecs',
+  'lastSessionSecs',
+  'crashCount',
+  'activeDays',
+  'playedDays',
+  'sessions',
+  'firstPlayed',
+  'lastPlayed',
+  'serverJoins',
+  'statsVersion'
+];
+
+function stripStats(values) {
+  const result = { ...values };
+  STAT_KEYS.forEach((key) => delete result[key]);
+  return result;
+}
+
 function buildInstance(values) {
   const input = compact(values);
   const version = input.version || input.mc_version || '1.21.1';
@@ -80,7 +125,7 @@ function buildInstance(values) {
   const name = String(input.name || '').trim() || `${version} ${loader}`;
 
   const instance = {
-    ...input,
+    ...stripStats(input),
     id: input.id || newInstanceId(),
     name,
     version,
@@ -92,13 +137,9 @@ function buildInstance(values) {
     group: input.group || null,
     icon: input.icon || null,
     memoryMb: input.memoryMb || null,
-    playtimeSecs: input.playtimeSecs || 0,
-    sessionCount: input.sessionCount || 0,
-    avgSessionSecs: input.avgSessionSecs || 0,
-    activeDays: input.activeDays || 0,
-    serverJoins: input.serverJoins || 0,
     created: input.created || Date.now(),
-    lastPlayed: input.lastPlayed ?? null
+    serverJoins: 0,
+    ...EMPTY_STATS
   };
 
   instance.art = input.art || getClusterArt(instance);
@@ -106,38 +147,25 @@ function buildInstance(values) {
 }
 
 function loadInitialSync(initialData) {
-  if (initialData?.instances?.length) {
-    const instances = initialData.instances.map(hydrate);
-    return {
-      instances,
-      selectedId: initialData.selectedId || instances[0]?.id || null
-    };
-  }
+  const fromProp = normalizeSaved(initialData);
+  if (fromProp) return fromProp;
+
   if (window.native?.instances?.loadSync) {
     try {
-      const saved = window.native.instances.loadSync();
-      if (saved?.instances?.length) {
-        const instances = saved.instances.map(hydrate);
-        return {
-          instances,
-          selectedId: saved.selectedId || instances[0]?.id || null
-        };
-      }
+      const saved = normalizeSaved(window.native.instances.loadSync());
+      if (saved) return saved;
     } catch {}
   }
+
   for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
-      const parsed = JSON.parse(raw);
-      if (parsed?.instances?.length) {
-        return {
-          instances: parsed.instances.map(hydrate),
-          selectedId: parsed.selectedId || parsed.instances[0]?.id || null
-        };
-      }
+      const parsed = normalizeSaved(JSON.parse(raw));
+      if (parsed) return parsed;
     } catch {}
   }
+
   return DEFAULT_DATA;
 }
 
@@ -146,14 +174,10 @@ export default function useInstances(initialData = null) {
   const [loaded, setLoaded] = useState(() => Boolean(initialData?.instances?.length));
 
   useEffect(() => {
-    if (initialData?.instances?.length) {
-      const instances = initialData.instances.map(hydrate);
-      setData({
-        instances,
-        selectedId: initialData.selectedId || instances[0]?.id || null
-      });
-      setLoaded(true);
-    }
+    const parsed = normalizeSaved(initialData);
+    if (!parsed) return;
+    setData(parsed);
+    setLoaded(true);
   }, [initialData]);
 
   useEffect(() => {
@@ -179,11 +203,35 @@ export default function useInstances(initialData = null) {
   const selected =
     data.instances.find((item) => item.id === data.selectedId) ?? data.instances[0] ?? null;
 
+  /**
+   * Appends a real, completed session. Called by usePlaytimeTracker when the
+   * game process exits, so every stat on the instance page traces back to a
+   * launch that actually happened.
+   */
+  const recordSession = useCallback((id, durationSeconds, meta = {}) => {
+    setData((current) => ({
+      ...current,
+      instances: current.instances.map((item) => {
+        if (item.id !== id) return item;
+        const next = applySession(normalizeStats(item), {
+          secs: durationSeconds,
+          startedAt: meta.startedAt,
+          endedAt: meta.endedAt,
+          crashed: meta.crashed,
+          recovered: meta.recovered
+        });
+        return { ...item, ...next };
+      })
+    }));
+  }, []);
+
   return {
     instances: data.instances,
     selected,
     selectedId: data.selectedId,
     loaded,
+    totals: summarizeLibrary(data.instances),
+    recordSession,
 
     select(id) {
       setData((current) => ({ ...current, selectedId: id }));
@@ -200,7 +248,7 @@ export default function useInstances(initialData = null) {
     },
 
     add(instance) {
-      const hydrated = hydrate(instance);
+      const hydrated = hydrate(buildInstance(instance));
       setData((current) => ({
         ...current,
         instances: [...current.instances, hydrated],
@@ -212,17 +260,12 @@ export default function useInstances(initialData = null) {
     duplicate(id) {
       const source = data.instances.find((item) => item.id === id);
       if (!source) return null;
+      // A copy has its own history: it starts at zero, never inheriting time.
       const copy = buildInstance({
-        ...source,
+        ...stripStats(source),
         id: newInstanceId(),
         name: `${source.name} (copy)`,
-        playtimeSecs: 0,
-        sessionCount: 0,
-        avgSessionSecs: 0,
-        activeDays: 0,
-        serverJoins: 0,
-        created: Date.now(),
-        lastPlayed: null
+        created: Date.now()
       });
       setData((current) => ({
         ...current,
@@ -237,7 +280,7 @@ export default function useInstances(initialData = null) {
         ...current,
         instances: current.instances.map((item) => {
           if (item.id !== id) return item;
-          const merged = { ...item, ...compact(values) };
+          const merged = { ...item, ...stripStats(compact(values)) };
           // Keep the paired version/loader fields in sync.
           if (values?.version) merged.mc_version = values.version;
           if (values?.mc_version) merged.version = values.mc_version;
@@ -248,21 +291,13 @@ export default function useInstances(initialData = null) {
       }));
     },
 
-    recordSession(id, durationSeconds) {
+    /** Clears recorded history for one instance without deleting it. */
+    resetStats(id) {
       setData((current) => ({
         ...current,
-        instances: current.instances.map((item) => {
-          if (item.id !== id) return item;
-          const playtime = (item.playtimeSecs || 0) + durationSeconds;
-          const sessions = (item.sessionCount || 0) + 1;
-          return {
-            ...item,
-            playtimeSecs: playtime,
-            sessionCount: sessions,
-            avgSessionSecs: Math.round(playtime / sessions),
-            lastPlayed: Date.now()
-          };
-        })
+        instances: current.instances.map((item) =>
+          item.id === id ? { ...item, ...EMPTY_STATS, serverJoins: 0 } : item
+        )
       }));
     },
 
