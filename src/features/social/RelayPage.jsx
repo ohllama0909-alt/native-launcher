@@ -7,13 +7,13 @@ import {
   ChevronRight,
   Download,
   FileText,
-  Image as ImageIcon,
   Maximize2,
   MessageSquare,
   Mic,
   MoreHorizontal,
   Paperclip,
   Pin,
+  Plus,
   Search,
   Send,
   Smile,
@@ -154,6 +154,9 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
       let isMine = f.lastMessageSenderId === selfId;
       let time = f.lastMessageTime ? formatTime(f.lastMessageTime) : '';
       let isAttachment = Boolean(f.lastMessageIsMedia);
+      let lastIsRead = false;
+      let lastPending = false;
+      let lastFailed = false;
 
       if (lastMsg) {
         isMine = lastMsg.senderId === selfId;
@@ -165,6 +168,9 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
           snippet = isMine ? `You: ${lastMsg.content || ''}` : (lastMsg.content || '');
         }
         time = formatTime(lastMsg.createdAt);
+        lastIsRead = Boolean(lastMsg.isRead);
+        lastPending = Boolean(lastMsg.pending);
+        lastFailed = Boolean(lastMsg.failed);
       } else if (f.lastMessageContent) {
         snippet = isMine ? `You: ${f.lastMessageContent}` : f.lastMessageContent;
       }
@@ -194,6 +200,9 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         lastStamp: lastMsg?.createdAt || f.lastMessageTime || 0,
         isAttachment,
         isMine,
+        lastIsRead,
+        lastPending,
+        lastFailed,
         isTyping: Boolean(social?.typingBy?.[f.id]),
         unread: f.unreadCount || 0
       };
@@ -233,6 +242,14 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
       setActiveChatFriend(null);
     }
   }, [activeEntity, social?.activeChatId, setActiveChatFriend]);
+
+  // Always make sure the open conversation has its history fetched. The bulk
+  // preload can miss threads, which previously left older chats blank.
+  const loadThread = social?.loadThread;
+  useEffect(() => {
+    if (!loadThread || !activeEntity || activeEntity.kind === 'group') return;
+    loadThread(activeEntity.id);
+  }, [loadThread, activeEntity?.id]);
 
   // Unified presence helper: guarantees inbox & header stay in sync
   const getPresence = useCallback((entity) => {
@@ -284,8 +301,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const groupList = filterList(groups.filter((g) => !pinnedIds.includes(g.id)));
   const directList = filterList(allThreads.filter((t) => t.kind !== 'group' && !pinnedIds.includes(t.id)));
 
-  // Current conversation messages. Every DM thread is preloaded by useSocial,
-  // so switching conversations renders full history instantly.
+  // Current conversation messages, straight from the per-thread server cache.
   const currentMessages = useMemo(() => {
     if (!activeEntity?.id) return [];
     const local = localConversations[activeEntity.id] || [];
@@ -367,7 +383,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     atBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 60;
     if (node.scrollTop < 48 && !isGroupThread && activeEntity?.id) {
       const thread = social?.conversations?.[activeEntity.id];
-      if (thread?.hasMore && !thread.loading) social?.loadOlder?.(activeEntity.id);
+      if (!thread?.loading && (thread?.hasMore || !thread?.loaded)) social?.loadOlder?.(activeEntity.id);
     }
   };
 
@@ -382,8 +398,11 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     setShowGifPicker(false);
     setActiveReactionPickerMsgId(null);
 
-    if (social?.setActiveChatFriend) {
-      social.setActiveChatFriend(thread.kind === 'group' ? null : thread);
+    if (thread.kind === 'group') {
+      social?.setActiveChatFriend?.(null);
+    } else {
+      social?.setActiveChatFriend?.(thread);
+      social?.loadThread?.(thread.id);
     }
   };
 
@@ -671,6 +690,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
   const activePresence = getPresence(activeEntity);
   const activeThreadState = !isGroupThread && activeEntity ? social?.conversations?.[activeEntity.id] : null;
+  const isLoadingThread = Boolean(activeThreadState?.loading);
 
   if (social && social.isNoctra === false) {
     return (
@@ -716,7 +736,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
               title="Create New Group"
               aria-label="Create New Group"
             >
-              <Users size={15} />
+              <Plus size={15} />
             </button>
           </div>
         </div>
@@ -732,7 +752,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                 Add friends using their Minecraft username or create a group to start chatting.
               </div>
               <button type="button" className="relay-empty-btn" onClick={() => setShowNewGroupModal(true)}>
-                <Users size={13} />
+                <Plus size={13} />
                 <span>Create Group</span>
               </button>
             </div>
@@ -904,35 +924,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                 >
                   <Pin size={16} />
                 </button>
-                <button
-                  type="button"
-                  className="relay-action-btn"
-                  onClick={() => {
-                    if (isGroupThread) {
-                      onNotify?.('Group members', activeEntity.members?.join(', ') || 'No members listed');
-                    } else {
-                      onNotify?.('Conversation details', `${activeEntity.name} - ${activePresence.text}`);
-                    }
-                  }}
-                  title="Group & Chat Info"
-                >
-                  <Users size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="relay-action-btn"
-                  onClick={() => {
-                    const mediaMsgs = currentMessages.filter((m) => m.mediaUrl && m.isMedia);
-                    if (mediaMsgs.length > 0) {
-                      setPreviewMediaModal(mediaMsgs[mediaMsgs.length - 1].mediaUrl);
-                    } else {
-                      onNotify?.('No media', 'No shared media files in this conversation yet.');
-                    }
-                  }}
-                  title="Shared Media"
-                >
-                  <ImageIcon size={16} />
-                </button>
 
                 <div className="relay-menu-wrapper">
                   <button
@@ -1001,18 +992,20 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
             </header>
 
             <div ref={messageStreamRef} className="relay-message-stream" onScroll={handleStreamScroll}>
-              {activeThreadState?.loading && <div className="relay-stream-loader">Loading earlier messages...</div>}
+              {isLoadingThread && <div className="relay-stream-loader">Loading messages...</div>}
 
               {renderedItems.length === 0 ? (
-                <div className="relay-empty-stream">
-                  <div className="relay-empty-stream-avatar">
-                    <RelayAvatar name={activeEntity?.name} skinUrl={activeEntity?.skinUrl} size={52} />
+                isLoadingThread ? null : (
+                  <div className="relay-empty-stream">
+                    <div className="relay-empty-stream-avatar">
+                      <RelayAvatar name={activeEntity?.name} skinUrl={activeEntity?.skinUrl} size={52} />
+                    </div>
+                    <h3 className="relay-empty-stream-name">{activeEntity?.nickname || activeEntity?.name}</h3>
+                    <p className="relay-empty-stream-text">
+                      This is the beginning of your conversation history.
+                    </p>
                   </div>
-                  <h3 className="relay-empty-stream-name">{activeEntity?.nickname || activeEntity?.name}</h3>
-                  <p className="relay-empty-stream-text">
-                    This is the beginning of your conversation history.
-                  </p>
-                </div>
+                )
               ) : (
                 renderedItems.map((msg, index) => {
                   if (msg.isDivider) {
@@ -1492,7 +1485,14 @@ function ThreadItem({ thread, active, presence, isGroup = false, onClick }) {
             <>
               {thread.isAttachment && <Paperclip size={11} className="relay-snippet-icon" />}
               <span className="relay-thread-snippet">{thread.lastMessage || 'No messages'}</span>
-              {thread.isMine && <CheckCheck size={11} className="relay-snippet-checks" />}
+              {/* Same receipt states as the chat stream: one tick delivered, two ticks read. */}
+              {thread.isMine && !thread.lastPending && !thread.lastFailed && (
+                thread.lastIsRead ? (
+                  <CheckCheck size={11} className="relay-snippet-checks is-read" title="Read" />
+                ) : (
+                  <Check size={11} className="relay-snippet-checks" title="Delivered" />
+                )
+              )}
             </>
           )}
         </div>
