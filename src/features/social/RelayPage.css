@@ -98,6 +98,7 @@
 }
 
 .relay-inbox-btn {
+  position: relative;
   margin-left: auto;
   width: 26px;
   height: 26px;
@@ -111,6 +112,22 @@
   transition: color var(--relay-fast) var(--relay-ease),
     background-color var(--relay-fast) var(--relay-ease),
     border-color var(--relay-fast) var(--relay-ease);
+}
+
+.relay-inbox-btn__badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--page-elevated);
+  border-radius: 8px;
+  background: var(--danger);
+  color: white;
+  font: 750 8px/1 var(--font-mono);
 }
 
 .relay-inbox-btn:hover {

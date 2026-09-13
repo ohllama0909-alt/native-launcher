@@ -20,6 +20,7 @@ import {
   Trash2,
   Upload,
   Users,
+  UserPlus,
   UserSquare2,
   X
 } from 'lucide-react';
@@ -28,6 +29,7 @@ import GroupAvatarBadge from './GroupAvatarBadge.jsx';
 import useRelayGroups from './useRelayGroups.js';
 import GroupCreateModal from './GroupCreateModal.jsx';
 import GroupSettingsModal from './GroupSettingsModal.jsx';
+import FriendCenterModal from './FriendCenterModal.jsx';
 import MessageRow from './MessageRow.jsx';
 import ThreadRow from './ThreadRow.jsx';
 import { ReplyComposerBar } from './ReplyPreview.jsx';
@@ -127,6 +129,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const relayGroups = useRelayGroups({ selfId, selfName: account?.name || 'You' });
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [friendCenterOpen, setFriendCenterOpen] = useState(false);
 
   const [selectedId, setSelectedId] = useState(() => persisted?.lastSelectedId || null);
   const [mutedIds, setMutedIds] = useState(() => persisted?.mutedIds || {});
@@ -932,6 +935,16 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
             <button
               type="button"
               className="relay-inbox-btn"
+              data-testid="relay-friends-btn"
+              onClick={() => setFriendCenterOpen(true)}
+              title="Add friends and view requests"
+            >
+              <UserPlus size={15} />
+              {(social?.pendingRequestsTotal || 0) > 0 && <span className="relay-inbox-btn__badge">{social.pendingRequestsTotal}</span>}
+            </button>
+            <button
+              type="button"
+              className="relay-inbox-btn"
               data-testid="relay-create-group-btn"
               onClick={() => setCreateOpen(true)}
               title="New group"
@@ -963,6 +976,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
               <button type="button" className="relay-empty-btn" onClick={() => setCreateOpen(true)}>
                 <Plus size={13} />
                 <span>Create group</span>
+              </button>
+              <button type="button" className="relay-empty-btn relay-empty-btn--friend" onClick={() => setFriendCenterOpen(true)}>
+                <UserPlus size={13} />
+                <span>Add friend</span>
               </button>
             </div>
           ) : (
@@ -1478,6 +1495,16 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
             setCreateOpen(false);
           }
           return result;
+        }}
+      />
+
+      <FriendCenterModal
+        open={friendCenterOpen}
+        social={social}
+        onClose={() => setFriendCenterOpen(false)}
+        onOpenFriend={(friendId) => {
+          setSelectedId(friendId);
+          setFriendCenterOpen(false);
         }}
       />
 
