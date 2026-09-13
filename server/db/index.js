@@ -4,6 +4,7 @@ const fs = require('fs');
 const { initSchema } = require('./schema');
 const usersMod = require('./users');
 const socialMod = require('./social');
+const relayMod = require('./relay');
 
 const DATA_DIR = path.resolve(
   process.env.NOCTRA_DATA_DIR ||
@@ -84,6 +85,7 @@ module.exports = {
   BACKUPS_DIR,
   backupDatabase,
   MESSAGE_LIMIT: socialMod.MESSAGE_LIMIT,
+  MAX_GROUP_MEMBERS: relayMod.MAX_MEMBERS,
 
   // Users & Auth
   generateOfflinePlayerUuid: usersMod.generateOfflinePlayerUuid,
@@ -120,5 +122,29 @@ module.exports = {
   markMessagesRead: (userId, friendId) => socialMod.markMessagesRead(getDb(), userId, friendId),
   sendMessage: (senderId, receiverId, content, options) => socialMod.sendMessage(getDb(), senderId, receiverId, content, options),
   setMessageReaction: (messageId, userId, reaction) => socialMod.setMessageReaction(getDb(), messageId, userId, reaction),
-  searchUsers: (query, excludeUserId) => socialMod.searchUsers(getDb(), query, excludeUserId)
+  searchUsers: (query, excludeUserId) => socialMod.searchUsers(getDb(), query, excludeUserId),
+
+  // Relay groups, replies and message editing
+  getGroups: (userId) => relayMod.getGroups(getDb(), userId),
+  getGroup: (userId, groupId) => relayMod.getGroup(getDb(), userId, groupId),
+  getGroupMembers: (groupId) => relayMod.getGroupMembers(getDb(), groupId),
+  getGroupMessages: (userId, groupId, options) => relayMod.getGroupMessages(getDb(), userId, groupId, options),
+  createGroup: (ownerId, payload) => relayMod.createGroup(getDb(), ownerId, payload),
+  updateGroup: (userId, groupId, payload) => relayMod.updateGroup(getDb(), userId, groupId, payload),
+  addGroupMembers: (userId, groupId, userIds) => relayMod.addMembers(getDb(), userId, groupId, userIds),
+  removeGroupMember: (userId, groupId, targetId) => relayMod.removeMember(getDb(), userId, groupId, targetId),
+  setGroupMemberRole: (userId, groupId, targetId, role) => relayMod.setMemberRole(getDb(), userId, groupId, targetId, role),
+  leaveGroup: (userId, groupId) => relayMod.leaveGroup(getDb(), userId, groupId),
+  deleteGroup: (userId, groupId) => relayMod.deleteGroup(getDb(), userId, groupId),
+  setGroupPrefs: (userId, groupId, prefs) => relayMod.setGroupPrefs(getDb(), userId, groupId, prefs),
+  markGroupRead: (userId, groupId) => relayMod.markGroupRead(getDb(), userId, groupId),
+  sendGroupMessage: (userId, groupId, content, options) => relayMod.sendGroupMessage(getDb(), userId, groupId, content, options),
+  setGroupMessageReaction: (messageId, userId, reaction) => relayMod.setGroupMessageReaction(getDb(), messageId, userId, reaction),
+  editGroupMessage: (userId, messageId, content) => relayMod.editGroupMessage(getDb(), userId, messageId, content),
+  deleteGroupMessage: (userId, messageId) => relayMod.deleteGroupMessage(getDb(), userId, messageId),
+  groupMemberIds: (groupId) => relayMod.memberIds(getDb(), groupId),
+  getDirectMessages: (userId, friendId, options) => relayMod.getDirectMessages(getDb(), userId, friendId, options),
+  sendDirectMessage: (senderId, receiverId, content, options) => relayMod.sendDirectMessage(getDb(), senderId, receiverId, content, options),
+  editDirectMessage: (userId, messageId, content) => relayMod.editDirectMessage(getDb(), userId, messageId, content),
+  deleteDirectMessage: (userId, messageId) => relayMod.deleteDirectMessage(getDb(), userId, messageId)
 };
