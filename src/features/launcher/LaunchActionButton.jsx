@@ -54,19 +54,23 @@ export default function LaunchActionButton({
 
   const label = isRunning
     ? t('home.kill')
-    : isBusy
-      ? formatLaunchProgress(launcherState, t)
-      : isInstalled
-        ? t('home.launch')
-        : installLabel || t('common.install');
+    : isVerifying
+      ? 'Checking game files'
+      : isDownloading
+        ? (isInstalled ? 'Repairing game' : 'Installing Minecraft')
+        : isBusy
+          ? (status === 'launching' ? 'Starting Minecraft' : 'Preparing game')
+          : isInstalled
+            ? t('home.launch')
+            : installLabel || 'Install Minecraft';
 
   const percent = Math.max(0, Math.min(100, Number(launcherState?.percent) || 0));
   const busyDetail = isBusy ? (launcherState?.detail || launcherState?.task || '') : '';
-  const sublabel = isDownloading
-    ? formatDownloadSize(launcherState?.bytes)
-    : isBusy && busyDetail && busyDetail !== label
-      ? busyDetail
-      : null;
+  const progressText = percent > 0 && percent < 100 ? `${Math.round(percent)}%` : null;
+  const sizeText = isDownloading ? formatDownloadSize(launcherState?.bytes) : null;
+  const sublabel = isBusy
+    ? [progressText, sizeText].filter(Boolean).join('  •  ') || (busyDetail && busyDetail !== label ? busyDetail : 'Getting everything ready…')
+    : null;
 
   return (
     <button
@@ -80,7 +84,7 @@ export default function LaunchActionButton({
       title={label}
     >
       <span className="launch-action-icon">
-        <NativeIcon name={icon} size={size === 'sm' ? 15 : size === 'md' ? 17 : 19} className={isBusy ? 'spin' : ''} />
+        <NativeIcon name={icon} size={size === 'sm' ? 15 : size === 'md' ? 17 : 19} className={mode === 'progress' ? 'spin' : ''} />
       </span>
 
       <span className="launch-action-text">

@@ -65,6 +65,12 @@ export default function Shell({
 
   const [notifications, setNotifications] = useState([]);
 
+  const openUpdater = useCallback(() => {
+    setSettingsOpen(false);
+    setNotificationsOpen(false);
+    onOpenUpdater?.();
+  }, [onOpenUpdater]);
+
   const instancesManager = useInstances(initialInstances);
   const launcher = useLauncher();
   usePlaytimeTracker(instancesManager.recordSession, { launcherState: launcher });
@@ -198,7 +204,7 @@ export default function Shell({
         onClose={handleClose}
         updateStatus={updateStatus}
         networkStatus={networkStatus}
-        onOpenUpdater={onOpenUpdater}
+        onOpenUpdater={openUpdater}
         friendsBadge={social.badgeTotal}
       />
 
@@ -310,7 +316,7 @@ export default function Shell({
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         instances={instancesManager.instances}
-        onOpenUpdater={onOpenUpdater}
+        onOpenUpdater={openUpdater}
       />
 
       <AccountSwitcherModal

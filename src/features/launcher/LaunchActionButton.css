@@ -1,6 +1,5 @@
 /* ============================================================
-   Launch action — Modern Clean Apple Design
-   Pill-shaped, refined typography, subtle depth, high contrast.
+   Launch action — compact premium game-launcher control.
    ============================================================ */
 
 .launch-action {
@@ -9,12 +8,12 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  height: 48px;
-  min-width: 172px;
-  padding: 0 24px;
+  height: 50px;
+  min-width: 184px;
+  padding: 0 22px;
   overflow: hidden;
-  border-radius: 9999px;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  border-radius: 12px;
+  font-family: var(--font-sans);
   font-size: 14.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -22,7 +21,7 @@
   cursor: pointer;
   user-select: none;
   border: 1px solid transparent;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform .16s var(--ease-out), background-color .16s var(--ease-out), border-color .16s var(--ease-out), box-shadow .16s var(--ease-out);
 }
 
 .launch-action:focus-visible {
@@ -39,51 +38,39 @@
 
 /* Launch: Clean Apple High-Contrast Solid White */
 .launch-action.is-launch {
-  background: #ffffff;
-  color: #0b0b0e;
-  border-color: rgba(255, 255, 255, 0.95);
-  box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.25),
-    0 1px 2px rgba(0, 0, 0, 0.12);
+  background: var(--brand);
+  color: var(--fg-on-brand);
+  border-color: var(--brand-border);
+  box-shadow: 0 8px 24px var(--brand-glow);
 }
 
 .launch-action.is-launch:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.93);
-  transform: translateY(-1.5px);
-  box-shadow:
-    0 7px 22px rgba(0, 0, 0, 0.32),
-    0 1px 3px rgba(0, 0, 0, 0.15);
+  background: var(--brand-hover);
+  transform: translateY(-1px);
 }
 
 .launch-action.is-launch:active:not(:disabled) {
-  transform: scale(0.975);
-  background: rgba(255, 255, 255, 0.84);
+  transform: scale(0.985);
 }
 
 /* Install & Download: Theme-aware Accent Gradient */
 .launch-action.is-install,
 .launch-action.is-download {
-  background: var(--launch-gradient, var(--brand-gradient, var(--brand)));
+  background: var(--brand);
   color: var(--fg-on-brand, #ffffff);
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow:
-    0 4px 16px var(--launch-shadow, var(--brand-glow, rgba(0, 0, 0, 0.25))),
-    0 1px 2px rgba(0, 0, 0, 0.15);
+  border-color: var(--brand-border);
+  box-shadow: 0 8px 24px var(--brand-glow);
 }
 
 .launch-action.is-install:hover:not(:disabled),
 .launch-action.is-download:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: translateY(-1.5px);
-  box-shadow:
-    0 7px 22px var(--launch-shadow, var(--brand-glow, rgba(0, 0, 0, 0.35))),
-    0 1px 3px rgba(0, 0, 0, 0.2);
+  background: var(--brand-hover);
+  transform: translateY(-1px);
 }
 
 .launch-action.is-install:active:not(:disabled),
 .launch-action.is-download:active:not(:disabled) {
-  transform: scale(0.975);
-  filter: brightness(0.95);
+  transform: scale(0.985);
 }
 
 /* Stop: Clean Apple System Red */
@@ -110,12 +97,10 @@
 /* Busy / Verifying / Progress: Translucent Frosted Glass */
 .launch-action.is-verify,
 .launch-action.is-progress {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  background: var(--component-bg);
+  color: var(--fg-primary);
+  border-color: var(--brand-border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.24);
 }
 
 /* ---------- Icon ---------- */
@@ -164,7 +149,7 @@
 .launch-action-track {
   position: absolute;
   inset: auto 0 0 0;
-  height: 2.5px;
+  height: 3px;
   background: rgba(0, 0, 0, 0.22);
 }
 

@@ -58,7 +58,6 @@ function send(res, status, value, headers = {}) {
     'Content-Length': body.length,
     'Cache-Control': status === 200 ? 'public, max-age=90' : 'no-store',
     'X-Content-Type-Options': 'nosniff',
-    'Access-Control-Allow-Origin': '*',
     ...headers
   });
   res.end(body);
@@ -176,7 +175,11 @@ async function handler(req, res) {
     if (!allowed(ip)) return send(res, 429, { error: 'Too many requests.' }, { 'Retry-After': '60' });
 
     if (req.method === 'OPTIONS') {
+      const requestOrigin = String(req.headers.origin || '');
+      const allowedOrigin = process.env.NOCTRA_CORS_ORIGIN || (/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(requestOrigin) ? requestOrigin : 'null');
       return send(res, 204, '', {
+        'Access-Control-Allow-Origin': allowedOrigin,
+        'Vary': 'Origin',
         'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Noctra-Token',
         'Access-Control-Max-Age': '600'
@@ -210,7 +213,7 @@ async function handler(req, res) {
       if (!profile) return send(res, 404, { error: 'Profile not found.' });
       const etag = `W/"${profile.updatedAt || 'static'}"`;
       if (req.headers['if-none-match'] === etag) return send(res, 304, '', { ETag: etag });
-      return send(res, 200, customSkinProfile(profile, originOf(req)), { ETag: etag });
+      return send(res, 200, customSkinProfile(profile, originOf(req)), { ETag: etag, 'Access-Control-Allow-Origin': '*' });
     }
 
     // Texture delivery
@@ -220,7 +223,8 @@ async function handler(req, res) {
       if (!fs.existsSync(target)) return send(res, 404, { error: 'Texture not found.' });
       return send(res, 200, fs.readFileSync(target), {
         'Cache-Control': 'public, max-age=31536000, immutable',
-        ETag: `"${textureMatch[1]}"`
+        ETag: `"${textureMatch[1]}"`,
+        'Access-Control-Allow-Origin': '*'
       });
     }
 
@@ -231,7 +235,7 @@ async function handler(req, res) {
     if (req.method === 'GET' && avatarMatch) {
       const profile = readProfile(avatarMatch[1]);
       if (profile?.skin) {
-        return send(res, 302, '', { Location: `/csl/textures/${profile.skin}` });
+        return send(res, 302, '', { Location: `/csl/textures/${profile.skin}`, 'Access-Control-Allow-Origin': '*' });
       }
       return send(res, 404, { error: 'Avatar not found.' });
     }
@@ -363,7 +367,7 @@ async function handler(req, res) {
         return send(res, 400, { ok: false, error: 'An account with this email already exists.' });
       }
 
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const code = crypto.randomInt(100000, 1000000).toString();
       db.saveVerificationCode(email, code);
 
       try {
@@ -457,7 +461,7 @@ async function handler(req, res) {
         return send(res, 400, { ok: false, error: 'Please enter a valid email address.' });
       }
 
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const code = crypto.randomInt(100000, 1000000).toString();
       db.saveVerificationCode(email, code);
 
       try {
@@ -470,6 +474,13 @@ async function handler(req, res) {
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/auth/backup') {
+      const supplied = String(req.headers['x-noctra-backup-token'] || '').trim();
+      const expected = String(process.env.NOCTRA_BACKUP_TOKEN || '').trim();
+      const valid = supplied && expected && supplied.length === expected.length &&
+        crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+      if (!valid) {
+        return send(res, expected ? 401 : 404, { ok: false, error: expected ? 'Backup authorization required.' : 'Not found.' });
+      }
       const backup = db.backupDatabase();
       const data = fs.readFileSync(backup.path);
       return send(res, 200, data, {
@@ -591,6 +602,17 @@ async function handler(req, res) {
         if (!rawData) {
           return send(res, 400, { ok: false, error: 'No file data received.' });
         }
+        const dataMatch = String(rawData).match(/^data:([^;,]+);base64,/i);
+        const declaredMime = dataMatch?.[1]?.toLowerCase() || '';
+        const allowedMedia = new Map([
+          ['image/png', '.png'], ['image/jpeg', '.jpg'], ['image/gif', '.gif'],
+          ['image/webp', '.webp'], ['audio/mpeg', '.mp3'], ['audio/ogg', '.ogg'],
+          ['audio/webm', '.webm'], ['audio/wav', '.wav'], ['video/mp4', '.mp4'],
+          ['text/plain', '.txt'], ['application/zip', '.zip']
+        ]);
+        if (!declaredMime || !allowedMedia.has(declaredMime)) {
+          return send(res, 400, { ok: false, error: 'Unsupported attachment type.' });
+        }
         const cleanBase64 = String(rawData).replace(/^data:[^;]+;base64,/i, '');
         const buffer = Buffer.from(cleanBase64, 'base64');
         if (buffer.length === 0 || buffer.length > 25 * 1024 * 1024) {
@@ -598,7 +620,7 @@ async function handler(req, res) {
         }
 
         const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 32);
-        const ext = path.extname(originalName) || '.png';
+        const ext = allowedMedia.get(declaredMime);
         const filename = `${hash}${ext}`;
         const targetPath = path.join(mediaDir, filename);
 

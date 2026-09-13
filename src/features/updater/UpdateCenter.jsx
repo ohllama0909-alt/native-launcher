@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import './UpdateCenter.css';
@@ -8,6 +8,18 @@ const BUSY_TYPES = new Set(['checking', 'preparing', 'downloading', 'installing'
 
 export default function UpdateCenter({ open, onClose, status, onCheck, onDownload, onCancel, onInstall }) {
   const { t } = useI18n();
+  const checkedForOpen = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      checkedForOpen.current = false;
+      return;
+    }
+    if (!checkedForOpen.current && status.type === 'idle') {
+      checkedForOpen.current = true;
+      onCheck?.();
+    }
+  }, [open, status.type, onCheck]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -34,6 +46,10 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
     <div className="uc-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="update-center" role="dialog" aria-modal="true" aria-labelledby="uc-title">
         <header className="uc-head">
+          <div className={`uc-mark is-${status.type}`} aria-hidden="true">
+            <span className="uc-mark-ring" />
+            <span className="uc-mark-core">N</span>
+          </div>
           <div className="uc-head-text">
             <h2 className="uc-title" id="uc-title">{headline(status, percent, t)}</h2>
             <p className="uc-subtitle">{subline(status, t)}</p>

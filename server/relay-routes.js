@@ -18,7 +18,6 @@ function send(res, status, value, headers = {}) {
     'Content-Length': body.length,
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
-    'Access-Control-Allow-Origin': '*',
     ...headers
   });
   res.end(body);
@@ -63,7 +62,11 @@ async function handleRelayRoutes(req, res) {
   if (!url.pathname.startsWith('/v1/social/relay')) return false;
 
   if (req.method === 'OPTIONS') {
+    const requestOrigin = String(req.headers.origin || '');
+    const allowedOrigin = process.env.NOCTRA_CORS_ORIGIN || (/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(requestOrigin) ? requestOrigin : 'null');
     send(res, 204, '', {
+      'Access-Control-Allow-Origin': allowedOrigin,
+      'Vary': 'Origin',
       'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Noctra-Token',
       'Access-Control-Max-Age': '600'
