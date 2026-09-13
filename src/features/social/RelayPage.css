@@ -710,6 +710,36 @@
   margin-left: 2px;
 }
 
+.relay-msg-actions-hover {
+  position: absolute;
+  top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 3;
+}
+
+.relay-message-row.is-incoming .relay-msg-actions-hover {
+  right: -32px;
+}
+
+.relay-message-row.is-outgoing .relay-msg-actions-hover {
+  left: -32px;
+}
+
+.relay-msg-actions-hover .relay-msg-react-trigger {
+  position: static;
+}
+
+.relay-msg-highlight {
+  animation: relayHighlight 2s ease-out;
+}
+
+@keyframes relayHighlight {
+  0% { background: var(--brand-subtle, rgba(124, 58, 237, 0.25)); }
+  100% { background: transparent; }
+}
+
 /* Hover reaction trigger */
 .relay-msg-react-trigger {
   position: absolute;

@@ -55,13 +55,7 @@ export const INITIAL_CLUSTERS = [
     art: ChaosCubedArt,
     description: "Minecraft's 26.x updates, starting with the release of \"Tiny Takeover\", primarily focuses on mob charm and quality-of-life improvements, overhauling textures and models for every baby mob that previously lacked a unique model. It also features the golden dandelion, nametag crafting, and other gameplay enhancements.",
     tags: ['PvP', 'SkyBlock', 'Survival'],
-    playtimeSecs: 1620, // 27m
-    sessionCount: 2,
-    avgSessionSecs: 780, // 13m
-    activeDays: 2,
-    serverJoins: 2,
-    created: Date.now() - 86400000 * 7,
-    lastPlayed: Date.now() - 3600000 * 2
+    created: Date.now() - 86400000 * 7
   },
   {
     id: 'cluster-26-1-2-fabric',
@@ -74,13 +68,7 @@ export const INITIAL_CLUSTERS = [
     art: TinyTakeoverArt,
     description: "Minecraft's 26.x updates, starting with the release of \"Tiny Takeover\", primarily focuses on mob charm and quality-of-life improvements, overhauling textures and models for baby mobs.",
     tags: ['PvP', 'SkyBlock', 'Survival'],
-    playtimeSecs: 900, // 15m
-    sessionCount: 1,
-    avgSessionSecs: 900,
-    activeDays: 1,
-    serverJoins: 1,
-    created: Date.now() - 86400000 * 14,
-    lastPlayed: Date.now() - 86400000 * 3
+    created: Date.now() - 86400000 * 14
   },
   {
     id: 'cluster-1-21-11-fabric',
@@ -93,13 +81,7 @@ export const INITIAL_CLUSTERS = [
     art: MountsMayhemArt,
     description: "Rideable mob enhancements, trial chamber adventures, and expanded crafting mechanics for modern Minecraft.",
     tags: ['PvP', 'SkyBlock', 'Survival'],
-    playtimeSecs: 3600, // 1h
-    sessionCount: 3,
-    avgSessionSecs: 1200,
-    activeDays: 2,
-    serverJoins: 4,
-    created: Date.now() - 86400000 * 21,
-    lastPlayed: Date.now() - 86400000 * 5
+    created: Date.now() - 86400000 * 21
   },
   {
     id: 'cluster-1-21-1-fabric',
@@ -112,13 +94,7 @@ export const INITIAL_CLUSTERS = [
     art: TrickyTrialsArt,
     description: "Minecraft's 1.21 update, known as \"Tricky Trials,\" primarily focuses on combat adventures and tinkering, introducing trial chambers, new copper block variants, a new crafting tool, and a new weapon.",
     tags: ['Tricky Trials', 'PvP', 'Survival'],
-    playtimeSecs: 7200, // 2h
-    sessionCount: 5,
-    avgSessionSecs: 1440,
-    activeDays: 4,
-    serverJoins: 6,
-    created: Date.now() - 86400000 * 30,
-    lastPlayed: Date.now() - 86400000 * 6
+    created: Date.now() - 86400000 * 30
   }
 ];
 

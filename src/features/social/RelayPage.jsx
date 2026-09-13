@@ -20,7 +20,12 @@ import {
   X
 } from 'lucide-react';
 import RelayAvatar from './RelayAvatar.jsx';
+import useRelayGroups from './useRelayGroups.js';
+import GroupCreateModal from './GroupCreateModal.jsx';
+import GroupSettingsModal from './GroupSettingsModal.jsx';
+import ReplyQuote, { ReplyComposerBar } from './ReplyPreview.jsx';
 import './RelayPage.css';
+import './relay-groups.css';
 
 const RELAY_STORAGE_KEY = 'noctra_relay_store_v4';
 const MESSAGE_MAX = 2000;
@@ -76,9 +81,12 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const persisted = useMemo(() => loadPersistedState(), []);
   const selfId = social?.selfId || account?.id || null;
 
+  const relayGroups = useRelayGroups({ selfId, selfName: account?.name || 'You' });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   // Conversations & threads state (no seed data: strictly real database & user records)
   const [pinnedIds, setPinnedIds] = useState(() => persisted?.pinnedIds || []);
-  const [groups, setGroups] = useState(() => persisted?.groups || []);
   const [localConversations, setLocalConversations] = useState(() => persisted?.conversations || {});
   const [selectedId, setSelectedId] = useState(() => persisted?.lastSelectedId || null);
 
@@ -90,7 +98,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const [collapsed, setCollapsed] = useState({ pinned: false, groups: false, direct: false });
 
   // UI popovers
-  const [showNewGroupModal, setShowNewGroupModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [showMenuDropdown, setShowMenuDropdown] = useState(false);
@@ -100,13 +107,14 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const [sending, setSending] = useState(false);
   const [recordingVoice, setRecordingVoice] = useState(false);
 
-  // Group creation modal state
-  const [newGroupName, setNewGroupName] = useState('');
-  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
-
   const messageStreamRef = useRef(null);
   const fileInputRef = useRef(null);
   const atBottomRef = useRef(true);
+
+  // Synchronize social SSE events to relay groups
+  useEffect(() => {
+    return social?.subscribe?.((event) => relayGroups.handleSocialEvent(event));
+  }, [social, relayGroups]);
 
   // Synchronize with social.activeChatFriend if set by an external action
   useEffect(() => {
@@ -115,20 +123,19 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     }
   }, [social?.activeChatFriend?.id, selectedId]);
 
-  // Persist pins, groups and local drafts (the server owns real messages)
+  // Persist pins and local drafts (the server owns real messages)
   useEffect(() => {
     try {
       localStorage.setItem(
         RELAY_STORAGE_KEY,
         JSON.stringify({
           pinnedIds,
-          groups,
           conversations: localConversations,
           lastSelectedId: selectedId
         })
       );
     } catch {}
-  }, [pinnedIds, groups, localConversations, selectedId]);
+  }, [pinnedIds, localConversations, selectedId]);
 
   // Escape closes the lightbox
   useEffect(() => {
@@ -184,7 +191,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         skinUrl: f.skinUrl || null,
         model: f.model || 'classic',
         status,
-        isVerified: Boolean(f.isVerified),
+        isVerified: false,
         activity:
           f.activity ||
           (status === 'in-game'
@@ -208,11 +215,42 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     });
   }, [social?.friends, social?.conversations, social?.typingBy, selfId]);
 
+  // Formatted groups from useRelayGroups
+  const formattedGroups = useMemo(() => {
+    return (relayGroups.groups || []).map((g) => {
+      let snippet = 'No messages yet';
+      if (g.lastMessage) {
+        if (g.lastMessage.isSystem) {
+          snippet = g.lastMessage.content;
+        } else {
+          const isMine = g.lastMessage.senderId === selfId;
+          snippet = isMine
+            ? `You: ${g.lastMessage.content || 'Sent attachment'}`
+            : `${g.lastMessage.senderName || 'Member'}: ${g.lastMessage.content || 'Sent attachment'}`;
+        }
+      } else {
+        const count = g.memberCount || g.members?.length || 0;
+        snippet = `${count} members`;
+      }
+
+      return {
+        ...g,
+        kind: 'group',
+        isGroup: true,
+        nickname: g.name,
+        lastStamp: g.lastMessage?.createdAt || g.createdAt || 0,
+        lastTime: formatTime(g.lastMessage?.createdAt || g.createdAt),
+        lastMessage: snippet,
+        unread: g.muted ? 0 : (g.unreadCount || 0)
+      };
+    });
+  }, [relayGroups.groups, selfId]);
+
   // All conversational items: groups + friends, most recent first
   const allThreads = useMemo(() => {
     const dms = [...mergedFriends].sort((a, b) => (b.lastStamp || 0) - (a.lastStamp || 0));
-    return [...groups, ...dms];
-  }, [groups, mergedFriends]);
+    return [...formattedGroups, ...dms];
+  }, [formattedGroups, mergedFriends]);
 
   // Active entity derived dynamically so presence never desynchronizes
   const activeEntity = useMemo(() => {
@@ -231,6 +269,15 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     }
   }, [selectedId, allThreads]);
 
+  // Sync open group with activeEntity
+  useEffect(() => {
+    if (activeEntity?.kind === 'group') {
+      if (relayGroups.activeGroupId !== activeEntity.id) {
+        relayGroups.openGroup(activeEntity.id);
+      }
+    }
+  }, [activeEntity?.id, activeEntity?.kind, relayGroups]);
+
   // Keep the hook's active conversation in sync (drives read receipts & unread reset)
   const setActiveChatFriend = social?.setActiveChatFriend;
   useEffect(() => {
@@ -242,8 +289,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     }
   }, [activeEntity, social?.activeChatId, setActiveChatFriend]);
 
-  // Always make sure the open conversation has its history fetched. The bulk
-  // preload can miss threads, which previously left older chats blank.
+  // Always make sure the open conversation has its history fetched.
   const loadThread = social?.loadThread;
   useEffect(() => {
     if (!loadThread || !activeEntity || activeEntity.kind === 'group') return;
@@ -254,7 +300,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const getPresence = useCallback((entity) => {
     if (!entity) return { status: 'offline', text: 'Offline', color: 'var(--fg-muted, #77717c)', isVerified: false };
     if (entity.kind === 'group') {
-      const count = entity.members?.length || 2;
+      const count = entity.memberCount || entity.members?.length || 0;
       return { status: 'in-launcher', text: `${count} members`, color: 'var(--brand, #b05acb)', isVerified: false };
     }
     if (entity.isTyping) {
@@ -296,16 +342,29 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     });
   };
 
-  const pinnedList = filterList(allThreads.filter((t) => pinnedIds.includes(t.id)));
-  const groupList = filterList(groups.filter((g) => !pinnedIds.includes(g.id)));
-  const directList = filterList(allThreads.filter((t) => t.kind !== 'group' && !pinnedIds.includes(t.id)));
+  const isPinned = useCallback((t) => Boolean(t?.pinned || (t?.id && pinnedIds.includes(t.id))), [pinnedIds]);
+  const pinnedList = filterList(allThreads.filter(isPinned));
+  const groupList = filterList(formattedGroups.filter((g) => !isPinned(g)));
+  const directList = filterList(allThreads.filter((t) => t.kind !== 'group' && !isPinned(t)));
 
   // Current conversation messages, straight from the per-thread server cache.
   const currentMessages = useMemo(() => {
     if (!activeEntity?.id) return [];
-    const local = localConversations[activeEntity.id] || [];
-    if (isGroupThread) return local;
+    if (isGroupThread) {
+      return (relayGroups.messages || []).map((m) => {
+        const isMine = m.senderId === selfId || m.senderId === 'me';
+        return {
+          ...m,
+          id: String(m.id),
+          senderId: isMine ? 'me' : m.senderId,
+          senderName: isMine ? 'You' : (m.senderName || 'Member'),
+          time: formatTime(m.createdAt),
+          isMine
+        };
+      });
+    }
 
+    const local = localConversations[activeEntity.id] || [];
     const thread = social?.conversations?.[activeEntity.id];
     const serverList = (thread?.messages || []).map((m) => {
       const isMine = m.senderId === selfId;
@@ -320,6 +379,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         isVoice: m.mediaKind === 'audio',
         duration: m.mediaKind === 'audio' ? (m.content || '') : null,
         reactions: Array.isArray(m.reactions) ? m.reactions : [],
+        reply: m.reply || null,
         isRead: Boolean(m.isRead),
         pending: Boolean(m.pending),
         failed: Boolean(m.failed),
@@ -332,7 +392,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     // Keep optimistic uploads visible until the server echo arrives
     const pendingUploads = local.filter((m) => m.isUploading || m.uploadFailed);
     return [...serverList, ...pendingUploads];
-  }, [activeEntity, isGroupThread, localConversations, social?.conversations, selfId]);
+  }, [activeEntity, isGroupThread, localConversations, social?.conversations, selfId, relayGroups.messages]);
 
   // Messages filtered by in-conversation search
   const filteredMessages = useMemo(() => {
@@ -380,9 +440,15 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const handleStreamScroll = (e) => {
     const node = e.currentTarget;
     atBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 60;
-    if (node.scrollTop < 48 && !isGroupThread && activeEntity?.id) {
-      const thread = social?.conversations?.[activeEntity.id];
-      if (!thread?.loading && (thread?.hasMore || !thread?.loaded)) social?.loadOlder?.(activeEntity.id);
+    if (node.scrollTop < 48 && activeEntity?.id) {
+      if (isGroupThread) {
+        if (!relayGroups.loadingThread && relayGroups.hasMoreMessages) {
+          relayGroups.loadOlder(activeEntity.id);
+        }
+      } else {
+        const thread = social?.conversations?.[activeEntity.id];
+        if (!thread?.loading && (thread?.hasMore || !thread?.loaded)) social?.loadOlder?.(activeEntity.id);
+      }
     }
   };
 
@@ -396,44 +462,39 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     setShowEmojiPicker(false);
     setShowGifPicker(false);
     setActiveReactionPickerMsgId(null);
+    relayGroups.clearReply();
 
     if (thread.kind === 'group') {
       social?.setActiveChatFriend?.(null);
+      relayGroups.openGroup(thread.id);
     } else {
       social?.setActiveChatFriend?.(thread);
+      relayGroups.closeGroup();
     }
   };
 
   // Action: pin / unpin conversation
-  const handleTogglePin = (id) => {
-    setPinnedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev]));
+  const handleTogglePin = async (id) => {
+    if (activeEntity?.kind === 'group' && activeEntity?.id === id) {
+      const isCurrentlyPinned = Boolean(activeEntity.pinned);
+      await relayGroups.setGroupPrefs(id, { pinned: !isCurrentlyPinned });
+    } else {
+      setPinnedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev]));
+    }
     setShowMenuDropdown(false);
   };
 
-  // Action: toggle message reaction (server-backed for DMs, local for groups)
+  // Action: toggle message reaction (server-backed for DMs & groups)
   const handleToggleReaction = async (messageId, reactionEmoji) => {
     if (!messageId || !reactionEmoji || !activeEntity) return;
     setActiveReactionPickerMsgId(null);
 
-    if (isGroupThread || String(messageId).startsWith('upload-')) {
-      setLocalConversations((prev) => {
-        const list = prev[activeEntity.id] || [];
-        return {
-          ...prev,
-          [activeEntity.id]: list.map((m) => {
-            if (m.id !== messageId) return m;
-            const current = Array.isArray(m.reactions) ? m.reactions : [];
-            const mine = current.find((r) => r.userId === 'me' && r.reaction === reactionEmoji);
-            const withoutMine = current.filter((r) => !(r.userId === 'me' && r.reaction === reactionEmoji));
-            return {
-              ...m,
-              reactions: mine ? withoutMine : [...withoutMine, { userId: 'me', reaction: reactionEmoji }]
-            };
-          })
-        };
-      });
+    if (isGroupThread) {
+      await relayGroups.toggleReaction(activeEntity.id, messageId, reactionEmoji);
       return;
     }
+
+    if (String(messageId).startsWith('upload-')) return;
 
     try {
       await social?.setMessageReaction?.(messageId, reactionEmoji);
@@ -443,7 +504,9 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   // Composer typing -> realtime typing indicator for the peer
   const handleComposerChange = (e) => {
     setComposerText(e.target.value);
-    if (!isGroupThread && activeEntity?.id && e.target.value) {
+    if (isGroupThread && activeEntity?.id) {
+      relayGroups.notifyGroupTyping(activeEntity.id);
+    } else if (!isGroupThread && activeEntity?.id && e.target.value) {
       social?.notifyTyping?.(activeEntity.id);
     }
   };
@@ -457,13 +520,20 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     setSending(true);
     const nowTime = formatTime(Date.now());
     const fileToUpload = stagedFile;
+    const replyTarget = relayGroups.replyTarget;
     setComposerText('');
     setStagedFile(null);
     setShowEmojiPicker(false);
     setShowGifPicker(false);
     setActiveReactionPickerMsgId(null);
+    relayGroups.clearReply();
     atBottomRef.current = true;
-    if (!isGroupThread && activeEntity.id) social?.stopTyping?.(activeEntity.id);
+
+    if (isGroupThread && activeEntity.id) {
+      relayGroups.stopGroupTyping(activeEntity.id);
+    } else if (!isGroupThread && activeEntity.id) {
+      social?.stopTyping?.(activeEntity.id);
+    }
 
     if (fileToUpload) {
       const tempId = `upload-${Date.now()}`;
@@ -491,23 +561,40 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         if (!res?.ok || !res.url) throw new Error(res?.error || 'Upload failed');
         const finalMediaUrl = res.url;
 
-        if (!isGroupThread) {
-          await social?.sendMessage?.(activeEntity.id, text, {
+        if (isGroupThread) {
+          await relayGroups.sendGroupMessage(activeEntity.id, text, {
             mediaUrl: finalMediaUrl,
             mediaName: fileToUpload.name,
             mediaKind: fileToUpload.isImage ? 'image' : 'file',
-            isMedia: fileToUpload.isImage
+            isMedia: fileToUpload.isImage,
+            replyTo: replyTarget?.id || null
           });
           setLocalConversations((prev) => ({
             ...prev,
             [activeEntity.id]: (prev[activeEntity.id] || []).filter((m) => m.id !== tempId)
           }));
         } else {
+          if (replyTarget?.id && window.native?.relay?.sendDirectMessage) {
+            await window.native.relay.sendDirectMessage(activeEntity.id, {
+              content: text,
+              mediaUrl: finalMediaUrl,
+              mediaName: fileToUpload.name,
+              mediaKind: fileToUpload.isImage ? 'image' : 'file',
+              isMedia: fileToUpload.isImage,
+              replyTo: replyTarget.id
+            });
+          } else {
+            await social?.sendMessage?.(activeEntity.id, text, {
+              mediaUrl: finalMediaUrl,
+              mediaName: fileToUpload.name,
+              mediaKind: fileToUpload.isImage ? 'image' : 'file',
+              isMedia: fileToUpload.isImage,
+              replyTo: replyTarget?.id || null
+            });
+          }
           setLocalConversations((prev) => ({
             ...prev,
-            [activeEntity.id]: (prev[activeEntity.id] || []).map((m) =>
-              m.id === tempId ? { ...m, isUploading: false, mediaUrl: finalMediaUrl } : m
-            )
+            [activeEntity.id]: (prev[activeEntity.id] || []).filter((m) => m.id !== tempId)
           }));
         }
       } catch {
@@ -521,25 +608,23 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
       }
     } else if (text) {
       if (isGroupThread) {
-        const newMsg = {
-          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          senderId: 'me',
-          senderName: 'You',
-          content: text,
-          createdAt: Date.now(),
-          time: nowTime,
-          isMine: true
-        };
-        setLocalConversations((prev) => ({
-          ...prev,
-          [activeEntity.id]: [...(prev[activeEntity.id] || []), newMsg]
-        }));
-        setGroups((prev) =>
-          prev.map((g) => (g.id === activeEntity.id ? { ...g, lastMessage: `You: ${text}`, lastTime: nowTime } : g))
-        );
-      } else {
-        const res = await social?.sendMessage?.(activeEntity.id, text);
+        const res = await relayGroups.sendGroupMessage(activeEntity.id, text, {
+          replyTo: replyTarget?.id || null
+        });
         if (res && res.ok === false && res.error) onNotify?.('Message failed', res.error);
+      } else {
+        if (replyTarget?.id && window.native?.relay?.sendDirectMessage) {
+          const res = await window.native.relay.sendDirectMessage(activeEntity.id, {
+            content: text,
+            replyTo: replyTarget.id
+          });
+          if (res && res.ok === false && res.error) onNotify?.('Message failed', res.error);
+        } else {
+          const res = await social?.sendMessage?.(activeEntity.id, text, {
+            replyTo: replyTarget?.id || null
+          });
+          if (res && res.ok === false && res.error) onNotify?.('Message failed', res.error);
+        }
       }
     }
 
@@ -576,42 +661,43 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     setShowGifPicker(false);
     if (!activeEntity) return;
     atBottomRef.current = true;
+    const replyTarget = relayGroups.replyTarget;
+    relayGroups.clearReply();
 
     if (isGroupThread) {
-      const newMsg = {
-        id: `gif-${Date.now()}`,
-        senderId: 'me',
-        senderName: 'You',
-        content: '',
-        isMedia: true,
+      await relayGroups.sendGroupMessage(activeEntity.id, '', {
         mediaUrl: gif.url,
         mediaName: `${gif.label}.gif`,
-        createdAt: Date.now(),
-        time: formatTime(Date.now()),
-        isMine: true
-      };
-      setLocalConversations((prev) => ({
-        ...prev,
-        [activeEntity.id]: [...(prev[activeEntity.id] || []), newMsg]
-      }));
+        mediaKind: 'image',
+        isMedia: true,
+        replyTo: replyTarget?.id || null
+      });
       return;
     }
 
-    await social?.sendMessage?.(activeEntity.id, '', {
-      mediaUrl: gif.url,
-      mediaName: `${gif.label}.gif`,
-      mediaKind: 'image',
-      isMedia: true
-    });
+    if (replyTarget?.id && window.native?.relay?.sendDirectMessage) {
+      await window.native.relay.sendDirectMessage(activeEntity.id, {
+        content: '',
+        mediaUrl: gif.url,
+        mediaName: `${gif.label}.gif`,
+        mediaKind: 'image',
+        isMedia: true,
+        replyTo: replyTarget.id
+      });
+    } else {
+      await social?.sendMessage?.(activeEntity.id, '', {
+        mediaUrl: gif.url,
+        mediaName: `${gif.label}.gif`,
+        mediaKind: 'image',
+        isMedia: true,
+        replyTo: replyTarget?.id || null
+      });
+    }
   };
 
   // Action: record a short voice note and send it as real audio media
   const handleVoiceNote = async () => {
     if (!activeEntity) return;
-    if (isGroupThread) {
-      onNotify?.('Voice notes', 'Voice notes are only available in direct messages.');
-      return;
-    }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       onNotify?.('Microphone unavailable', 'No recording device is available on this system.');
       return;
@@ -643,12 +729,22 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
           setRecordingVoice(false);
           return;
         }
-        await social?.sendMessage?.(activeEntity.id, `0:${String(seconds).padStart(2, '0')}`, {
-          mediaUrl: upload.url,
-          mediaName: `voice-${startedAt}.webm`,
-          mediaKind: 'audio',
-          isMedia: true
-        });
+
+        if (isGroupThread) {
+          await relayGroups.sendGroupMessage(activeEntity.id, `0:${String(seconds).padStart(2, '0')}`, {
+            mediaUrl: upload.url,
+            mediaName: `voice-${startedAt}.webm`,
+            mediaKind: 'audio',
+            isMedia: true
+          });
+        } else {
+          await social?.sendMessage?.(activeEntity.id, `0:${String(seconds).padStart(2, '0')}`, {
+            mediaUrl: upload.url,
+            mediaName: `voice-${startedAt}.webm`,
+            mediaKind: 'audio',
+            isMedia: true
+          });
+        }
         setRecordingVoice(false);
       };
 
@@ -663,32 +759,20 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     }
   };
 
-  // Action: create new group (local squad grouping)
-  const handleCreateGroup = (e) => {
-    e.preventDefault();
-    if (!newGroupName.trim()) return;
-
-    const newGroup = {
-      id: `group-${Date.now()}`,
-      name: newGroupName.trim(),
-      nickname: newGroupName.trim(),
-      kind: 'group',
-      members: selectedGroupMembers.length > 0 ? selectedGroupMembers : [account?.name || 'Player'],
-      lastMessage: 'Group created',
-      lastTime: formatTime(Date.now())
-    };
-
-    setGroups((prev) => [newGroup, ...prev]);
-    setSelectedId(newGroup.id);
-    setNewGroupName('');
-    setSelectedGroupMembers([]);
-    setShowNewGroupModal(false);
-    onNotify?.('Group created', `Created "${newGroup.name}" with ${newGroup.members.length} members.`);
-  };
+  const scrollToMessage = useCallback((targetId) => {
+    const el = document.getElementById(`msg-${targetId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('relay-msg-highlight');
+      setTimeout(() => el.classList.remove('relay-msg-highlight'), 2000);
+    }
+  }, []);
 
   const activePresence = getPresence(activeEntity);
   const activeThreadState = !isGroupThread && activeEntity ? social?.conversations?.[activeEntity.id] : null;
-  const isLoadingThread = Boolean(activeThreadState?.loading) || Boolean(activeEntity && !isGroupThread && !activeThreadState?.loaded);
+  const isLoadingThread = isGroupThread
+    ? Boolean(relayGroups.loadingThread)
+    : Boolean(activeThreadState?.loading) || Boolean(activeEntity && !activeThreadState?.loaded);
 
   if (social && social.isNoctra === false) {
     return (
@@ -730,7 +814,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
             <button
               type="button"
               className="relay-inbox-btn"
-              onClick={() => setShowNewGroupModal(true)}
+              onClick={() => setCreateOpen(true)}
               title="Create New Group"
               aria-label="Create New Group"
             >
@@ -749,7 +833,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
               <div className="relay-empty-desc">
                 Add friends using their Minecraft username or create a group to start chatting.
               </div>
-              <button type="button" className="relay-empty-btn" onClick={() => setShowNewGroupModal(true)}>
+              <button type="button" className="relay-empty-btn" onClick={() => setCreateOpen(true)}>
                 <Plus size={13} />
                 <span>Create Group</span>
               </button>
@@ -784,7 +868,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                 </section>
               )}
 
-              {groups.length > 0 && (
+              {formattedGroups.length > 0 && (
                 <section className="relay-section">
                   <button
                     type="button"
@@ -854,12 +938,23 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         {activeEntity ? (
           <>
             <header className="relay-chat-header">
-              <div className="relay-peer-info">
+              <div
+                className="relay-peer-info"
+                onClick={() => isGroupThread && setSettingsOpen(true)}
+                style={isGroupThread ? { cursor: 'pointer' } : undefined}
+                title={isGroupThread ? 'Group settings & members' : undefined}
+              >
                 <div className="relay-peer-avatar-wrapper">
                   {isGroupThread ? (
-                    <div className="relay-peer-group-avatar">
-                      <CompositeGroupAvatar members={activeEntity.members} />
-                    </div>
+                    activeEntity.iconUrl ? (
+                      <span className="relay-group-avatar" style={{ width: 38, height: 38, borderRadius: 8 }}>
+                        <img src={activeEntity.iconUrl} alt="" />
+                      </span>
+                    ) : (
+                      <div className="relay-peer-group-avatar">
+                        <CompositeGroupAvatar members={activeEntity.members} />
+                      </div>
+                    )
                   ) : (
                     <RelayAvatar
                       name={activeEntity?.name}
@@ -884,7 +979,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                       <button
                         type="button"
                         className="relay-join-inline"
-                        onClick={() => onJoinServer?.(activeEntity)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onJoinServer?.(activeEntity);
+                        }}
                         title={`Join ${activeEntity.serverAddress}`}
                       >
                         Join
@@ -911,11 +1009,22 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
               </div>
 
               <div className="relay-header-actions">
+                {isGroupThread && (
+                  <button
+                    type="button"
+                    className="relay-action-btn"
+                    onClick={() => setSettingsOpen(true)}
+                    title="Group settings & members"
+                  >
+                    <Users size={16} />
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  className={`relay-action-btn ${pinnedIds.includes(activeEntity?.id) ? 'is-active' : ''}`}
+                  className={`relay-action-btn ${isPinned(activeEntity) ? 'is-active' : ''}`}
                   onClick={() => activeEntity && handleTogglePin(activeEntity.id)}
-                  title={pinnedIds.includes(activeEntity?.id) ? 'Unpin conversation' : 'Pin conversation'}
+                  title={isPinned(activeEntity) ? 'Unpin conversation' : 'Pin conversation'}
                 >
                   <Pin size={16} />
                 </button>
@@ -940,21 +1049,35 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                         }}
                       >
                         <Pin size={13} />
-                        <span>{pinnedIds.includes(activeEntity?.id) ? 'Unpin conversation' : 'Pin conversation'}</span>
+                        <span>{isPinned(activeEntity) ? 'Unpin conversation' : 'Pin conversation'}</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (activeEntity?.name) {
-                            navigator.clipboard?.writeText(activeEntity.name);
-                            onNotify?.('Copied', `Copied username ${activeEntity.name}`);
-                          }
-                          setShowMenuDropdown(false);
-                        }}
-                      >
-                        <Users size={13} />
-                        <span>Copy Username</span>
-                      </button>
+                      {isGroupThread && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsOpen(true);
+                            setShowMenuDropdown(false);
+                          }}
+                        >
+                          <Users size={13} />
+                          <span>Group settings</span>
+                        </button>
+                      )}
+                      {!isGroupThread && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (activeEntity?.name) {
+                              navigator.clipboard?.writeText(activeEntity.name);
+                              onNotify?.('Copied', `Copied username ${activeEntity.name}`);
+                            }
+                            setShowMenuDropdown(false);
+                          }}
+                        >
+                          <Users size={13} />
+                          <span>Copy Username</span>
+                        </button>
+                      )}
                       {!isGroupThread && (
                         <button
                           type="button"
@@ -1011,6 +1134,14 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                     );
                   }
 
+                  if (msg.isSystem) {
+                    return (
+                      <div key={msg.id || index} id={`msg-${msg.id}`} className="relay-system-message">
+                        {msg.content}
+                      </div>
+                    );
+                  }
+
                   const isMine = msg.senderId === 'me' || msg.isMine;
                   const isPickerOpen = activeReactionPickerMsgId === msg.id;
                   const reactionGroups = Array.isArray(msg.reactions)
@@ -1023,6 +1154,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                   return (
                     <div
                       key={msg.id || index}
+                      id={`msg-${msg.id}`}
                       className={`relay-message-row ${isMine ? 'is-outgoing' : 'is-incoming'} ${msg.pending ? 'is-pending' : ''} ${msg.failed || msg.uploadFailed ? 'is-failed' : ''}`}
                     >
                       {!isMine && isGroupThread && (
@@ -1034,14 +1166,24 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                           <span className="relay-msg-author-name">{msg.senderName || msg.senderId}</span>
                         )}
 
-                        <button
-                          type="button"
-                          className="relay-msg-react-trigger"
-                          onClick={() => setActiveReactionPickerMsgId(isPickerOpen ? null : msg.id)}
-                          title="Add reaction"
-                        >
-                          <Smile size={14} />
-                        </button>
+                        <div className="relay-msg-actions-hover">
+                          <button
+                            type="button"
+                            className="relay-msg-react-trigger"
+                            onClick={() => setActiveReactionPickerMsgId(isPickerOpen ? null : msg.id)}
+                            title="Add reaction"
+                          >
+                            <Smile size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="relay-msg-react-trigger relay-msg-reply-trigger"
+                            onClick={() => relayGroups.setReplyTarget(msg)}
+                            title="Reply to message"
+                          >
+                            <MessageSquare size={13} />
+                          </button>
+                        </div>
 
                         {isPickerOpen && (
                           <div className="relay-msg-reaction-picker">
@@ -1059,6 +1201,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                               </button>
                             ))}
                           </div>
+                        )}
+
+                        {msg.reply && (
+                          <ReplyQuote reply={msg.reply} selfId={selfId} onJump={scrollToMessage} />
                         )}
 
                         {msg.content && !msg.isVoice && !msg.isMedia && (
@@ -1190,10 +1336,25 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                   <span>{activeEntity.nickname || activeEntity.name} is typing</span>
                 </div>
               )}
+              {isGroupThread && relayGroups.typingNames?.length > 0 && (
+                <div className="relay-typing-indicator">
+                  <span className="relay-typing-dots">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span>
+                    {relayGroups.typingNames.length === 1
+                      ? `${relayGroups.typingNames[0]} is typing`
+                      : `${relayGroups.typingNames.slice(0, 2).join(', ')} are typing`}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* ----------------- BOTTOM COMPOSER ----------------- */}
             <form className="relay-composer-form" onSubmit={handleSendMessage}>
+              <ReplyComposerBar target={relayGroups.replyTarget} selfId={selfId} onCancel={relayGroups.clearReply} />
               {stagedFile && (
                 <div className="relay-staged-preview">
                   <div className="relay-staged-thumbnail">
@@ -1267,7 +1428,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                   type="text"
                   value={composerText}
                   onChange={handleComposerChange}
-                  onBlur={() => !isGroupThread && activeEntity?.id && social?.stopTyping?.(activeEntity.id)}
+                  onBlur={() => {
+                    if (isGroupThread && activeEntity?.id) relayGroups.stopGroupTyping(activeEntity.id);
+                    else if (!isGroupThread && activeEntity?.id) social?.stopTyping?.(activeEntity.id);
+                  }}
                   placeholder={
                     activeEntity
                       ? `Type Message to ${activeEntity.nickname || activeEntity.name}...`
@@ -1351,69 +1515,44 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
       </main>
 
       {/* ----------------- MODALS ----------------- */}
-      {showNewGroupModal && (
-        <div className="relay-modal-backdrop" onClick={() => setShowNewGroupModal(false)}>
-          <div className="relay-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="relay-modal-header">
-              <h3>Create New Group</h3>
-              <button type="button" onClick={() => setShowNewGroupModal(false)}>
-                <X size={15} />
-              </button>
-            </div>
-            <form onSubmit={handleCreateGroup} className="relay-modal-body">
-              <label className="relay-modal-label">
-                Group Name
-                <input
-                  type="text"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="e.g. Bedwars Squad"
-                  className="relay-modal-input"
-                  maxLength={32}
-                  required
-                />
-              </label>
+      <GroupCreateModal
+        open={createOpen}
+        friends={social?.friends || []}
+        uploadMedia={social?.uploadMedia}
+        onClose={() => setCreateOpen(false)}
+        onCreate={async (payload) => {
+          const res = await relayGroups.createGroup(payload);
+          if (res?.ok && res.group?.id) {
+            setSelectedId(res.group.id);
+            relayGroups.openGroup(res.group.id);
+            setCreateOpen(false);
+          }
+          return res;
+        }}
+      />
 
-              <div className="relay-modal-label">
-                Select Members
-                <div className="relay-members-checklist">
-                  {mergedFriends.length === 0 ? (
-                    <div className="relay-modal-empty-members">No friends available to add yet.</div>
-                  ) : (
-                    mergedFriends.map((f) => {
-                      const isChecked = selectedGroupMembers.includes(f.name);
-                      return (
-                        <label key={f.id} className="relay-member-check-row">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              setSelectedGroupMembers((prev) =>
-                                isChecked ? prev.filter((m) => m !== f.name) : [...prev, f.name]
-                              );
-                            }}
-                          />
-                          <RelayAvatar name={f.name} skinUrl={f.skinUrl} size={24} />
-                          <span className="relay-check-name">{f.nickname || f.name}</span>
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div className="relay-modal-footer">
-                <button type="button" className="relay-modal-cancel" onClick={() => setShowNewGroupModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="relay-modal-submit">
-                  Create Group
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <GroupSettingsModal
+        open={settingsOpen}
+        group={relayGroups.activeGroup}
+        selfId={selfId}
+        friends={social?.friends || []}
+        uploadMedia={social?.uploadMedia}
+        onClose={() => setSettingsOpen(false)}
+        onUpdateGroup={relayGroups.updateGroup}
+        onAddMembers={relayGroups.addMembers}
+        onKickMember={relayGroups.kickMember}
+        onSetMemberRole={relayGroups.setMemberRole}
+        onLeaveGroup={async (id) => {
+          const res = await relayGroups.leaveGroup(id);
+          if (res?.ok) setSettingsOpen(false);
+          return res;
+        }}
+        onDeleteGroup={async (id) => {
+          const res = await relayGroups.deleteGroup(id);
+          if (res?.ok) setSettingsOpen(false);
+          return res;
+        }}
+      />
 
       {previewMediaModal && (
         <div className="relay-lightbox-backdrop" onClick={() => setPreviewMediaModal(null)}>
@@ -1450,9 +1589,10 @@ function CompositeGroupAvatar({ members = [] }) {
   const displayMembers = members.slice(0, 4);
   return (
     <div className="relay-composite-avatar">
-      {displayMembers.map((m, i) => (
-        <RelayAvatar key={`${m}-${i}`} name={m} size={15} className="relay-mini-head" />
-      ))}
+      {displayMembers.map((m, i) => {
+        const name = typeof m === 'string' ? m : (m?.name || m?.nickname || 'Player');
+        return <RelayAvatar key={`${name}-${i}`} name={name} size={15} className="relay-mini-head" />;
+      })}
       {displayMembers.length < 4 && <span className="relay-mini-placeholder" />}
     </div>
   );
@@ -1464,9 +1604,15 @@ function ThreadItem({ thread, active, presence, isGroup = false, onClick }) {
     <button type="button" className={`relay-thread-item ${active ? 'is-active' : ''}`} onClick={onClick}>
       <div className="relay-thread-avatar-wrapper">
         {isGroup ? (
-          <div className="relay-thread-group-avatar">
-            <CompositeGroupAvatar members={thread.members} />
-          </div>
+          thread.iconUrl ? (
+            <span className="relay-group-avatar" style={{ width: 34, height: 34, borderRadius: 8 }}>
+              <img src={thread.iconUrl} alt="" />
+            </span>
+          ) : (
+            <div className="relay-thread-group-avatar">
+              <CompositeGroupAvatar members={thread.members} />
+            </div>
+          )
         ) : (
           <RelayAvatar name={thread.name} skinUrl={thread.skinUrl} size={34} className="relay-thread-avatar" />
         )}

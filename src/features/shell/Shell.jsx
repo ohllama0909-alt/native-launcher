@@ -16,6 +16,7 @@ import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
 import CreateInstanceModal from '../instances/CreateInstanceModal.jsx';
 import useLauncher from '../launcher/useLauncher.js';
 import useInstances from '../instances/useInstances.js';
+import usePlaytimeTracker from '../instances/usePlaytimeTracker.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './Shell.css';
 
@@ -66,6 +67,7 @@ export default function Shell({
 
   const instancesManager = useInstances(initialInstances);
   const launcher = useLauncher();
+  usePlaytimeTracker(instancesManager.recordSession, { launcherState: launcher });
   const social = useSocial(account);
 
   const notify = useCallback((title, body) => {

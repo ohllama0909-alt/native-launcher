@@ -142,6 +142,29 @@ contextBridge.exposeInMainWorld('native', {
     // presence, request:changed, friends:changed, blocks:changed, skin:updated.
     onSocialEvent: (callback) => subscribe('social:event', callback),
     onStreamStatus: (callback) => subscribe('social:streamStatus', callback)
+  },
+  relay: {
+    getGroups: () => ipcRenderer.invoke('relay:getGroups'),
+    getGroup: (id) => ipcRenderer.invoke('relay:getGroup', id),
+    createGroup: (payload) => ipcRenderer.invoke('relay:createGroup', payload),
+    updateGroup: (id, payload) => ipcRenderer.invoke('relay:updateGroup', id, payload),
+    deleteGroup: (id) => ipcRenderer.invoke('relay:deleteGroup', id),
+    leaveGroup: (id) => ipcRenderer.invoke('relay:leaveGroup', id),
+    addMembers: (id, userIds) => ipcRenderer.invoke('relay:addMembers', id, userIds),
+    removeMember: (id, userId) => ipcRenderer.invoke('relay:removeMember', id, userId),
+    setMemberRole: (id, userId, role) => ipcRenderer.invoke('relay:setMemberRole', id, userId, role),
+    setGroupPrefs: (id, prefs) => ipcRenderer.invoke('relay:setGroupPrefs', id, prefs),
+    markGroupRead: (id) => ipcRenderer.invoke('relay:markGroupRead', id),
+    setGroupTyping: (id, isTyping) => ipcRenderer.invoke('relay:setGroupTyping', id, isTyping),
+    getGroupMessages: (id, options) => ipcRenderer.invoke('relay:getGroupMessages', id, options),
+    sendGroupMessage: (id, payload) => ipcRenderer.invoke('relay:sendGroupMessage', id, payload),
+    reactToGroupMessage: (messageId, reaction) => ipcRenderer.invoke('relay:reactToGroupMessage', messageId, reaction),
+    editGroupMessage: (messageId, content) => ipcRenderer.invoke('relay:editGroupMessage', messageId, content),
+    deleteGroupMessage: (messageId) => ipcRenderer.invoke('relay:deleteGroupMessage', messageId),
+    getDirectMessages: (friendId, options) => ipcRenderer.invoke('relay:getDirectMessages', friendId, options),
+    sendDirectMessage: (friendId, payload) => ipcRenderer.invoke('relay:sendDirectMessage', friendId, payload),
+    editDirectMessage: (messageId, content) => ipcRenderer.invoke('relay:editDirectMessage', messageId, content),
+    deleteDirectMessage: (messageId) => ipcRenderer.invoke('relay:deleteDirectMessage', messageId)
   }
 });
 

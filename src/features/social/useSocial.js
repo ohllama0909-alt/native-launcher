@@ -73,6 +73,8 @@ export function useSocial(account) {
   const conversationsRef = useRef({});
   const inFlightThreadsRef = useRef(new Set());
   const cursorRef = useRef(0);
+  const isPollingRef = useRef(false);
+  const subscribersRef = useRef(new Set());
   const typingTimersRef = useRef({});
   const typingSentRef = useRef({});
 
@@ -260,7 +262,10 @@ export function useSocial(account) {
   }, [selfId]);
 
   const handleEvent = useCallback((event) => {
-    if (!event?.type) return;
+    if (!event) return;
+    for (const sub of subscribersRef.current) {
+      try { sub(event); } catch {}
+    }
 
     switch (event.type) {
       case 'message:new':
@@ -480,8 +485,25 @@ export function useSocial(account) {
 
   const uploadMedia = useCallback(async (dataUrl, filename) => {
     const api = social();
-    if (!api) return { ok: false };
+    if (!api?.uploadMedia) return { ok: false, error: 'No social bridge' };
+    if (dataUrl instanceof Blob || (typeof File !== 'undefined' && dataUrl instanceof File)) {
+      const file = dataUrl;
+      const fname = filename || file.name || 'upload.png';
+      const readDataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      return api.uploadMedia(readDataUrl, fname);
+    }
     return api.uploadMedia(dataUrl, filename);
+  }, []);
+
+  const subscribe = useCallback((cb) => {
+    if (typeof cb !== 'function') return () => {};
+    subscribersRef.current.add(cb);
+    return () => subscribersRef.current.delete(cb);
   }, []);
 
   /** Optimistic reaction toggle keyed on the signed-in user. */
@@ -676,6 +698,7 @@ export function useSocial(account) {
     respondRequest,
     sendMessage,
     uploadMedia,
+    subscribe,
     setMessageReaction,
     notifyTyping,
     stopTyping,

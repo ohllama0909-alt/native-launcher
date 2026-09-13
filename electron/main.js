@@ -13,6 +13,7 @@ const newsMod = require('./news');
 const serverPingMod = require('./serverPing');
 const wardrobeMod = require('./wardrobe');
 const socialMod = require('./social');
+const relayMod = require('./relay');
 
 let win;
 const appIcon = path.join(__dirname, '..', 'src', 'assets', 'noctra-icon.png');
@@ -119,6 +120,7 @@ newsMod.init({ app }, ipcMain);
 serverPingMod.init({ app }, ipcMain);
 wardrobeMod.init({ app, auth: authMod }, ipcMain);
 socialMod.init({ app, getWin: () => win }, ipcMain);
+relayMod.init();
 
 app.whenReady().then(() => {
   createWindow();
