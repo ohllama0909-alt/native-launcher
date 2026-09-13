@@ -46,10 +46,6 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
     <div className="uc-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="update-center" role="dialog" aria-modal="true" aria-labelledby="uc-title">
         <header className="uc-head">
-          <div className={`uc-mark is-${status.type}`} aria-hidden="true">
-            <span className="uc-mark-ring" />
-            <span className="uc-mark-core">N</span>
-          </div>
           <div className="uc-head-text">
             <h2 className="uc-title" id="uc-title">{headline(status, percent, t)}</h2>
             <p className="uc-subtitle">{subline(status, t)}</p>
@@ -60,11 +56,30 @@ export default function UpdateCenter({ open, onClose, status, onCheck, onDownloa
         </header>
 
         <div className="uc-body">
+          {['idle', 'checking', 'not-available', 'disabled', 'preparing', 'installing'].includes(status.type) && (
+            <div className={`uc-status-card is-${status.type}`}>
+              <div className="uc-status-visual" aria-hidden="true">
+                <span className="uc-status-orbit" />
+                <span className="uc-status-dot" />
+              </div>
+              <div className="uc-status-copy">
+                <strong>{statusLabel(status, t)}</strong>
+                <span>{statusDetail(status, currentVersion, t)}</span>
+              </div>
+            </div>
+          )}
+
           {(status.type === 'available' || status.type === 'downloaded') && (
-            <div className="uc-versions">
-              <span className="uc-version-from">v{currentVersion}</span>
-              <span className="uc-version-sep">→</span>
-              <span className="uc-version-to">v{status.version ?? '—'}</span>
+            <div className="uc-version-card">
+              <div className="uc-version-column">
+                <span>{t('update.currentVersion', { version: '' }).replace(/[:\s]+$/, '')}</span>
+                <strong>v{currentVersion}</strong>
+              </div>
+              <span className="uc-version-sep" aria-hidden="true">→</span>
+              <div className="uc-version-column is-new">
+                <span>{status.type === 'downloaded' ? 'Ready to install' : 'Available version'}</span>
+                <strong>v{status.version ?? '—'}</strong>
+              </div>
             </div>
           )}
 
@@ -198,6 +213,28 @@ function subline(status, t) {
     case 'installing': return t('update.applyingMoment');
     case 'error': return t('update.interruptedText');
     default: return t('update.autoText');
+  }
+}
+
+function statusLabel(status, t) {
+  switch (status.type) {
+    case 'checking': return 'Contacting the update service';
+    case 'not-available': return 'Your launcher is current';
+    case 'preparing': return 'Preparing the download';
+    case 'installing': return 'Applying the update';
+    case 'disabled': return 'Desktop updater unavailable';
+    default: return t('update.autoText');
+  }
+}
+
+function statusDetail(status, currentVersion, t) {
+  switch (status.type) {
+    case 'checking': return 'Comparing your build with the latest stable release.';
+    case 'not-available': return `Version ${currentVersion} is the newest stable release.`;
+    case 'preparing': return 'Selecting the smallest compatible package for this device.';
+    case 'installing': return 'Noctra will restart automatically when it is ready.';
+    case 'disabled': return status.message || t('update.desktopText');
+    default: return 'Updates are checked securely in the background.';
   }
 }
 
