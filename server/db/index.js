@@ -83,6 +83,7 @@ module.exports = {
   DB_PATH,
   BACKUPS_DIR,
   backupDatabase,
+  MESSAGE_LIMIT: socialMod.MESSAGE_LIMIT,
 
   // Users & Auth
   generateOfflinePlayerUuid: usersMod.generateOfflinePlayerUuid,
@@ -103,6 +104,8 @@ module.exports = {
   updatePresence: (userId, data) => socialMod.updatePresence(getDb(), userId, data),
   getPresence: (userId) => socialMod.getPresence(getDb(), userId),
   getFriends: (userId) => socialMod.getFriends(getDb(), userId),
+  getFriendIds: (userId) => socialMod.getFriendIds(getDb(), userId),
+  areFriends: (userId, friendId) => socialMod.areFriends(getDb(), userId, friendId),
   getFriendRequests: (userId) => socialMod.getFriendRequests(getDb(), userId),
   sendFriendRequest: (senderId, targetUsername) => socialMod.sendFriendRequest(getDb(), senderId, targetUsername, usersMod.getUserByUsername),
   respondFriendRequest: (requestId, userId, action) => socialMod.respondFriendRequest(getDb(), requestId, userId, action),
@@ -110,7 +113,11 @@ module.exports = {
   updateFriendAttributes: (userId, friendId, attrs) => socialMod.updateFriendAttributes(getDb(), userId, friendId, attrs),
   blockUser: (userId, blockedId) => socialMod.blockUser(getDb(), userId, blockedId),
   unblockUser: (userId, blockedId) => socialMod.unblockUser(getDb(), userId, blockedId),
-  getMessages: (userId, friendId, limit) => socialMod.getMessages(getDb(), userId, friendId, limit),
+  listBlocked: (userId) => socialMod.listBlocked(getDb(), userId),
+  getMessages: (userId, friendId, options) => socialMod.getMessages(getDb(), userId, friendId, options),
+  getConversations: (userId, perFriend) => socialMod.getConversations(getDb(), userId, perFriend),
+  getUpdatesSince: (userId, since) => socialMod.getUpdatesSince(getDb(), userId, since),
+  markMessagesRead: (userId, friendId) => socialMod.markMessagesRead(getDb(), userId, friendId),
   sendMessage: (senderId, receiverId, content, options) => socialMod.sendMessage(getDb(), senderId, receiverId, content, options),
   setMessageReaction: (messageId, userId, reaction) => socialMod.setMessageReaction(getDb(), messageId, userId, reaction),
   searchUsers: (query, excludeUserId) => socialMod.searchUsers(getDb(), query, excludeUserId)

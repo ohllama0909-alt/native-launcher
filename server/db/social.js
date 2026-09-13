@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 
+const MESSAGE_LIMIT = 2000;
+
 function updatePresence(db, userId, { status = 'online', activity = 'In Launcher', serverAddress = null } = {}) {
   const now = Date.now();
   const stmt = db.prepare(`
@@ -12,22 +14,39 @@ function updatePresence(db, userId, { status = 'online', activity = 'In Launcher
       last_seen = excluded.last_seen
   `);
   stmt.run(userId, String(status), activity ? String(activity) : null, serverAddress ? String(serverAddress) : null, now);
+  return { ok: true, status: String(status), activity: activity || null, serverAddress: serverAddress || null, lastSeen: now };
 }
 
 function getPresence(db, userId) {
-  return db.prepare(`SELECT * FROM presence WHERE user_id = ?`).get(userId) || null;
+  return db.prepare('SELECT * FROM presence WHERE user_id = ?').get(userId) || null;
+}
+
+/** Ids of everyone who has `userId` in their friends list (event fan-out). */
+function getFriendIds(db, userId) {
+  return db.prepare('SELECT friend_id AS id FROM friends WHERE user_id = ?').all(userId).map((row) => row.id);
+}
+
+function areFriends(db, userId, friendId) {
+  return Boolean(db.prepare('SELECT 1 FROM friends WHERE user_id = ? AND friend_id = ?').get(userId, friendId));
+}
+
+function isBlockedPair(db, a, b) {
+  return Boolean(db.prepare(
+    'SELECT 1 FROM blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)'
+  ).get(a, b, b, a));
 }
 
 function getFriends(db, userId) {
   const now = Date.now();
-  const activeThreshold = now - 120_000; // 120 seconds timeout for online presence
+  const activeThreshold = now - 120_000; // presence goes stale after 120s
 
   const stmt = db.prepare(`
-    SELECT 
+    SELECT
       f.friend_id AS id,
       u.username AS name,
       u.uuid,
       u.model,
+      u.created_at AS memberSince,
       f.is_best_friend AS isBestFriend,
       f.nickname,
       f.created_at AS friendsSince,
@@ -36,7 +55,7 @@ function getFriends(db, userId) {
       p.server_address AS serverAddress,
       p.last_seen AS lastSeen,
       (
-        SELECT COUNT(*) FROM messages m 
+        SELECT COUNT(*) FROM messages m
         WHERE m.sender_id = f.friend_id AND m.receiver_id = f.user_id AND m.is_read = 0
       ) AS unreadCount,
       (
@@ -56,7 +75,13 @@ function getFriends(db, userId) {
         WHERE (m.sender_id = f.friend_id AND m.receiver_id = f.user_id)
            OR (m.sender_id = f.user_id AND m.receiver_id = f.friend_id)
         ORDER BY m.created_at DESC LIMIT 1
-      ) AS lastMessageSenderId
+      ) AS lastMessageSenderId,
+      (
+        SELECT is_media FROM messages m
+        WHERE (m.sender_id = f.friend_id AND m.receiver_id = f.user_id)
+           OR (m.sender_id = f.user_id AND m.receiver_id = f.friend_id)
+        ORDER BY m.created_at DESC LIMIT 1
+      ) AS lastMessageIsMedia
     FROM friends f
     JOIN users u ON f.friend_id = u.id
     LEFT JOIN presence p ON u.id = p.user_id
@@ -65,13 +90,17 @@ function getFriends(db, userId) {
   `);
 
   const rows = stmt.all(userId);
-  return rows.map(r => {
-    const isOnline = r.lastSeen && r.lastSeen >= activeThreshold && r.rawStatus !== 'offline';
+  return rows.map((r) => {
+    const isOnline = Boolean(r.lastSeen && r.lastSeen >= activeThreshold && r.rawStatus !== 'offline');
     return {
       id: r.id,
       name: r.name,
       uuid: r.uuid,
       model: r.model || 'classic',
+      // Every Noctra account completes email verification at signup, so a row
+      // in `users` is exactly what the verified badge represents.
+      isVerified: true,
+      memberSince: r.memberSince || null,
       isBestFriend: Boolean(r.isBestFriend),
       nickname: r.nickname || null,
       friendsSince: r.friendsSince,
@@ -82,20 +111,15 @@ function getFriends(db, userId) {
       unreadCount: Number(r.unreadCount || 0),
       lastMessageContent: r.lastMessageContent || null,
       lastMessageTime: r.lastMessageTime || null,
-      lastMessageSenderId: r.lastMessageSenderId || null
+      lastMessageSenderId: r.lastMessageSenderId || null,
+      lastMessageIsMedia: Boolean(r.lastMessageIsMedia)
     };
   });
 }
 
 function getFriendRequests(db, userId) {
   const receivedStmt = db.prepare(`
-    SELECT 
-      r.id,
-      r.sender_id AS userId,
-      u.username AS name,
-      u.uuid,
-      u.model,
-      r.created_at AS createdAt
+    SELECT r.id, r.sender_id AS userId, u.username AS name, u.uuid, u.model, r.created_at AS createdAt
     FROM friend_requests r
     JOIN users u ON r.sender_id = u.id
     WHERE r.receiver_id = ? AND r.status = 'pending'
@@ -103,13 +127,7 @@ function getFriendRequests(db, userId) {
   `);
 
   const sentStmt = db.prepare(`
-    SELECT 
-      r.id,
-      r.receiver_id AS userId,
-      u.username AS name,
-      u.uuid,
-      u.model,
-      r.created_at AS createdAt
+    SELECT r.id, r.receiver_id AS userId, u.username AS name, u.uuid, u.model, r.created_at AS createdAt
     FROM friend_requests r
     JOIN users u ON r.receiver_id = u.id
     WHERE r.sender_id = ? AND r.status = 'pending'
@@ -117,46 +135,35 @@ function getFriendRequests(db, userId) {
   `);
 
   return {
-    received: receivedStmt.all(userId),
-    sent: sentStmt.all(userId)
+    received: receivedStmt.all(userId).map((row) => ({ ...row, isVerified: true })),
+    sent: sentStmt.all(userId).map((row) => ({ ...row, isVerified: true }))
   };
 }
 
 function sendFriendRequest(db, senderId, targetUsername, getUserByUsernameFn) {
   const target = getUserByUsernameFn(db, targetUsername);
-  if (!target) {
-    throw new Error('User not found. Check the username and try again.');
-  }
-  if (target.id === senderId) {
-    throw new Error('You cannot add yourself as a friend.');
-  }
+  if (!target) throw new Error('User not found. Check the username and try again.');
+  if (target.id === senderId) throw new Error('You cannot add yourself as a friend.');
 
-  // Check if already friends
-  const friendCheck = db.prepare('SELECT 1 FROM friends WHERE user_id = ? AND friend_id = ?').get(senderId, target.id);
-  if (friendCheck) {
+  if (areFriends(db, senderId, target.id)) {
     throw new Error('You are already friends with this player.');
   }
-
-  // Check if blocked
-  const blockCheck = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)').get(senderId, target.id, target.id, senderId);
-  if (blockCheck) {
+  if (isBlockedPair(db, senderId, target.id)) {
     throw new Error('Cannot send friend request.');
   }
 
-  // Check if pending request exists
   const pendingCheck = db.prepare(`
-    SELECT id, sender_id, status FROM friend_requests 
-    WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) 
+    SELECT id, sender_id, status FROM friend_requests
+    WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
       AND status = 'pending'
   `).get(senderId, target.id, target.id, senderId);
 
   if (pendingCheck) {
     if (pendingCheck.sender_id === senderId) {
       throw new Error('A friend request has already been sent to this player.');
-    } else {
-      // Automatic mutual accept
-      return respondFriendRequest(db, pendingCheck.id, senderId, 'accept');
     }
+    // Reverse request already exists: accept it immediately (mutual add).
+    return { ...respondFriendRequest(db, pendingCheck.id, senderId, 'accept'), mutual: true };
   }
 
   const id = `freq-${crypto.randomBytes(8).toString('hex')}`;
@@ -166,21 +173,26 @@ function sendFriendRequest(db, senderId, targetUsername, getUserByUsernameFn) {
     VALUES (?, ?, ?, 'pending', ?)
   `).run(id, senderId, target.id, now);
 
-  return { ok: true, id, target: { id: target.id, name: target.username, uuid: target.uuid } };
+  return {
+    ok: true,
+    id,
+    senderId,
+    receiverId: target.id,
+    participants: [senderId, target.id],
+    target: { id: target.id, name: target.username, uuid: target.uuid }
+  };
 }
 
 function respondFriendRequest(db, requestId, userId, action) {
   const now = Date.now();
   const req = db.prepare('SELECT * FROM friend_requests WHERE id = ?').get(requestId);
-  if (!req) {
-    throw new Error('Friend request not found.');
-  }
+  if (!req) throw new Error('Friend request not found.');
+
+  const participants = [req.sender_id, req.receiver_id];
 
   if (action === 'accept') {
-    if (req.receiver_id !== userId) {
-      throw new Error('Unauthorized to accept this request.');
-    }
-    db.prepare('UPDATE friend_requests SET status = \'accepted\' WHERE id = ?').run(requestId);
+    if (req.receiver_id !== userId) throw new Error('Unauthorized to accept this request.');
+    db.prepare("UPDATE friend_requests SET status = 'accepted' WHERE id = ?").run(requestId);
 
     const insertFriend = db.prepare(`
       INSERT INTO friends (user_id, friend_id, is_best_friend, nickname, created_at)
@@ -189,39 +201,40 @@ function respondFriendRequest(db, requestId, userId, action) {
     `);
     insertFriend.run(req.receiver_id, req.sender_id, now);
     insertFriend.run(req.sender_id, req.receiver_id, now);
-    return { ok: true, action: 'accepted' };
+    return { ok: true, action: 'accepted', participants, senderId: req.sender_id, receiverId: req.receiver_id };
   }
 
   if (action === 'decline') {
-    if (req.receiver_id !== userId) {
-      throw new Error('Unauthorized to decline this request.');
-    }
-    db.prepare('UPDATE friend_requests SET status = \'declined\' WHERE id = ?').run(requestId);
-    return { ok: true, action: 'declined' };
+    if (req.receiver_id !== userId) throw new Error('Unauthorized to decline this request.');
+    db.prepare("UPDATE friend_requests SET status = 'declined' WHERE id = ?").run(requestId);
+    return { ok: true, action: 'declined', participants, senderId: req.sender_id, receiverId: req.receiver_id };
   }
 
   if (action === 'cancel') {
-    if (req.sender_id !== userId) {
-      throw new Error('Unauthorized to cancel this request.');
-    }
-    db.prepare('UPDATE friend_requests SET status = \'cancelled\' WHERE id = ?').run(requestId);
-    return { ok: true, action: 'cancelled' };
+    if (req.sender_id !== userId) throw new Error('Unauthorized to cancel this request.');
+    db.prepare("UPDATE friend_requests SET status = 'cancelled' WHERE id = ?").run(requestId);
+    return { ok: true, action: 'cancelled', participants, senderId: req.sender_id, receiverId: req.receiver_id };
   }
 
   throw new Error(`Invalid action: ${action}`);
 }
 
 function removeFriend(db, userId, friendId) {
-  db.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').run(userId, friendId, friendId, userId);
-  return { ok: true };
+  db.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)')
+    .run(userId, friendId, friendId, userId);
+  return { ok: true, participants: [userId, friendId] };
 }
 
 function updateFriendAttributes(db, userId, friendId, { isBestFriend, nickname } = {}) {
+  if (!areFriends(db, userId, friendId)) throw new Error('This player is not on your friends list.');
   if (typeof isBestFriend === 'boolean') {
-    db.prepare('UPDATE friends SET is_best_friend = ? WHERE user_id = ? AND friend_id = ?').run(isBestFriend ? 1 : 0, userId, friendId);
+    db.prepare('UPDATE friends SET is_best_friend = ? WHERE user_id = ? AND friend_id = ?')
+      .run(isBestFriend ? 1 : 0, userId, friendId);
   }
   if (typeof nickname !== 'undefined') {
-    db.prepare('UPDATE friends SET nickname = ? WHERE user_id = ? AND friend_id = ?').run(nickname ? String(nickname).trim() : null, userId, friendId);
+    const clean = nickname ? String(nickname).trim().slice(0, 28) : null;
+    db.prepare('UPDATE friends SET nickname = ? WHERE user_id = ? AND friend_id = ?')
+      .run(clean || null, userId, friendId);
   }
   return { ok: true };
 }
@@ -230,7 +243,7 @@ function blockUser(db, userId, blockedId) {
   const now = Date.now();
   removeFriend(db, userId, blockedId);
   db.prepare(`
-    UPDATE friend_requests SET status = 'declined' 
+    UPDATE friend_requests SET status = 'declined'
     WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
   `).run(userId, blockedId, blockedId, userId);
 
@@ -239,65 +252,156 @@ function blockUser(db, userId, blockedId) {
     VALUES (?, ?, ?)
     ON CONFLICT(user_id, blocked_id) DO NOTHING
   `).run(userId, blockedId, now);
-  return { ok: true };
+  return { ok: true, participants: [userId, blockedId] };
 }
 
 function unblockUser(db, userId, blockedId) {
   db.prepare('DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?').run(userId, blockedId);
-  return { ok: true };
+  return { ok: true, participants: [userId, blockedId] };
 }
 
-function getMessages(db, userId, friendId, limit = 50) {
-  // Mark received messages as read
-  db.prepare('UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ? AND is_read = 0').run(friendId, userId);
+function listBlocked(db, userId) {
+  return db.prepare(`
+    SELECT b.blocked_id AS id, u.username AS name, u.uuid, u.model, b.created_at AS blockedAt
+    FROM blocks b
+    JOIN users u ON b.blocked_id = u.id
+    WHERE b.user_id = ?
+    ORDER BY b.created_at DESC
+  `).all(userId);
+}
 
-  const stmt = db.prepare(`
-    SELECT 
-      m.id, 
-      m.sender_id AS senderId, 
-      m.receiver_id AS receiverId, 
-      m.content, 
-      m.media_url AS mediaUrl, 
-      m.media_name AS mediaName, 
-      m.is_media AS isMedia, 
-      m.is_read AS isRead, 
-      m.created_at AS createdAt,
-      (SELECT json_group_array(json_object('userId', r.user_id, 'reaction', r.reaction)) 
-       FROM message_reactions r WHERE r.message_id = m.id) as reactionsJson
-    FROM messages m
-    WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-    ORDER BY m.created_at ASC
+function mapMessageRow(row) {
+  let reactions = [];
+  if (row.reactionsJson) {
+    try { reactions = JSON.parse(row.reactionsJson) || []; } catch {}
+  }
+  delete row.reactionsJson;
+  return {
+    ...row,
+    isMedia: Boolean(row.isMedia),
+    isRead: Number(row.isRead || 0),
+    reactions: reactions.filter((item) => item && item.reaction)
+  };
+}
+
+const MESSAGE_SELECT = `
+  SELECT
+    m.id,
+    m.sender_id AS senderId,
+    m.receiver_id AS receiverId,
+    m.content,
+    m.media_url AS mediaUrl,
+    m.media_name AS mediaName,
+    m.media_kind AS mediaKind,
+    m.is_media AS isMedia,
+    m.is_read AS isRead,
+    m.created_at AS createdAt,
+    (SELECT json_group_array(json_object('userId', r.user_id, 'reaction', r.reaction))
+     FROM message_reactions r WHERE r.message_id = m.id) AS reactionsJson
+  FROM messages m
+`;
+
+/** Mark every unread message from `friendId` as read. Returns affected ids. */
+function markMessagesRead(db, userId, friendId) {
+  const unread = db.prepare(
+    'SELECT id FROM messages WHERE sender_id = ? AND receiver_id = ? AND is_read = 0'
+  ).all(friendId, userId).map((row) => row.id);
+
+  if (unread.length) {
+    db.prepare('UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ? AND is_read = 0')
+      .run(friendId, userId);
+  }
+  return { ok: true, messageIds: unread, friendId, readerId: userId };
+}
+
+/**
+ * Newest-first window of a conversation, returned in ascending order.
+ * Pass `before` (a createdAt timestamp) to page backwards through history.
+ */
+function getMessages(db, userId, friendId, options = {}) {
+  const legacyLimit = typeof options === 'number' ? options : undefined;
+  const { limit = legacyLimit || 50, before = null, markRead = true } = typeof options === 'number' ? {} : options;
+  const capped = Math.min(200, Math.max(1, Number(limit) || 50));
+
+  if (markRead) markMessagesRead(db, userId, friendId);
+
+  const rows = db.prepare(`
+    ${MESSAGE_SELECT}
+    WHERE ((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))
+      AND (? IS NULL OR m.created_at < ?)
+    ORDER BY m.created_at DESC
     LIMIT ?
-  `);
-  const rows = stmt.all(userId, friendId, friendId, userId, limit);
-  return rows.map(r => {
-    let reactions = [];
-    if (r.reactionsJson) {
-      try { reactions = JSON.parse(r.reactionsJson); } catch(e) {}
-    }
-    delete r.reactionsJson;
-    return {
-      ...r,
-      isMedia: Boolean(r.isMedia),
-      reactions
-    };
-  });
+  `).all(userId, friendId, friendId, userId, before, before, capped + 1);
+
+  const hasMore = rows.length > capped;
+  const window = hasMore ? rows.slice(0, capped) : rows;
+  return {
+    messages: window.reverse().map(mapMessageRow),
+    hasMore,
+    oldestTime: window.length ? window[0].createdAt : null
+  };
 }
 
-function sendMessage(db, senderId, receiverId, content, { mediaUrl = null, mediaName = null, isMedia = 0 } = {}) {
+/**
+ * Preload the tail of *every* conversation in a single round trip so the Relay
+ * inbox can render all threads instantly instead of one-at-a-time on click.
+ */
+function getConversations(db, userId, perFriend = 40) {
+  const capped = Math.min(100, Math.max(5, Number(perFriend) || 40));
+  const friendIds = getFriendIds(db, userId);
+  const conversations = {};
+
+  for (const friendId of friendIds) {
+    const rows = db.prepare(`
+      ${MESSAGE_SELECT}
+      WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
+      ORDER BY m.created_at DESC
+      LIMIT ?
+    `).all(userId, friendId, friendId, userId, capped + 1);
+
+    const hasMore = rows.length > capped;
+    const window = hasMore ? rows.slice(0, capped) : rows;
+    conversations[friendId] = {
+      messages: window.reverse().map(mapMessageRow),
+      hasMore,
+      oldestTime: window.length ? window[0].createdAt : null
+    };
+  }
+
+  return conversations;
+}
+
+/** Delta feed used as the polling fallback when the event stream is down. */
+function getUpdatesSince(db, userId, since = 0) {
+  const cursor = Number(since) || 0;
+  const rows = db.prepare(`
+    ${MESSAGE_SELECT}
+    WHERE (m.sender_id = ? OR m.receiver_id = ?) AND m.created_at > ?
+    ORDER BY m.created_at ASC
+    LIMIT 300
+  `).all(userId, userId, cursor);
+
+  const messages = rows.map(mapMessageRow);
+  return {
+    messages,
+    cursor: messages.length ? messages[messages.length - 1].createdAt : cursor,
+    serverTime: Date.now()
+  };
+}
+
+function sendMessage(db, senderId, receiverId, content, { mediaUrl = null, mediaName = null, mediaKind = null, isMedia = 0 } = {}) {
   const clean = String(content || '').trim();
   if (!clean && !mediaUrl) throw new Error('Message content or media attachment cannot be empty.');
-  if (clean.length > 2000) throw new Error('Message is too long (maximum 2000 characters).');
-
-  const blockCheck = db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)').get(senderId, receiverId, receiverId, senderId);
-  if (blockCheck) throw new Error('Cannot send message to this player.');
+  if (clean.length > MESSAGE_LIMIT) throw new Error(`Message is too long (maximum ${MESSAGE_LIMIT} characters).`);
+  if (isBlockedPair(db, senderId, receiverId)) throw new Error('Cannot send message to this player.');
+  if (!areFriends(db, senderId, receiverId)) throw new Error('You can only message players on your friends list.');
 
   const id = `msg-${crypto.randomBytes(8).toString('hex')}`;
   const now = Date.now();
   db.prepare(`
-    INSERT INTO messages (id, sender_id, receiver_id, content, media_url, media_name, is_media, is_read, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
-  `).run(id, senderId, receiverId, clean, mediaUrl, mediaName, isMedia ? 1 : 0, now);
+    INSERT INTO messages (id, sender_id, receiver_id, content, media_url, media_name, media_kind, is_media, is_read, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+  `).run(id, senderId, receiverId, clean, mediaUrl, mediaName, mediaKind, isMedia ? 1 : 0, now);
 
   return {
     id,
@@ -306,54 +410,74 @@ function sendMessage(db, senderId, receiverId, content, { mediaUrl = null, media
     content: clean,
     mediaUrl,
     mediaName,
+    mediaKind,
     isMedia: Boolean(isMedia),
-    reaction: null,
     isRead: 0,
-    createdAt: now
+    createdAt: now,
+    reactions: []
   };
 }
 
 function setMessageReaction(db, messageId, userId, reaction) {
-  const clean = reaction ? String(reaction).trim().slice(0, 10) : null;
+  const clean = reaction ? String(reaction).trim().slice(0, 12) : null;
   const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(messageId);
   if (!msg) throw new Error('Message not found.');
   if (msg.sender_id !== userId && msg.receiver_id !== userId) {
     throw new Error('Unauthorized to react to this message.');
   }
-  
+
   if (clean) {
-    // Upsert the reaction for this user
-    db.prepare(`
-      INSERT INTO message_reactions (message_id, user_id, reaction, created_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(message_id, user_id, reaction) DO NOTHING
-    `).run(messageId, userId, clean, Date.now());
+    const existing = db.prepare(
+      'SELECT 1 FROM message_reactions WHERE message_id = ? AND user_id = ? AND reaction = ?'
+    ).get(messageId, userId, clean);
+
+    if (existing) {
+      // Same emoji twice is a toggle-off, exactly like Discord.
+      db.prepare('DELETE FROM message_reactions WHERE message_id = ? AND user_id = ? AND reaction = ?')
+        .run(messageId, userId, clean);
+    } else {
+      db.prepare(`
+        INSERT INTO message_reactions (message_id, user_id, reaction, created_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(message_id, user_id, reaction) DO NOTHING
+      `).run(messageId, userId, clean, Date.now());
+    }
   } else {
-    // Clear the user's reaction (or all? Usually you'd toggle a specific one, but the API just took "reaction". Let's clear all reactions by this user for this message)
     db.prepare('DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?').run(messageId, userId);
   }
-  
-  // Return the updated reactions list
+
   const rows = db.prepare('SELECT user_id AS userId, reaction FROM message_reactions WHERE message_id = ?').all(messageId);
-  return { ok: true, id: messageId, reactions: rows };
+  return {
+    ok: true,
+    id: messageId,
+    reactions: rows,
+    participants: [msg.sender_id, msg.receiver_id]
+  };
 }
 
 function searchUsers(db, query, excludeUserId) {
   const clean = String(query || '').trim();
   if (!clean || clean.length < 2) return [];
-  const stmt = db.prepare(`
+  return db.prepare(`
     SELECT u.id, u.username AS name, u.uuid, u.model
     FROM users u
-    WHERE u.username LIKE ? AND u.id != ?
+    WHERE u.username LIKE ?
+      AND u.id != ?
+      AND NOT EXISTS (
+        SELECT 1 FROM blocks b
+        WHERE (b.user_id = ? AND b.blocked_id = u.id) OR (b.user_id = u.id AND b.blocked_id = ?)
+      )
     LIMIT 10
-  `);
-  return stmt.all(`%${clean}%`, excludeUserId);
+  `).all(`%${clean}%`, excludeUserId, excludeUserId, excludeUserId);
 }
 
 module.exports = {
+  MESSAGE_LIMIT,
   updatePresence,
   getPresence,
   getFriends,
+  getFriendIds,
+  areFriends,
   getFriendRequests,
   sendFriendRequest,
   respondFriendRequest,
@@ -361,7 +485,11 @@ module.exports = {
   updateFriendAttributes,
   blockUser,
   unblockUser,
+  listBlocked,
   getMessages,
+  getConversations,
+  getUpdatesSince,
+  markMessagesRead,
   sendMessage,
   setMessageReaction,
   searchUsers
