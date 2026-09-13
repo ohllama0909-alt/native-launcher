@@ -90,7 +90,7 @@ export function GroupSettingsModal({
             </div>
             <div>
               <h2>{group.name}</h2>
-              <p>{group.memberCount} members \u00b7 You are {ROLE_LABEL[myRole]}</p>
+              <p>{group.memberCount} members · You are {ROLE_LABEL[myRole]}</p>
             </div>
           </div>
           <button type="button" className="relay-icon-btn" onClick={onClose} aria-label="Close">
@@ -108,7 +108,7 @@ export function GroupSettingsModal({
               className={`relay-tab${tab === key ? ' is-active' : ''}`}
               onClick={() => setTab(key)}
             >
-              {key === 'overview' ? 'Overview' : key === 'members' ? `Members \u00b7 ${members.length}` : 'Add members'}
+              {key === 'overview' ? 'Overview' : key === 'members' ? `Members · ${members.length}` : 'Add members'}
             </button>
           ))}
         </nav>
