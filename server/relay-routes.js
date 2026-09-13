@@ -143,7 +143,8 @@ async function handleRelayRoutes(req, res) {
           replyTo: body.replyTo || null
         });
         setGroupTyping(groupId, me, false, participants);
-        publish(participants, 'group:message', { groupId, message });
+        const groupName = db.getGroup(me, groupId)?.name || 'Relay group';
+        publish(participants, 'group:message', { groupId, groupName, message });
         send(res, 200, { ok: true, message });
         return true;
       }

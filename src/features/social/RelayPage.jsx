@@ -80,27 +80,6 @@ const formatLastSeen = (stamp) => {
   return `Last seen on ${date.toLocaleDateString([], { day: 'numeric', month: 'short' })} at ${time}`;
 };
 
-/** Synthesized two-tone ping. No audio asset, no autoplay policy issues. */
-const playPingChime = () => {
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.26);
-    osc.onended = () => ctx.close().catch(() => {});
-  } catch {}
-};
-
 const QUICK_GIFS = [
   { label: 'GG', url: 'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif' },
   { label: 'Hype', url: 'https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif' },
@@ -122,7 +101,7 @@ function loadPersistedState() {
   }
 }
 
-export default function RelayPage({ account, social, onJoinServer, onNotify }) {
+export default function RelayPage({ account, social, onJoinServer, onNotify, onActiveThreadChange }) {
   const persisted = useMemo(() => loadPersistedState(), []);
   const selfId = social?.selfId || account?.id || null;
 
@@ -155,7 +134,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
   const fileInputRef = useRef(null);
   const atBottomRef = useRef(true);
   const dragDepthRef = useRef(0);
-  const notifyRef = useRef({ selfId: null, friends: [], groups: [], mutedIds: {}, activeId: null });
 
   useEffect(() => {
     return social?.subscribe?.((event) => relayGroups.handleSocialEvent(event));
@@ -337,52 +315,11 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     loadThread(activeEntity.id);
   }, [loadThread, activeEntity?.id]);
 
-  // ── Desktop notifications ───────────────────────────────────────────
-
   useEffect(() => {
-    notifyRef.current = {
-      selfId,
-      friends: mergedFriends,
-      groups: formattedGroups,
-      mutedIds,
-      activeId: activeEntity?.id || null
-    };
-  }, [selfId, mergedFriends, formattedGroups, mutedIds, activeEntity?.id]);
+    onActiveThreadChange?.(activeEntity?.id || null);
+  }, [activeEntity?.id, onActiveThreadChange]);
 
-  useEffect(() => {
-    if (!social?.subscribe) return undefined;
-    return social.subscribe((event) => {
-      const state = notifyRef.current;
-      let title = null;
-      let body = '';
-      let threadId = null;
-
-      if (event?.type === 'message:new' && event.message && event.message.senderId !== state.selfId) {
-        threadId = event.message.senderId;
-        const friend = state.friends.find((item) => item.id === threadId);
-        if (state.mutedIds[threadId] ?? friend?.muted) return;
-        title = friend?.nickname || friend?.name || 'New message';
-        body = event.message.content || event.message.mediaName || 'Sent an attachment';
-      } else if (event?.type === 'group:message') {
-        const message = event.data?.message ?? event.message;
-        threadId = event.data?.groupId ?? event.groupId;
-        if (!message || message.senderId === state.selfId || message.isSystem) return;
-        const group = state.groups.find((item) => item.id === threadId);
-        if (state.mutedIds[threadId] ?? group?.muted) return;
-        title = group?.name || 'New group message';
-        body = `${message.senderName || 'Member'}: ${message.content || message.mediaName || 'Sent an attachment'}`;
-      }
-
-      if (!title) return;
-
-      const windowFocused = typeof document !== 'undefined' && document.hasFocus();
-      const lookingAtThread = windowFocused && state.activeId === threadId;
-      if (lookingAtThread) return;
-
-      playPingChime();
-      window.native?.showNotification?.(title, body);
-    });
-  }, [social]);
+  useEffect(() => () => onActiveThreadChange?.(null), [onActiveThreadChange]);
 
   // ── Presence & filtering ────────────────────────────────────────────
 
@@ -494,7 +431,20 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         items.push({ isDivider: true, id: `divider-${key}-${index}`, date: dayLabelOf(message.createdAt) });
         lastKey = key;
       }
-      items.push(message);
+      const previous = filteredMessages[index - 1];
+      const next = filteredMessages[index + 1];
+      const canGroup = (first, second) => Boolean(
+        first && second &&
+        !first.isSystem && !second.isSystem &&
+        first.senderId === second.senderId &&
+        dayKeyOf(first.createdAt) === dayKeyOf(second.createdAt) &&
+        Math.abs((second.createdAt || 0) - (first.createdAt || 0)) <= 60_000
+      );
+      items.push({
+        ...message,
+        groupedWithPrevious: canGroup(previous, message),
+        groupedWithNext: canGroup(message, next)
+      });
     });
     return items;
   }, [filteredMessages]);
@@ -935,16 +885,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
             <button
               type="button"
               className="relay-inbox-btn"
-              data-testid="relay-friends-btn"
-              onClick={() => setFriendCenterOpen(true)}
-              title="Add friends and view requests"
-            >
-              <UserPlus size={15} />
-              {(social?.pendingRequestsTotal || 0) > 0 && <span className="relay-inbox-btn__badge">{social.pendingRequestsTotal}</span>}
-            </button>
-            <button
-              type="button"
-              className="relay-inbox-btn"
               data-testid="relay-create-group-btn"
               onClick={() => setCreateOpen(true)}
               title="New group"
@@ -952,6 +892,23 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
               <Plus size={15} />
             </button>
           </div>
+          <button
+            type="button"
+            className="relay-friends-entry"
+            data-testid="relay-friends-btn"
+            onClick={() => setFriendCenterOpen(true)}
+          >
+            <span className="relay-friends-entry__icon"><Users size={15} /></span>
+            <span className="relay-friends-entry__label">
+              <strong>Friends</strong>
+              <small>Add friends and manage requests</small>
+            </span>
+            {(social?.pendingRequestsTotal || 0) > 0 ? (
+              <span className="relay-friends-entry__badge">{social.pendingRequestsTotal} new</span>
+            ) : (
+              <ChevronRight size={15} className="relay-friends-entry__chevron" />
+            )}
+          </button>
           <div className="relay-inbox-search-bar">
             <Search size={13} className="relay-search-icon" aria-hidden="true" />
             <input
@@ -973,13 +930,13 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
               <div className="relay-empty-desc">
                 Add friends by Minecraft username, or start a group to get the crew together.
               </div>
-              <button type="button" className="relay-empty-btn" onClick={() => setCreateOpen(true)}>
-                <Plus size={13} />
-                <span>Create group</span>
-              </button>
-              <button type="button" className="relay-empty-btn relay-empty-btn--friend" onClick={() => setFriendCenterOpen(true)}>
+              <button type="button" className="relay-empty-btn" onClick={() => setFriendCenterOpen(true)}>
                 <UserPlus size={13} />
                 <span>Add friend</span>
+              </button>
+              <button type="button" className="relay-empty-btn relay-empty-btn--secondary" onClick={() => setCreateOpen(true)}>
+                <Plus size={13} />
+                <span>Create group</span>
               </button>
             </div>
           ) : (

@@ -19,6 +19,7 @@ let win;
 const appIcon = path.join(__dirname, '..', 'src', 'assets', 'noctra-icon.png');
 
 app.setName('Noctra Client');
+app.setAppUserModelId('app.noctraclient.desktop');
 
 // Keep existing installations on their current data directory so the rename
 // never makes accounts, instances, or downloaded game files appear missing.

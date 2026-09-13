@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AppNavbar from './AppNavbar.jsx';
 import HomeView from '../home/HomeView.jsx';
 import InstancesView from '../instances/InstancesView.jsx';
@@ -26,6 +26,26 @@ const BACK_LABELS = {
   instances: 'back.instances',
   versions: 'back.versions',
   browse: 'back.browse'
+};
+
+const playRelayChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.24);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+    osc.onended = () => ctx.close().catch(() => {});
+  } catch {}
 };
 
 export default function Shell({
@@ -64,6 +84,8 @@ export default function Shell({
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
+  const [relayActiveThreadId, setRelayActiveThreadId] = useState(null);
+  const relayNotificationRef = useRef({});
 
   const openUpdater = useCallback(() => {
     setSettingsOpen(false);
@@ -104,6 +126,58 @@ export default function Shell({
         : 'Relay';
     notify(title, payload.message);
   }, [notify]);
+
+  relayNotificationRef.current = {
+    selfId: social.selfId,
+    friends: social.friends,
+    currentTab,
+    activeThreadId: relayActiveThreadId
+  };
+
+  useEffect(() => social.subscribe((event) => {
+    const state = relayNotificationRef.current;
+    let title = '';
+    let body = '';
+    let threadId = null;
+
+    if (event?.type === 'message:new' && event.message?.senderId !== state.selfId) {
+      threadId = event.message.senderId;
+      const friend = state.friends.find((item) => item.id === threadId);
+      title = friend?.nickname || friend?.name || event.message.senderName || 'New direct message';
+      body = event.message.content || event.message.mediaName || 'Sent an attachment';
+    } else if (event?.type === 'group:message') {
+      const message = event.data?.message ?? event.message;
+      threadId = event.data?.groupId ?? event.groupId;
+      if (!message || message.senderId === state.selfId || message.isSystem) return;
+      title = event.data?.groupName || event.groupName || 'New group message';
+      body = `${message.senderName || 'Member'}: ${message.content || message.mediaName || 'Sent an attachment'}`;
+    } else if (event?.type === 'request:changed' && event.actorId !== state.selfId) {
+      if (event.action === 'accepted') {
+        title = 'Friend request accepted';
+        body = `${event.actorName || 'A player'} accepted your friend request.`;
+      } else if (!event.action || event.action === 'sent') {
+        title = 'New friend request';
+        body = `${event.actorName || 'A player'} wants to be your friend.`;
+      }
+    }
+
+    if (!title) return;
+    if (threadId) {
+      let mutedIds = {};
+      try {
+        mutedIds = JSON.parse(localStorage.getItem('noctra_relay_store_v5') || '{}').mutedIds || {};
+      } catch {}
+      const friend = state.friends.find((item) => item.id === threadId);
+      if (mutedIds[threadId] ?? friend?.muted) return;
+    }
+    const viewingThread = threadId && state.currentTab === 'relay' &&
+      state.activeThreadId === threadId && document.hasFocus();
+    if (viewingThread) return;
+
+    notify(title, body);
+    playRelayChime();
+    window.native?.showNotification?.(title, body);
+  }), [notify, social.subscribe]);
 
   const handleLaunch = (cluster, options = {}) => {
     if (!cluster) return;
@@ -240,6 +314,7 @@ export default function Shell({
             social={social}
             onJoinServer={handleJoinServer}
             onNotify={notifyRelay}
+            onActiveThreadChange={setRelayActiveThreadId}
           />
         )}
 

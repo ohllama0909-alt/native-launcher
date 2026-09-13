@@ -46,6 +46,10 @@ export function MessageRow({
   const canEdit = isMine && !msg.isDeleted && !msg.pending && Boolean(msg.content) && !msg.mediaUrl;
   const canDelete = (isMine || (isGroup && canModerate)) && !msg.isDeleted && !msg.pending && !msg.isUploading;
   const isRead = isGroup ? (readAt > 0 && (msg.createdAt || 0) <= readAt) : Boolean(msg.isRead);
+  const groupedWithPrevious = Boolean(msg.groupedWithPrevious);
+  const groupedWithNext = Boolean(msg.groupedWithNext);
+  const showGroupAuthor = !isMine && isGroup && !groupedWithPrevious;
+  const showMeta = !groupedWithNext || msg.pending || msg.failed || msg.uploadFailed || msg.editedAt;
 
   const submitEdit = () => {
     const next = String(draft || '').trim();
@@ -62,15 +66,18 @@ export function MessageRow({
         isMine ? 'is-outgoing' : 'is-incoming',
         msg.pending ? 'is-pending' : '',
         msg.failed || msg.uploadFailed ? 'is-failed' : '',
-        msg.isDeleted ? 'is-deleted' : ''
+        msg.isDeleted ? 'is-deleted' : '',
+        groupedWithPrevious ? 'is-grouped-prev' : '',
+        groupedWithNext ? 'is-grouped-next' : ''
       ].filter(Boolean).join(' ')}
     >
-      {!isMine && isGroup && (
+      {showGroupAuthor && (
         <RelayAvatar name={msg.senderName || msg.senderId} size={28} className="relay-msg-author-avatar" />
       )}
+      {!isMine && isGroup && groupedWithPrevious && <span className="relay-msg-author-spacer" aria-hidden="true" />}
 
       <div className="relay-message-content-col">
-        {!isMine && isGroup && <span className="relay-msg-author-name">{msg.senderName || msg.senderId}</span>}
+        {showGroupAuthor && <span className="relay-msg-author-name">{msg.senderName || msg.senderId}</span>}
 
         {!msg.isDeleted && (
           <div className="relay-msg-tools">
@@ -266,7 +273,7 @@ export function MessageRow({
           </div>
         )}
 
-        <div className="relay-msg-meta-row">
+        {showMeta && <div className="relay-msg-meta-row">
           <span className="relay-msg-time">{msg.time}</span>
           {msg.editedAt && !msg.isDeleted && <span className="relay-msg-edited">edited</span>}
           {isMine && !msg.pending && !msg.failed && !msg.isDeleted && (
@@ -286,7 +293,7 @@ export function MessageRow({
               <span>Retry</span>
             </button>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

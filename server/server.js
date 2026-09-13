@@ -643,7 +643,11 @@ async function handler(req, res) {
           const result = db.sendFriendRequest(authUser.id, targetUsername);
           const participants = result.participants || [];
           events.publish(participants, result.mutual ? 'friends:changed' : 'request:changed', {
-            actorId: authUser.id
+            actorId: authUser.id,
+            actorName: authUser.username,
+            receiverId: result.receiverId,
+            requestId: result.id,
+            action: result.mutual ? 'accepted' : 'sent'
           });
           return send(res, 200, { ok: true, ...result }, { 'Cache-Control': 'no-store' });
         } catch (err) {
@@ -657,7 +661,13 @@ async function handler(req, res) {
         const action = String(body.action || '').trim().toLowerCase();
         try {
           const result = db.respondFriendRequest(requestId, authUser.id, action);
-          events.publish(result.participants || [], 'request:changed', { actorId: authUser.id, action: result.action });
+          events.publish(result.participants || [], 'request:changed', {
+            actorId: authUser.id,
+            actorName: authUser.username,
+            senderId: result.senderId,
+            receiverId: result.receiverId,
+            action: result.action
+          });
           if (result.action === 'accepted') {
             events.publish(result.participants || [], 'friends:changed', { actorId: authUser.id });
           }

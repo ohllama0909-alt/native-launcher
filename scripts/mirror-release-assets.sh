@@ -24,19 +24,22 @@ REL=release
 
 echo "==> version ${VERSION} (${TAG})"
 
-# 1. hyphenated copies of every space-named binary for this version
+# 1. find artifacts for this version
 shopt -s nullglob
-mapfile -t SPACED < <(ls "$REL"/"Noctra Client-${VERSION}"* "$REL"/"Noctra Client-Setup-${VERSION}"* "$REL"/"Noctra Client-Portable-${VERSION}"* 2>/dev/null | sort -u)
-if [[ ${#SPACED[@]} -eq 0 ]]; then
-  echo "error: no space-named artifacts for ${VERSION} in ${REL}/" >&2
+mapfile -t ARTIFACTS < <(ls "$REL"/*"${VERSION}"* 2>/dev/null | grep -v '\.tmp$' | sort -u)
+if [[ ${#ARTIFACTS[@]} -eq 0 ]]; then
+  echo "error: no artifacts for ${VERSION} in ${REL}/" >&2
   exit 1
 fi
-for f in "${SPACED[@]}"; do
+
+for f in "${ARTIFACTS[@]}"; do
   base="$(basename "$f")"
-  hy="${base//Noctra Client-/Noctra-Client-}"
-  if [[ ! -f "$REL/$hy" ]]; then
-    cp -p "$f" "$REL/$hy"
-    echo "   + $hy"
+  if [[ "$base" == *"Noctra Client-"* ]]; then
+    hy="${base//Noctra Client-/Noctra-Client-}"
+    if [[ ! -f "$REL/$hy" ]]; then
+      cp -p "$f" "$REL/$hy"
+      echo "   + $hy"
+    fi
   fi
 done
 
@@ -52,12 +55,12 @@ for y in latest.yml latest-linux.yml; do
   echo "   ~ $y -> hyphenated refs"
 done
 
-# 3. build the upload list: hyphenated binaries + space-named originals + ymls
+# 3. build the upload list: versioned binaries + ymls
 UPLOADS=()
-for f in "${SPACED[@]}"; do
-  base="$(basename "$f")"
-  UPLOADS+=("$REL/$base")                                  # space-named -> stored as Noctra.Client-*
-  UPLOADS+=("$REL/${base//Noctra Client-/Noctra-Client-}") # hyphenated
+for f in "$REL"/*"${VERSION}"*; do
+  [[ -f "$f" ]] || continue
+  [[ "$f" == *.tmp ]] && continue
+  UPLOADS+=("$f")
 done
 for y in latest.yml latest-linux.yml; do
   [[ -f "$REL/$y" ]] && UPLOADS+=("$REL/$y")
