@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Download,
   FileText,
+  LogOut,
   MessageSquare,
   Mic,
   MoreHorizontal,
@@ -16,12 +17,14 @@ import {
   Send,
   Smile,
   Sparkles,
+  Trash2,
   Upload,
   Users,
   UserSquare2,
   X
 } from 'lucide-react';
 import RelayAvatar from './RelayAvatar.jsx';
+import GroupAvatarBadge from './GroupAvatarBadge.jsx';
 import useRelayGroups from './useRelayGroups.js';
 import GroupCreateModal from './GroupCreateModal.jsx';
 import GroupSettingsModal from './GroupSettingsModal.jsx';
@@ -571,6 +574,34 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     Promise.resolve(request).catch(() => {});
   };
 
+  const handleGroupLeave = async (group) => {
+    if (!group?.id) return;
+    setShowMenuDropdown(false);
+    const result = await relayGroups.leaveGroup(group.id);
+    if (result?.ok) {
+      if (selectedId === group.id) {
+        setSelectedId(null);
+      }
+      onNotify?.('Group left', `You left ${group.name || 'the group'}`);
+    } else {
+      onNotify?.('Error', result?.error || 'Failed to leave group');
+    }
+  };
+
+  const handleGroupDelete = async (group) => {
+    if (!group?.id) return;
+    setShowMenuDropdown(false);
+    const result = await relayGroups.deleteGroup(group.id);
+    if (result?.ok) {
+      if (selectedId === group.id) {
+        setSelectedId(null);
+      }
+      onNotify?.('Group deleted', `Deleted ${group.name || 'the group'}`);
+    } else {
+      onNotify?.('Error', result?.error || 'Failed to delete group');
+    }
+  };
+
   const handleToggleReaction = async (messageId, emoji) => {
     if (!messageId || !emoji || !activeEntity) return;
     if (String(messageId).startsWith('upload-')) return;
@@ -973,9 +1004,13 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                               e?.stopPropagation();
                               handleToggleMute(thread);
                             }}
-                          >
-                            <CompositeGroupAvatar members={thread.members} />
-                          </ThreadRow>
+                            onOpenSettings={(t) => {
+                              setSelectedId(t.id);
+                              setSettingsOpen(true);
+                            }}
+                            onLeaveGroup={handleGroupLeave}
+                            onDeleteGroup={handleGroupDelete}
+                          />
                         ))
                       )}
                     </div>
@@ -1007,13 +1042,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
               >
                 <div className="relay-peer-avatar-wrapper">
                   {isGroupThread ? (
-                    activeEntity.iconUrl ? (
-                      <span className="relay-peer-icon"><img src={activeEntity.iconUrl} alt="" /></span>
-                    ) : (
-                      <div className="relay-peer-group-avatar">
-                        <CompositeGroupAvatar members={activeEntity.members} />
-                      </div>
-                    )
+                    <GroupAvatarBadge group={activeEntity} size={40} className="relay-peer-avatar" />
                   ) : (
                     <RelayAvatar
                       name={activeEntity?.name}
@@ -1123,16 +1152,38 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                         <span>{activeEntity.muted ? 'Unmute conversation' : 'Mute conversation'}</span>
                       </button>
                       {isGroupThread ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSettingsOpen(true);
-                            setShowMenuDropdown(false);
-                          }}
-                        >
-                          <Users size={13} />
-                          <span>Group settings</span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSettingsOpen(true);
+                              setShowMenuDropdown(false);
+                            }}
+                          >
+                            <Users size={13} />
+                            <span>Group settings</span>
+                          </button>
+                          <div className="relay-context-divider" />
+                          {activeEntity.role === 'owner' ? (
+                            <button
+                              type="button"
+                              className="is-danger"
+                              onClick={() => handleGroupDelete(activeEntity)}
+                            >
+                              <Trash2 size={13} />
+                              <span>Delete group</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="is-danger"
+                              onClick={() => handleGroupLeave(activeEntity)}
+                            >
+                              <LogOut size={13} />
+                              <span>Leave group</span>
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <>
                           <button
@@ -1443,12 +1494,18 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         onSetMemberRole={relayGroups.setMemberRole}
         onLeaveGroup={async (id) => {
           const result = await relayGroups.leaveGroup(id);
-          if (result?.ok) setSettingsOpen(false);
+          if (result?.ok) {
+            setSettingsOpen(false);
+            if (selectedId === id) setSelectedId(null);
+          }
           return result;
         }}
         onDeleteGroup={async (id) => {
           const result = await relayGroups.deleteGroup(id);
-          if (result?.ok) setSettingsOpen(false);
+          if (result?.ok) {
+            setSettingsOpen(false);
+            if (selectedId === id) setSelectedId(null);
+          }
           return result;
         }}
       />
@@ -1474,20 +1531,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/** 2x2 mosaic of member heads used when a group has no custom icon. */
-function CompositeGroupAvatar({ members = [] }) {
-  const shown = members.slice(0, 4);
-  return (
-    <div className="relay-composite-avatar">
-      {shown.map((member, index) => {
-        const name = typeof member === 'string' ? member : (member?.name || member?.nickname || 'Player');
-        return <RelayAvatar key={`${name}-${index}`} name={name} size={15} className="relay-mini-head" />;
-      })}
-      {shown.length < 4 && <span className="relay-mini-placeholder" />}
     </div>
   );
 }

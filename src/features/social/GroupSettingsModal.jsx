@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Camera, Check, LogOut, Search, Trash2, X } from 'lucide-react';
 import RelayAvatar from './RelayAvatar';
+import GroupAvatarBadge from './GroupAvatarBadge';
 import './relay-groups.css';
 
 const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member' };
@@ -32,12 +34,14 @@ export function GroupSettingsModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   useEffect(() => {
     setName(group?.name || '');
     setDescription(group?.description || '');
     setError(null);
     setConfirmDelete(false);
+    setConfirmLeave(false);
   }, [group?.id, group?.name, group?.description]);
 
   const members = group?.members || [];
@@ -58,10 +62,16 @@ export function GroupSettingsModal({
   const run = async (action) => {
     setBusy(true);
     setError(null);
-    const result = await action();
-    setBusy(false);
-    if (result?.ok === false) setError(result.error || 'That action failed.');
-    return result;
+    try {
+      const result = await action();
+      setBusy(false);
+      if (result?.ok === false) setError(result.error || 'That action failed.');
+      return result;
+    } catch (err) {
+      setBusy(false);
+      setError(err.message || 'An error occurred.');
+      return { ok: false, error: err.message };
+    }
   };
 
   const changeImage = async (event) => {
@@ -83,20 +93,14 @@ export function GroupSettingsModal({
       <div className="relay-modal relay-modal--settings" role="dialog" aria-label="Group settings">
         <header className="relay-modal__head relay-modal__head--row">
           <div className="relay-group-identity">
-            <div className="relay-group-avatar relay-group-avatar--lg">
-              {group.iconUrl
-                ? <img src={group.iconUrl} alt="" />
-                : <span>{(group.name || '?').slice(0, 2).toUpperCase()}</span>}
-            </div>
+            <GroupAvatarBadge group={group} size={42} />
             <div>
               <h2>{group.name}</h2>
-              <p>{group.memberCount} members · You are {ROLE_LABEL[myRole]}</p>
+              <p>{group.memberCount || members.length} members · You are {ROLE_LABEL[myRole] || 'Member'}</p>
             </div>
           </div>
-          <button type="button" className="relay-icon-btn" onClick={onClose} aria-label="Close">
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-            </svg>
+          <button type="button" className="relay-modal__close-btn" onClick={onClose} aria-label="Close" title="Close">
+            <X size={16} />
           </button>
         </header>
 
@@ -121,10 +125,13 @@ export function GroupSettingsModal({
                 className={`relay-group-icon-picker${group.iconUrl ? ' has-image' : ''}`}
                 onClick={() => fileInput.current?.click()}
                 disabled={!canModerate || busy}
+                title={canModerate ? 'Change group icon' : undefined}
               >
-                {group.iconUrl
-                  ? <img src={group.iconUrl} alt="" />
-                  : <span className="relay-group-icon-picker__glyph">{(group.name || '?').slice(0, 2).toUpperCase()}</span>}
+                {group.iconUrl ? (
+                  <img src={group.iconUrl} alt="" />
+                ) : (
+                  <GroupAvatarBadge group={group} size={64} />
+                )}
                 {canModerate && <span className="relay-group-icon-picker__hint">Change</span>}
               </button>
               <input ref={fileInput} type="file" accept="image/*" hidden onChange={changeImage} />
@@ -146,7 +153,7 @@ export function GroupSettingsModal({
                     className="relay-input relay-input--area"
                     value={description}
                     maxLength={200}
-                    rows={3}
+                    rows={2}
                     disabled={!canModerate}
                     placeholder="What is this group for?"
                     onChange={(event) => setDescription(event.target.value)}
@@ -157,8 +164,8 @@ export function GroupSettingsModal({
 
             <div className="relay-toggle-row">
               <div>
-                <strong>Group image</strong>
-                <span>Shown in the inbox, header and notifications.</span>
+                <strong>Group icon</strong>
+                <span>Custom image shown in inbox, header and notifications.</span>
               </div>
               {canModerate && group.iconUrl && (
                 <button
@@ -166,44 +173,89 @@ export function GroupSettingsModal({
                   className="relay-btn relay-btn--ghost"
                   onClick={() => run(() => onUpdateGroup?.(group.id, { iconUrl: null }))}
                 >
-                  Remove
+                  Remove Icon
                 </button>
               )}
             </div>
 
-            {error && <p className="relay-error">{error}</p>}
+            {error && <div className="relay-error-banner">{error}</div>}
 
+            {/* Danger Zone: Leave / Delete */}
             <div className="relay-danger-zone">
-              <button
-                type="button"
-                className="relay-btn relay-btn--danger-ghost"
-                onClick={() => run(async () => {
-                  const result = await onLeaveGroup?.(group.id);
-                  if (result?.ok !== false) onClose?.();
-                  return result;
-                })}
-              >
-                Leave group
-              </button>
-              {isOwner && (
-                confirmDelete ? (
-                  <button
-                    type="button"
-                    className="relay-btn relay-btn--danger"
-                    onClick={() => run(async () => {
-                      const result = await onDeleteGroup?.(group.id);
-                      if (result?.ok !== false) onClose?.();
-                      return result;
-                    })}
-                  >
-                    Tap again to delete forever
-                  </button>
+              <div className="relay-danger-zone__info">
+                <h4>Group Management</h4>
+                <p>{isOwner ? 'Delete this group permanently or transfer ownership.' : 'Leave this group conversation.'}</p>
+              </div>
+              <div className="relay-danger-zone__actions">
+                {confirmLeave ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="relay-btn relay-btn--ghost"
+                      onClick={() => setConfirmLeave(false)}
+                      disabled={busy}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="relay-btn relay-btn--danger"
+                      disabled={busy}
+                      onClick={() => run(async () => {
+                        const result = await onLeaveGroup?.(group.id);
+                        onClose?.();
+                        return result;
+                      })}
+                    >
+                      {busy ? 'Leaving…' : 'Confirm Leave'}
+                    </button>
+                  </div>
+                ) : confirmDelete ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="relay-btn relay-btn--ghost"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={busy}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="relay-btn relay-btn--danger"
+                      disabled={busy}
+                      onClick={() => run(async () => {
+                        const result = await onDeleteGroup?.(group.id);
+                        onClose?.();
+                        return result;
+                      })}
+                    >
+                      {busy ? 'Deleting…' : 'Confirm Delete Forever'}
+                    </button>
+                  </div>
                 ) : (
-                  <button type="button" className="relay-btn relay-btn--danger" onClick={() => setConfirmDelete(true)}>
-                    Delete group
-                  </button>
-                )
-              )}
+                  <>
+                    <button
+                      type="button"
+                      className="relay-btn relay-btn--danger-ghost"
+                      onClick={() => setConfirmLeave(true)}
+                    >
+                      <LogOut size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                      Leave group
+                    </button>
+                    {isOwner && (
+                      <button
+                        type="button"
+                        className="relay-btn relay-btn--danger"
+                        onClick={() => setConfirmDelete(true)}
+                      >
+                        <Trash2 size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                        Delete group
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             {canModerate && (
@@ -214,7 +266,7 @@ export function GroupSettingsModal({
                   disabled={!dirty || busy}
                   onClick={() => run(() => onUpdateGroup?.(group.id, { name: name.trim(), description: description.trim() }))}
                 >
-                  {busy ? 'Saving...' : 'Save changes'}
+                  {busy ? 'Saving…' : 'Save changes'}
                 </button>
               </footer>
             )}
@@ -223,7 +275,7 @@ export function GroupSettingsModal({
 
         {tab === 'members' && (
           <div className="relay-modal__body">
-            {error && <p className="relay-error">{error}</p>}
+            {error && <div className="relay-error-banner">{error}</div>}
             <div className="relay-member-scroll relay-member-scroll--tall">
               {members.map((member) => {
                 const isSelf = member.id === selfId;
@@ -240,7 +292,7 @@ export function GroupSettingsModal({
                       </span>
                     </div>
 
-                    <span className={`relay-role-badge relay-role-badge--${member.role}`}>{ROLE_LABEL[member.role]}</span>
+                    <span className={`relay-role-badge relay-role-badge--${member.role}`}>{ROLE_LABEL[member.role] || member.role}</span>
 
                     {(canActOn || (isOwner && !isSelf)) && (
                       <div className="relay-member-row__actions">
@@ -253,19 +305,13 @@ export function GroupSettingsModal({
                         {isOwner && member.role === 'admin' && (
                           <button type="button" className="relay-chip-btn" disabled={busy}
                             onClick={() => run(() => onSetMemberRole?.(group.id, member.id, 'member'))}>
-                            Remove admin
-                          </button>
-                        )}
-                        {isOwner && member.role === 'admin' && (
-                          <button type="button" className="relay-chip-btn" disabled={busy}
-                            onClick={() => run(() => onSetMemberRole?.(group.id, member.id, 'owner'))}>
-                            Transfer ownership
+                            Demote
                           </button>
                         )}
                         {canActOn && (
                           <button type="button" className="relay-chip-btn relay-chip-btn--danger" disabled={busy}
                             onClick={() => run(() => onKickMember?.(group.id, member.id))}>
-                            Kick
+                            Remove
                           </button>
                         )}
                       </div>
@@ -277,34 +323,53 @@ export function GroupSettingsModal({
           </div>
         )}
 
-        {tab === 'invite' && (
+        {tab === 'invite' && canModerate && (
           <div className="relay-modal__body">
-            <input
-              className="relay-input"
-              value={query}
-              placeholder="Search friends..."
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            {error && <p className="relay-error">{error}</p>}
+            {error && <div className="relay-error-banner">{error}</div>}
+            <div className="relay-modal-search">
+              <Search size={14} className="relay-modal-search__icon" />
+              <input
+                className="relay-input relay-input--search"
+                value={query}
+                placeholder="Search friends to add…"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              {query && (
+                <button type="button" className="relay-modal-search__clear" onClick={() => setQuery('')}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
             <div className="relay-member-scroll relay-member-scroll--tall">
-              {addableFriends.length === 0 && <p className="relay-empty">Everyone you can add is already here.</p>}
-              {addableFriends.map((friend) => (
-                <div key={friend.id} className="relay-member-row relay-member-row--static">
-                  <RelayAvatar name={friend.name} size={34} status={friend.status} showStatus />
-                  <div className="relay-member-row__meta">
-                    <span className="relay-member-row__name">{friend.nickname || friend.name}</span>
-                    <span className="relay-member-row__sub">{friend.status === 'offline' ? 'Offline' : 'Online'}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="relay-chip-btn relay-chip-btn--primary"
-                    disabled={busy}
-                    onClick={() => run(() => onAddMembers?.(group.id, [friend.id]))}
-                  >
-                    Add
-                  </button>
+              {friends.length === 0 ? (
+                <div className="relay-empty-friends">
+                  <p>No friends available to add.</p>
                 </div>
-              ))}
+              ) : addableFriends.length === 0 ? (
+                <p className="relay-empty">All eligible friends are already in this group.</p>
+              ) : (
+                addableFriends.map((friend) => (
+                  <div key={friend.id} className="relay-member-row relay-member-row--static">
+                    <RelayAvatar name={friend.name} skinUrl={friend.skinUrl} size={32} />
+                    <div className="relay-member-row__meta">
+                      <span className="relay-member-row__name">{friend.nickname || friend.name}</span>
+                      <span className="relay-member-row__sub">
+                        {friend.status === 'in-game' ? (friend.activity || 'In-game') : (friend.status === 'offline' ? 'Offline' : 'Online')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="relay-btn relay-btn--primary"
+                      style={{ padding: '4px 10px', fontSize: 11.5 }}
+                      disabled={busy}
+                      onClick={() => run(() => onAddMembers?.(group.id, [friend.id]))}
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

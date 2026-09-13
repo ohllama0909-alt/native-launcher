@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Bell, BellOff, Check, CheckCheck, Paperclip, Pin } from 'lucide-react';
+import { Bell, BellOff, Check, CheckCheck, LogOut, Paperclip, Pin, Settings, Trash2 } from 'lucide-react';
 import RelayAvatar from './RelayAvatar.jsx';
+import GroupAvatarBadge from './GroupAvatarBadge.jsx';
 
-/** One inbox row: avatar, presence, name, snippet, delivery state and quick pin/mute actions. */
+/** One inbox row: avatar, presence, name, snippet, delivery state and quick actions. */
 export function ThreadRow({
   thread,
   active,
@@ -12,7 +13,9 @@ export function ThreadRow({
   onClick,
   onTogglePin,
   onToggleMute,
-  children
+  onOpenSettings,
+  onLeaveGroup,
+  onDeleteGroup
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -33,11 +36,7 @@ export function ThreadRow({
       >
         <div className="relay-thread-avatar-wrapper">
           {isGroup ? (
-            thread.iconUrl ? (
-              <span className="relay-thread-icon"><img src={thread.iconUrl} alt="" /></span>
-            ) : (
-              <div className="relay-thread-group-avatar">{children}</div>
-            )
+            <GroupAvatarBadge group={thread} size={36} />
           ) : (
             <RelayAvatar name={thread.name} skinUrl={thread.skinUrl} size={36} className="relay-thread-avatar" />
           )}
@@ -123,6 +122,46 @@ export function ThreadRow({
               {thread.muted ? <Bell size={13} /> : <BellOff size={13} />}
               <span>{thread.muted ? 'Unmute notifications' : 'Mute notifications'}</span>
             </button>
+            {isGroup && (
+              <>
+                <div className="relay-context-divider" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    setMenuOpen(false);
+                    onOpenSettings?.(thread);
+                  }}
+                >
+                  <Settings size={13} />
+                  <span>Group settings</span>
+                </button>
+                {thread.role === 'owner' ? (
+                  <button
+                    type="button"
+                    className="is-danger"
+                    onClick={(e) => {
+                      setMenuOpen(false);
+                      onDeleteGroup?.(thread);
+                    }}
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete group</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="is-danger"
+                    onClick={(e) => {
+                      setMenuOpen(false);
+                      onLeaveGroup?.(thread);
+                    }}
+                  >
+                    <LogOut size={13} />
+                    <span>Leave group</span>
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </>
       )}

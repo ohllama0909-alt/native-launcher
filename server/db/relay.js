@@ -478,7 +478,10 @@ function setMemberRole(db, userId, groupId, targetId, role) {
 }
 
 function leaveGroup(db, userId, groupId) {
-  const self = requireMember(db, groupId, userId);
+  const group = db.prepare('SELECT owner_id FROM groups WHERE id = ?').get(groupId);
+  if (!group) return { deleted: true, groupId, participants: [userId] };
+  const self = membership(db, groupId, userId);
+  if (!self) return { deleted: false, groupId, participants: [userId] };
   const actor = db.prepare('SELECT username FROM users WHERE id = ?').get(userId);
   const participantsBefore = memberIds(db, groupId);
 
@@ -507,7 +510,9 @@ function leaveGroup(db, userId, groupId) {
 }
 
 function deleteGroup(db, userId, groupId) {
-  requireOwner(db, groupId, userId);
+  const group = db.prepare('SELECT owner_id FROM groups WHERE id = ?').get(groupId);
+  if (!group) return { ok: true, groupId, participants: [userId] };
+  if (group.owner_id !== userId) throw new Error('Only the group owner can delete this group.');
   const participants = memberIds(db, groupId);
   db.prepare('DELETE FROM groups WHERE id = ?').run(groupId);
   return { ok: true, groupId, participants };

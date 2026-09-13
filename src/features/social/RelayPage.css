@@ -322,6 +322,29 @@
   color: var(--fg-primary-hover, #fff);
 }
 
+.relay-context-divider {
+  height: 1px;
+  background: var(--hairline-strong);
+  margin: 4px 0;
+}
+
+.relay-thread-context-menu button.is-danger,
+.relay-dropdown-menu button.is-danger {
+  color: var(--danger, #f43f5e);
+}
+
+.relay-thread-context-menu button.is-danger:hover,
+.relay-dropdown-menu button.is-danger:hover {
+  background: var(--danger-subtle, rgba(244, 63, 94, 0.12));
+  color: var(--danger, #f43f5e);
+}
+
+.relay-thread-context-menu button.is-danger svg,
+.relay-dropdown-menu button.is-danger svg {
+  color: inherit;
+}
+
+
 @keyframes relay-row-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }

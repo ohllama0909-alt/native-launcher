@@ -317,14 +317,28 @@ export function useRelayGroups({ selfId, selfName } = {}) {
 
   const leaveGroup = useCallback(async (groupId) => {
     const result = await relay()?.leaveGroup(groupId);
-    if (!result?.ok) return fail(result, 'Could not leave the group.');
+    if (!result?.ok) {
+      const err = String(result?.error || '').toLowerCase();
+      if (err.includes('not found') || err.includes('404') || err.includes('not a member')) {
+        dropGroup(groupId);
+        return { ok: true };
+      }
+      return fail(result, 'Could not leave the group.');
+    }
     dropGroup(groupId);
     return result;
   }, [dropGroup, fail]);
 
   const deleteGroup = useCallback(async (groupId) => {
     const result = await relay()?.deleteGroup(groupId);
-    if (!result?.ok) return fail(result, 'Could not delete the group.');
+    if (!result?.ok) {
+      const err = String(result?.error || '').toLowerCase();
+      if (err.includes('not found') || err.includes('404')) {
+        dropGroup(groupId);
+        return { ok: true };
+      }
+      return fail(result, 'Could not delete the group.');
+    }
     dropGroup(groupId);
     return result;
   }, [dropGroup, fail]);
