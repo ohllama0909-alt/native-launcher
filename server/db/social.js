@@ -329,7 +329,7 @@ function getMessages(db, userId, friendId, options = {}) {
     ${MESSAGE_SELECT}
     WHERE ((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))
       AND (? IS NULL OR m.created_at < ?)
-    ORDER BY m.created_at DESC
+    ORDER BY m.created_at DESC, m.rowid DESC
     LIMIT ?
   `).all(userId, friendId, friendId, userId, before, before, capped + 1);
 
@@ -355,7 +355,7 @@ function getConversations(db, userId, perFriend = 40) {
     const rows = db.prepare(`
       ${MESSAGE_SELECT}
       WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-      ORDER BY m.created_at DESC
+      ORDER BY m.created_at DESC, m.rowid DESC
       LIMIT ?
     `).all(userId, friendId, friendId, userId, capped + 1);
 
@@ -377,7 +377,7 @@ function getUpdatesSince(db, userId, since = 0) {
   const rows = db.prepare(`
     ${MESSAGE_SELECT}
     WHERE (m.sender_id = ? OR m.receiver_id = ?) AND m.created_at > ?
-    ORDER BY m.created_at ASC
+    ORDER BY m.created_at ASC, m.rowid ASC
     LIMIT 300
   `).all(userId, userId, cursor);
 

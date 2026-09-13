@@ -80,7 +80,7 @@ test('server/db: verifies foreign key cascades and relational integrity', () => 
   // Messages
   db.sendMessage(u1.id, u2.id, 'Hello cascade test');
   const msgsBefore = db.getMessages(u1.id, u2.id);
-  assert.equal(msgsBefore.length, 1);
+  assert.equal(msgsBefore.messages.length, 1);
 
   // Presence
   db.updatePresence(u1.id, { status: 'in-game', activity: 'Testing cascades' });

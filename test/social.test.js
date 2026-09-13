@@ -95,9 +95,9 @@ test('social db: creates users, manages friend requests, friendships, and presen
 
   // Retrieve message history
   const history = authDb.getMessages(userA.id, userB.id);
-  assert.equal(history.length, 2);
-  assert.equal(history[0].content, 'Hey Player B!');
-  assert.equal(history[1].content, 'Hey! Ready for bedwars?');
+  assert.equal(history.messages.length, 2);
+  assert.equal(history.messages[0].content, 'Hey Player B!');
+  assert.equal(history.messages[1].content, 'Hey! Ready for bedwars?');
 
   // Unfriend
   authDb.removeFriend(userA.id, userB.id);
