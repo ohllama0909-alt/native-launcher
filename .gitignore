@@ -28,3 +28,7 @@ screenshot-*.png
 # database and runtime data
 skin-server/data/
 *.db
+*.env
+credentials.json
+*.key
+.credentials
