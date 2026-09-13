@@ -11,10 +11,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const social = () => (typeof window !== 'undefined' ? window.native?.social : null);
 
-const EMPTY_THREAD = { messages: [], hasMore: false, oldestTime: null, loading: false };
+const EMPTY_THREAD = { messages: [], hasMore: false, oldestTime: null, loading: false, loaded: false };
 const TYPING_TTL = 6000;
 const RECONCILE_INTERVAL = 20_000;
 const PER_FRIEND_PRELOAD = 40;
+const THREAD_PAGE_SIZE = 50;
 
 function sortMessages(list) {
   return [...list].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -69,11 +70,13 @@ export function useSocial(account) {
   const [nicknameModalFriend, setNicknameModalFriend] = useState(null);
 
   const activeChatIdRef = useRef(null);
+  const conversationsRef = useRef({});
   const cursorRef = useRef(0);
   const typingTimersRef = useRef({});
   const typingSentRef = useRef({});
 
   useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   const activeChatFriend = useMemo(
     () => friends.find((friend) => friend.id === activeChatId) || null,
@@ -115,7 +118,8 @@ export function useSocial(account) {
             messages: mergeMessages(existing.messages, payload.messages || []),
             hasMore: Boolean(payload.hasMore),
             oldestTime: payload.oldestTime ?? existing.oldestTime,
-            loading: false
+            loading: false,
+            loaded: true
           };
         }
         return next;
@@ -136,6 +140,54 @@ export function useSocial(account) {
     const res = await api.getBlocked?.();
     if (Array.isArray(res?.blocked)) setBlocked(res.blocked);
   }, [isNoctra]);
+
+  /**
+   * Fetch the newest page of a single conversation.
+   *
+   * The bulk preload only covers friends the server included in its payload,
+   * so opening any other thread has to fetch its own history. Without this the
+   * thread stays empty forever, because `loadOlder` needs an existing
+   * `oldestTime`/`hasMore` to page backwards from.
+   */
+  const loadThread = useCallback(async (friendId, { force = false, markRead = true } = {}) => {
+    const api = social();
+    if (!api?.getMessages || !friendId) return;
+
+    const current = conversationsRef.current[friendId];
+    if (current?.loading) return;
+    if (current?.loaded && !force) return;
+
+    setConversations((previous) => ({
+      ...previous,
+      [friendId]: { ...(previous[friendId] || EMPTY_THREAD), loading: true }
+    }));
+
+    let res = null;
+    try {
+      res = await api.getMessages(friendId, THREAD_PAGE_SIZE, { markRead });
+    } catch {
+      res = null;
+    }
+
+    setConversations((previous) => {
+      const existing = previous[friendId] || EMPTY_THREAD;
+      return {
+        ...previous,
+        [friendId]: {
+          ...existing,
+          messages: mergeMessages(existing.messages, res?.messages || []),
+          hasMore: res ? Boolean(res.hasMore) : existing.hasMore,
+          oldestTime: res?.oldestTime ?? existing.oldestTime,
+          loading: false,
+          loaded: Boolean(res)
+        }
+      };
+    });
+
+    for (const message of res?.messages || []) {
+      if ((message.createdAt || 0) > cursorRef.current) cursorRef.current = message.createdAt;
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!isNoctra) {
@@ -329,20 +381,33 @@ export function useSocial(account) {
       item.id === friendId ? { ...item, unreadCount: 0 } : item
     )));
     social()?.markRead?.(friendId);
-  }, []);
+    // Make sure the opened thread actually has its history in memory.
+    loadThread(friendId);
+  }, [loadThread]);
 
   const loadOlder = useCallback(async (friendId = activeChatIdRef.current) => {
     const api = social();
     if (!api || !friendId) return;
-    const current = conversations[friendId];
-    if (!current || !current.hasMore || current.loading) return;
+    const current = conversationsRef.current[friendId];
+    if (!current || current.loading) return;
+    if (!current.loaded) {
+      await loadThread(friendId);
+      return;
+    }
+    if (!current.hasMore) return;
 
     setConversations((previous) => ({
       ...previous,
       [friendId]: { ...(previous[friendId] || EMPTY_THREAD), loading: true }
     }));
 
-    const res = await api.getMessages(friendId, 50, { before: current.oldestTime, markRead: false });
+    let res = null;
+    try {
+      res = await api.getMessages(friendId, THREAD_PAGE_SIZE, { before: current.oldestTime, markRead: false });
+    } catch {
+      res = null;
+    }
+
     setConversations((previous) => {
       const existing = previous[friendId] || EMPTY_THREAD;
       return {
@@ -350,13 +415,13 @@ export function useSocial(account) {
         [friendId]: {
           ...existing,
           messages: mergeMessages(existing.messages, res?.messages || []),
-          hasMore: Boolean(res?.hasMore),
+          hasMore: res ? Boolean(res.hasMore) : existing.hasMore,
           oldestTime: res?.oldestTime ?? existing.oldestTime,
           loading: false
         }
       };
     });
-  }, [conversations]);
+  }, [loadThread]);
 
   const sendMessage = useCallback(async (friendId, content, mediaOptions = {}) => {
     const api = social();
@@ -583,6 +648,7 @@ export function useSocial(account) {
     hasMoreMessages: thread.hasMore,
     loadingMessages: Boolean(thread.loading),
     initialLoading,
+    loadThread,
     loadOlder,
     typingBy,
     streamStatus,
