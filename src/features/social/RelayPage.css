@@ -338,6 +338,10 @@
 
 .relay-snippet-checks {
   flex: none;
+  color: #6f6878;
+}
+
+.relay-snippet-checks.is-read {
   color: #c084fc;
 }
 

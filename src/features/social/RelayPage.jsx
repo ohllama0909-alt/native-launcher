@@ -402,7 +402,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
       social?.setActiveChatFriend?.(null);
     } else {
       social?.setActiveChatFriend?.(thread);
-      social?.loadThread?.(thread.id);
     }
   };
 
@@ -690,7 +689,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
   const activePresence = getPresence(activeEntity);
   const activeThreadState = !isGroupThread && activeEntity ? social?.conversations?.[activeEntity.id] : null;
-  const isLoadingThread = Boolean(activeThreadState?.loading);
+  const isLoadingThread = Boolean(activeThreadState?.loading) || Boolean(activeEntity && !isGroupThread && !activeThreadState?.loaded);
 
   if (social && social.isNoctra === false) {
     return (

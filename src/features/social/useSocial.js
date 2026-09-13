@@ -71,6 +71,7 @@ export function useSocial(account) {
 
   const activeChatIdRef = useRef(null);
   const conversationsRef = useRef({});
+  const inFlightThreadsRef = useRef(new Set());
   const cursorRef = useRef(0);
   const typingTimersRef = useRef({});
   const typingSentRef = useRef({});
@@ -154,8 +155,10 @@ export function useSocial(account) {
     if (!api?.getMessages || !friendId) return;
 
     const current = conversationsRef.current[friendId];
-    if (current?.loading) return;
+    if (current?.loading || inFlightThreadsRef.current.has(friendId)) return;
     if (current?.loaded && !force) return;
+
+    inFlightThreadsRef.current.add(friendId);
 
     setConversations((previous) => ({
       ...previous,
@@ -167,6 +170,8 @@ export function useSocial(account) {
       res = await api.getMessages(friendId, THREAD_PAGE_SIZE, { markRead });
     } catch {
       res = null;
+    } finally {
+      inFlightThreadsRef.current.delete(friendId);
     }
 
     setConversations((previous) => {
