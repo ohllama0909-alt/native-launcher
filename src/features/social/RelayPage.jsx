@@ -53,18 +53,9 @@ const REACTION_PALETTE = ['❤️', '😂', '🔥', '👍', '😮', '😢', '�
 
 function loadPersistedState() {
   try {
-    const raw = localStorage.getItem(RELAY_STORAGE_KEY) || localStorage.getItem('noctra_relay_store_v3');
+    const raw = localStorage.getItem(RELAY_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    // Purge legacy seeded conversations & demo accounts
-    if (parsed?.conversations?.cuvsa) delete parsed.conversations.cuvsa;
-    if (parsed?.pinnedIds) {
-      parsed.pinnedIds = parsed.pinnedIds.filter((id) => !['XerxerBro', '2fishbowl', 'cuvsa'].includes(id));
-    }
-    if (parsed?.groups) {
-      parsed.groups = parsed.groups.filter((g) => !['group-idk', 'group-dsmp'].includes(g.id));
-    }
-    return parsed;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
@@ -208,9 +199,14 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
 
   // Always keep social.activeChatFriend in sync with activeEntity
   useEffect(() => {
-    if (activeEntity && activeEntity.kind !== 'group' && social?.setActiveChatFriend) {
+    if (!social?.setActiveChatFriend) return;
+    if (activeEntity && activeEntity.kind !== 'group') {
       if (social.activeChatFriend?.id !== activeEntity.id) {
         social.setActiveChatFriend(activeEntity);
+      }
+    } else {
+      if (social.activeChatFriend) {
+        social.setActiveChatFriend(null);
       }
     }
   }, [activeEntity, social]);
@@ -313,8 +309,12 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
     setShowGifPicker(false);
     setActiveReactionPickerMsgId(null);
 
-    if (thread.kind !== 'group' && social?.setActiveChatFriend) {
-      social.setActiveChatFriend(thread);
+    if (social?.setActiveChatFriend) {
+      if (thread.kind !== 'group') {
+        social.setActiveChatFriend(thread);
+      } else {
+        social.setActiveChatFriend(null);
+      }
     }
   };
 
@@ -336,7 +336,13 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         ...prev,
         [activeEntity.id]: list.map((m) => {
           if (m.id === messageId) {
-            return { ...m, reaction: m.reaction === reactionEmoji ? null : reactionEmoji };
+            const current = Array.isArray(m.reactions) ? m.reactions : [];
+            // We assume 'me' is the optimistic userId. Just toggle.
+            const existing = current.find((r) => r.userId === 'me' && r.reaction === reactionEmoji);
+            const updated = existing
+              ? current.filter((r) => !(r.userId === 'me' && r.reaction === reactionEmoji))
+              : [...current.filter((r) => r.userId !== 'me'), { userId: 'me', reaction: reactionEmoji }];
+            return { ...m, reactions: updated };
           }
           return m;
         })
@@ -388,31 +394,20 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
         [activeEntity.id]: [...(prev[activeEntity.id] || []), optimisticMsg]
       }));
 
-      // Simulate smooth progress steps while upload runs
-      let prog = 15;
-      const progressTimer = setInterval(() => {
-        prog = Math.min(92, prog + Math.floor(Math.random() * 20 + 10));
-        setLocalConversations((prev) => {
-          const list = prev[activeEntity.id] || [];
-          return {
-            ...prev,
-            [activeEntity.id]: list.map((m) => (m.id === tempId ? { ...m, uploadProgress: prog } : m))
-          };
-        });
-      }, 140);
-
       try {
-        let finalMediaUrl = fileToUpload.dataUrl;
+        let finalMediaUrl = null;
         if (social?.uploadMedia) {
           const res = await social.uploadMedia(fileToUpload.dataUrl, fileToUpload.name);
           if (res?.ok && res.url) {
             finalMediaUrl = res.url;
+          } else {
+            throw new Error('Upload failed from server');
           }
+        } else {
+          throw new Error('Upload API not available');
         }
 
-        clearInterval(progressTimer);
-
-        // Transition progress to 100% and update message
+        // Transition to uploaded state
         setLocalConversations((prev) => {
           const list = prev[activeEntity.id] || [];
           return {
@@ -435,13 +430,12 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
           });
         }
       } catch (err) {
-        clearInterval(progressTimer);
         setLocalConversations((prev) => {
           const list = prev[activeEntity.id] || [];
           return {
             ...prev,
             [activeEntity.id]: list.map((m) =>
-              m.id === tempId ? { ...m, isUploading: false, uploadFailed: true } : m
+              m.id === tempId ? { ...m, isUploading: false, uploadFailed: true, mediaUrl: null } : m
             )
           };
         });
@@ -991,15 +985,8 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                               {/* Upload Loading Progress Fill Overlay */}
                               {msg.isUploading ? (
                                 <div className="relay-upload-fill-overlay">
-                                  <div
-                                    className="relay-upload-spinner-ring"
-                                    style={{
-                                      background: `conic-gradient(var(--brand, #7c3aed) ${msg.uploadProgress || 15}%, rgba(255, 255, 255, 0.12) 0)`
-                                    }}
-                                  >
-                                    <div className="relay-upload-spinner-inner">
-                                      <span>{msg.uploadProgress || 15}%</span>
-                                    </div>
+                                  <div className="relay-upload-spinner-ring">
+                                    <div className="relay-upload-spinner-inner" />
                                   </div>
                                   <span className="relay-upload-status-text">Uploading high-res image...</span>
                                 </div>
@@ -1051,17 +1038,27 @@ export default function RelayPage({ account, social, onJoinServer, onNotify }) {
                           </div>
                         )}
 
-                        {/* Reaction Badge */}
-                        {msg.reaction && (
-                          <button
-                            type="button"
-                            className="relay-msg-reaction-badge"
-                            onClick={() => handleToggleReaction(msg.id, msg.reaction)}
-                            title="Click to remove or toggle reaction"
-                          >
-                            <span>{msg.reaction}</span>
-                            <span>1</span>
-                          </button>
+                        {/* Reaction Badges */}
+                        {Array.isArray(msg.reactions) && msg.reactions.length > 0 && (
+                          <div className="relay-msg-reactions-row">
+                            {Object.entries(
+                              msg.reactions.reduce((acc, r) => {
+                                acc[r.reaction] = (acc[r.reaction] || 0) + 1;
+                                return acc;
+                              }, {})
+                            ).map(([emoji, count]) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                className="relay-msg-reaction-badge"
+                                onClick={() => handleToggleReaction(msg.id, emoji)}
+                                title="Click to toggle reaction"
+                              >
+                                <span>{emoji}</span>
+                                <span>{count}</span>
+                              </button>
+                            ))}
+                          </div>
                         )}
 
                         {/* Timestamp & Read Receipt */}

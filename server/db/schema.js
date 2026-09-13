@@ -106,6 +106,16 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
     CREATE INDEX IF NOT EXISTS idx_presence_user ON presence(user_id);
     CREATE INDEX IF NOT EXISTS idx_blocks_pair ON blocks(user_id, blocked_id);
+
+    CREATE TABLE IF NOT EXISTS message_reactions (
+      message_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      reaction TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (message_id, user_id, reaction),
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   // Safe migrations for existing databases

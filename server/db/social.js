@@ -253,26 +253,35 @@ function getMessages(db, userId, friendId, limit = 50) {
 
   const stmt = db.prepare(`
     SELECT 
-      id, 
-      sender_id AS senderId, 
-      receiver_id AS receiverId, 
-      content, 
-      media_url AS mediaUrl, 
-      media_name AS mediaName, 
-      is_media AS isMedia, 
-      reaction, 
-      is_read AS isRead, 
-      created_at AS createdAt
-    FROM messages
-    WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
-    ORDER BY created_at ASC
+      m.id, 
+      m.sender_id AS senderId, 
+      m.receiver_id AS receiverId, 
+      m.content, 
+      m.media_url AS mediaUrl, 
+      m.media_name AS mediaName, 
+      m.is_media AS isMedia, 
+      m.is_read AS isRead, 
+      m.created_at AS createdAt,
+      (SELECT json_group_array(json_object('userId', r.user_id, 'reaction', r.reaction)) 
+       FROM message_reactions r WHERE r.message_id = m.id) as reactionsJson
+    FROM messages m
+    WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
+    ORDER BY m.created_at ASC
     LIMIT ?
   `);
   const rows = stmt.all(userId, friendId, friendId, userId, limit);
-  return rows.map(r => ({
-    ...r,
-    isMedia: Boolean(r.isMedia)
-  }));
+  return rows.map(r => {
+    let reactions = [];
+    if (r.reactionsJson) {
+      try { reactions = JSON.parse(r.reactionsJson); } catch(e) {}
+    }
+    delete r.reactionsJson;
+    return {
+      ...r,
+      isMedia: Boolean(r.isMedia),
+      reactions
+    };
+  });
 }
 
 function sendMessage(db, senderId, receiverId, content, { mediaUrl = null, mediaName = null, isMedia = 0 } = {}) {
@@ -311,9 +320,22 @@ function setMessageReaction(db, messageId, userId, reaction) {
   if (msg.sender_id !== userId && msg.receiver_id !== userId) {
     throw new Error('Unauthorized to react to this message.');
   }
-  const nextReaction = msg.reaction === clean ? null : clean;
-  db.prepare('UPDATE messages SET reaction = ? WHERE id = ?').run(nextReaction, messageId);
-  return { ok: true, id: messageId, reaction: nextReaction };
+  
+  if (clean) {
+    // Upsert the reaction for this user
+    db.prepare(`
+      INSERT INTO message_reactions (message_id, user_id, reaction, created_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(message_id, user_id, reaction) DO NOTHING
+    `).run(messageId, userId, clean, Date.now());
+  } else {
+    // Clear the user's reaction (or all? Usually you'd toggle a specific one, but the API just took "reaction". Let's clear all reactions by this user for this message)
+    db.prepare('DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?').run(messageId, userId);
+  }
+  
+  // Return the updated reactions list
+  const rows = db.prepare('SELECT user_id AS userId, reaction FROM message_reactions WHERE message_id = ?').all(messageId);
+  return { ok: true, id: messageId, reactions: rows };
 }
 
 function searchUsers(db, query, excludeUserId) {

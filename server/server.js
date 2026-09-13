@@ -109,7 +109,7 @@ async function readJson(req) {
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 12 * 1024 * 1024) throw new Error('Request is too large.');
+    if (size > 36 * 1024 * 1024) throw new Error('Request is too large.');
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));

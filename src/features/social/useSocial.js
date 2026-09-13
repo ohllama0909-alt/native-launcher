@@ -200,23 +200,25 @@ export function useSocial(activeAccount) {
       return { ok: false, error: 'Reactions are unavailable' };
     }
 
-    let previousReaction = null;
+    let previousReactions = null;
     setMessages((prev) => prev.map((message) => {
       if (message.id !== messageId) return message;
-      previousReaction = message.reaction || null;
-      return { ...message, reaction: message.reaction === reaction ? null : reaction };
+      previousReactions = message.reactions || [];
+      // Optimistically we just don't do complex logic here since we don't have our own userId easily accessible
+      // We rely on RelayPage local state or the server response for the exact new state.
+      return message; 
     }));
 
     try {
       const res = await window.native.social.setMessageReaction(messageId, reaction);
       if (!res?.ok) throw new Error(res?.error || 'Failed to save reaction');
       setMessages((prev) => prev.map((message) =>
-        message.id === messageId ? { ...message, reaction: res.reaction } : message
+        message.id === messageId ? { ...message, reactions: res.reactions || [] } : message
       ));
       return res;
     } catch (err) {
       setMessages((prev) => prev.map((message) =>
-        message.id === messageId ? { ...message, reaction: previousReaction } : message
+        message.id === messageId ? { ...message, reactions: previousReactions } : message
       ));
       return { ok: false, error: err.message };
     }
