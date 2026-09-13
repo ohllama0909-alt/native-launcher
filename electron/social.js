@@ -349,10 +349,10 @@ function init(dependencies, ipcMain) {
     return await socialFetch(`/v1/social/messages/${encodeURIComponent(friendId)}?${params.toString()}`);
   });
 
-  ipcMain.handle('social:sendMessage', async (_event, { friendId, content, mediaUrl, mediaName, mediaKind, isMedia }) => {
+  ipcMain.handle('social:sendMessage', async (_event, { friendId, content, mediaUrl, mediaName, mediaKind, isMedia, replyTo }) => {
     return await socialFetch(`/v1/social/messages/${encodeURIComponent(friendId)}`, {
       method: 'POST',
-      body: { content, mediaUrl, mediaName, mediaKind, isMedia }
+      body: { content, mediaUrl, mediaName, mediaKind, isMedia, replyTo: replyTo || null }
     });
   });
 
@@ -384,10 +384,10 @@ function init(dependencies, ipcMain) {
     });
   });
 
-  ipcMain.handle('social:updateFriend', async (_event, { friendId, isBestFriend, nickname }) => {
+  ipcMain.handle('social:updateFriend', async (_event, { friendId, isBestFriend, nickname, pinned, muted }) => {
     return await socialFetch('/v1/social/friends/update', {
       method: 'POST',
-      body: { friendId, isBestFriend, nickname }
+      body: { friendId, isBestFriend, nickname, pinned, muted }
     });
   });
 

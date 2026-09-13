@@ -1,0 +1,190 @@
+{
+  "project_name": "Noctra Relay — Next-Gen Launcher Messenger",
+  "app_type": "desktop_app (Electron Messenger Surface)",
+  "design_philosophy": {
+    "archetype": "Architectural Performance & Tactical Glass",
+    "core_principles": [
+      "Tactical Depth over Generic AI Slop: Ditch cheap centered cards, fuzzy full-screen cyan-purple gradients, and random floating rounded pills. Use structured 1px hairlines, subtle depth tiers, and crisp optical alignments.",
+      "Theme Token Fidelity: Always bind accent highlights to launcher CSS custom properties (--brand, --brand-glow, --brand-subtle, --page-elevated) so user-selected themes render perfectly.",
+      "Micro-Tactile Precision: Every action bar, reaction chip, and attachment badge responds with tight spring curves (cubic-bezier(0.16, 1, 0.3, 1)) and crisp state feedback.",
+      "Minecraft & Gaming Heritage with High-End SaaS Sophistication: High-definition 3D face avatars, subtle grid textures, and clean JetBrains Mono metadata paired with Figtree headers."
+    ]
+  },
+  "typography": {
+    "font_families": {
+      "heading_and_ui": "var(--font-sans), 'Figtree', system-ui, sans-serif",
+      "code_and_meta": "var(--font-mono), 'JetBrains Mono', monospace"
+    },
+    "scale": {
+      "header_title": {
+        "font_size": "15px",
+        "font_weight": "700",
+        "letter_spacing": "-0.01em",
+        "line_height": "1.2"
+      },
+      "section_label": {
+        "font_size": "11px",
+        "font_weight": "700",
+        "letter_spacing": "0.08em",
+        "text_transform": "uppercase"
+      },
+      "thread_name": {
+        "font_size": "13px",
+        "font_weight": "600",
+        "letter_spacing": "-0.005em"
+      },
+      "message_body": {
+        "font_size": "13.5px",
+        "font_weight": "400",
+        "line_height": "1.52",
+        "letter_spacing": "0"
+      },
+      "timestamp_and_badge": {
+        "font_size": "11px",
+        "font_weight": "500",
+        "letter_spacing": "0.02em"
+      }
+    }
+  },
+  "colors_and_tokens": {
+    "launcher_theme_bindings": {
+      "background_base": "var(--page)",
+      "panel_background": "var(--page-elevated)",
+      "surface_elevated": "var(--component-bg)",
+      "surface_hover": "var(--component-bg-hover)",
+      "border_hairline": "var(--hairline)",
+      "border_strong": "var(--hairline-strong)",
+      "accent_primary": "var(--brand)",
+      "accent_subtle": "var(--brand-subtle)",
+      "accent_glow": "var(--brand-glow)",
+      "text_primary": "var(--fg-primary)",
+      "text_secondary": "var(--fg-secondary)",
+      "text_muted": "var(--fg-muted)",
+      "success": "var(--success)",
+      "danger": "var(--danger)"
+    },
+    "relay_local_css_variables": {
+      "--relay-rail-width": "280px",
+      "--relay-header-height": "56px",
+      "--relay-composer-min-height": "64px",
+      "--relay-glass-bg": "rgba(12, 9, 14, 0.72)",
+      "--relay-glass-border": "rgba(255, 255, 255, 0.08)",
+      "--relay-bubble-incoming": "var(--component-bg)",
+      "--relay-bubble-incoming-border": "rgba(255, 255, 255, 0.07)",
+      "--relay-bubble-outgoing": "var(--brand-subtle)",
+      "--relay-bubble-outgoing-border": "rgba(var(--brand-rgb, 160, 81, 162), 0.35)",
+      "--relay-shadow-bubble": "0 2px 8px rgba(0, 0, 0, 0.35)",
+      "--relay-shadow-popover": "0 16px 36px -8px rgba(0, 0, 0, 0.82)",
+      "--relay-reaction-bg": "rgba(255, 255, 255, 0.04)",
+      "--relay-reaction-bg-active": "var(--brand-subtle)",
+      "--relay-reaction-border-active": "var(--brand)"
+    }
+  },
+  "surface_elevation_and_depth": {
+    "tier_0_canvas": "var(--page) - Lowest depth layer behind the messenger layout",
+    "tier_1_sidebar": "var(--page-elevated) with 1px right border var(--hairline)",
+    "tier_2_conversation": "var(--page-sunken) or subtle 0.5px dotted dark grid background",
+    "tier_3_glass_header": "var(--surface-glass-strong) with backdrop-filter: blur(16px) and 1px bottom border",
+    "tier_4_floating_bars_and_popovers": "var(--component-bg) with var(--shadow-popover) and crisp 1px border var(--hairline-strong)"
+  },
+  "grid_and_layout": {
+    "overall_container": "Full viewport fixed grid inside Electron window (height: 100vh, width: 100%)",
+    "columns": "280px fixed left inbox rail + flex: 1 main conversation panel",
+    "responsive_min_max": "Desktop width 1100px to 2560px. Sidebar flexes down to 260px on narrower viewports if needed.",
+    "gutters_and_padding": {
+      "rail_padding": "12px 14px",
+      "conversation_header_padding": "0 20px",
+      "message_stream_padding": "16px 24px",
+      "composer_padding": "12px 20px 16px 20px"
+    }
+  },
+  "component_blueprints": {
+    "inbox_rail": {
+      "header": "Title 'Noctra Relay' with animated live status pulse dot + action button for 'New Group'",
+      "search_bar": "Integrated dark search box with shortcut hint [Ctrl+K], search icon, clean focus ring using var(--brand)",
+      "sections": "PINNED, GROUPS, DIRECT MESSAGES with collapsible chevron, count counter, subtle letter-spacing",
+      "thread_row": {
+        "layout": "Flex container with 36px 3D Minecraft skin avatar, status indicator overlay at bottom-right",
+        "states": "Default (transparent bg), Hover (var(--component-bg-hover)), Active/Selected (var(--brand-subtle) with 2px solid left accent indicator)",
+        "content": "Top row: Thread name + timestamp (var(--fg-muted)). Bottom row: Snippet with delivery status icons (check / double check) + typing animation or unread counter badge"
+      }
+    },
+    "conversation_header": {
+      "avatar_and_title": "40px avatar with presence dot, peer username in 15px/700, activity status string ('In-game: hypixel.net' in success green or 'In Launcher')",
+      "action_toolbar": "Search message button, Quick 'Join Server' button (solid or subtle brand style when peer is in game), Pin toggle, Group settings, Overflow dropdown",
+      "surface": "Fixed top bar (56px) with backdrop-filter blur(16px) and hairline bottom stroke"
+    },
+    "message_stream": {
+      "day_divider": "Centered pill with date string, flanked by subtle horizontal hairline rules",
+      "incoming_bubble": "Left-aligned, dark elevated surface (var(--component-bg)), 12px padding, radius 12px (top-left 3px for tail accent)",
+      "outgoing_bubble": "Right-aligned, tinted brand background (var(--brand-subtle)), 1px brand border, white text, radius 12px (top-right 3px for tail accent)",
+      "system_message": "Centered subtle card with icon for group events (joins, avatar changes, pins)",
+      "group_authors": "Display 12px bold colored username above incoming message in group chats",
+      "rich_media_cards": {
+        "images": "Image card with rounded corners, overlay gradient on hover, progress indicator during upload, click-to-open lightbox",
+        "voice_notes": "Audio waveform visualizer bar + play/pause toggle + timestamp duration badge",
+        "file_attachments": "File type icon + name + size + download trigger card"
+      },
+      "reaction_badges": "Mini pill badges below message with emoji + count, active state has primary brand border and subtle fill",
+      "hover_action_bar": "Floating micro toolbar (Reply, React, Edit, Delete, Pin) with backdrop-blur, appearing on message row hover with spring scale transition"
+    },
+    "composer": {
+      "wrapper": "Subtle card surface anchored at bottom, top border var(--hairline), rounded-xl inset border on focus",
+      "previews": "Attachment thumbnail preview list with removal buttons + Reply-to context banner with close button",
+      "input_row": "Auto-resizing text field, Attachment button, GIF picker toggle, Emoji picker toggle, Voice note mic toggle, Send button (brand solid gradient)",
+      "drag_drop_overlay": "Smooth full-pane drop area with dashed brand border, floating upload icon, and blurred backdrop when dragging files over messenger"
+    },
+    "modals_and_popovers": {
+      "popovers": "GIF picker / Emoji picker with custom scrollbars, tabbed navigation, search input, elevation 4 shadow",
+      "lightbox": "Full screen overlay backdrop with zoom/download buttons and high-res image view"
+    }
+  },
+  "motion_and_microinteractions": {
+    "easings": {
+      "standard": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "bounce_spring": "cubic-bezier(0.34, 1.4, 0.64, 1)",
+      "exit": "cubic-bezier(0.4, 0, 1, 1)"
+    },
+    "durations": {
+      "fast_hover": "150ms",
+      "panel_slide": "240ms",
+      "popover_entrance": "180ms"
+    },
+    "specs": [
+      "Staggered entrance for thread rows on load (delay: index * 25ms, opacity 0->1, translateY 6px->0px)",
+      "Message send feedback: Outgoing bubble scales up from 0.96 with spring easing",
+      "Hover action bar: Scale 0.92 to 1.0, fade in over 120ms when hovering message container",
+      "Full compliance with data-motion='reduced' attribute (force 1ms transitions and no transforms)"
+    ]
+  },
+  "empty_loading_error_states": {
+    "empty_conversation": "Tactical centered layout with subtle vector icon, 'No message selected' label in var(--fg-muted), and quick 'Start Chat' trigger button",
+    "skeleton_loading": "Shimmer animation over threat rows and message bubbles using CSS linear-gradient animation with var(--component-bg-hover)",
+    "error_banner": "Subtle top banner with danger red tint, retry action button, and clear message failed indicator"
+  },
+  "dated_ai_slop_anti_patterns_to_replace": [
+    "REPLACE: Heavy full-screen cyan-to-purple diagonal gradients with clean, dark architectural surfaces that respects theme tokens.",
+    "REPLACE: High-radius pill shape wrappers around entire panels with crisp 1px bordered containers and contextual inner radii.",
+    "REPLACE: Plain browser scrollbars with custom 4px dark scrollbar tracks and rounded thumbs.",
+    "REPLACE: Static uninteresting message lists with smooth staggered loading, subtle message grouping, and crisp delivery tick states."
+  ],
+  "image_urls": {
+    "default_avatars": [
+      "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=120&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Update `RelayPage.css` and `relay-groups.css` directly to apply the new local CSS variables and refined design specs.",
+    "Do NOT hardcode colors; use `var(--brand)`, `var(--page)`, `var(--component-bg)`, and the newly added `--relay-*` CSS variables.",
+    "Add `data-testid` attributes to all interactive elements (buttons, inputs, thread rows, action bars).",
+    "Ensure the layout stays responsive between 1100px and 2560px within the Electron client.",
+    "Test hover, active, unread, and typing states across direct messages and group chats."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "dark_theme_rule": "Dark colors look best when used as solid/subtle glass surfaces rather than heavy bright gradients.",
+    "alignment": "Never center-align message body text; left-align content for natural reading flow.",
+    "icons": "Use lucide-react icons exclusively. Never use raw emoji characters as functional icons.",
+    "testability": "Ensure data-testid attributes are kebab-case and descriptive for every key control."
+  }
+}

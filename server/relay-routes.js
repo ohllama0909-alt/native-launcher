@@ -10,8 +10,6 @@ const events = require('./social-events');
  * of the social API, including the ?token= fallback EventSource needs.
  */
 
-const groupTyping = new Map(); // `${groupId}:${userId}` -> expiry
-const TYPING_TTL = 6_000;
 
 function send(res, status, value, headers = {}) {
   const body = Buffer.from(typeof value === 'string' ? value : JSON.stringify(value));
@@ -54,9 +52,6 @@ function broadcastNotices(participants, groupId, notices = []) {
 }
 
 function setGroupTyping(groupId, userId, isTyping, participants) {
-  const key = `${groupId}:${userId}`;
-  if (isTyping) groupTyping.set(key, Date.now() + TYPING_TTL);
-  else groupTyping.delete(key);
   publish(participants.filter((id) => id !== userId), 'group:typing', { groupId, userId, isTyping: Boolean(isTyping) });
 }
 

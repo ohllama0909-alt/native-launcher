@@ -685,7 +685,8 @@ async function handler(req, res) {
               mediaUrl,
               mediaName,
               mediaKind,
-              isMedia: isMedia ? 1 : 0
+              isMedia: isMedia ? 1 : 0,
+              replyTo: body.replyTo || null
             });
             events.setTyping(authUser.id, friendId, false);
             events.publish([friendId, authUser.id], 'message:new', { message });
@@ -724,7 +725,9 @@ async function handler(req, res) {
         try {
           db.updateFriendAttributes(authUser.id, friendId, {
             isBestFriend: body.isBestFriend,
-            nickname: body.nickname
+            nickname: body.nickname,
+            pinned: body.pinned,
+            muted: body.muted
           });
         } catch (err) {
           return send(res, 400, { ok: false, error: err.message });

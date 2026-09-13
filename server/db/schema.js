@@ -55,6 +55,8 @@ function initSchema(db) {
       friend_id TEXT NOT NULL,
       is_best_friend INTEGER DEFAULT 0,
       nickname TEXT DEFAULT NULL,
+      pinned INTEGER DEFAULT 0,
+      muted INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL,
       PRIMARY KEY (user_id, friend_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -212,6 +214,8 @@ function initSchema(db) {
   safeAddColumn('messages', 'edited_at INTEGER DEFAULT NULL');
   safeAddColumn('messages', 'reply_to TEXT DEFAULT NULL');
   safeAddColumn('messages', 'deleted_at INTEGER DEFAULT NULL');
+  safeAddColumn('friends', 'pinned INTEGER DEFAULT 0');
+  safeAddColumn('friends', 'muted INTEGER DEFAULT 0');
   safeAddColumn('group_members', 'pinned INTEGER DEFAULT 0');
   safeAddColumn('group_members', 'muted INTEGER DEFAULT 0');
   safeAddColumn('group_members', 'last_read_at INTEGER DEFAULT 0');

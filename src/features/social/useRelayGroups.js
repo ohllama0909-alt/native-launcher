@@ -42,6 +42,7 @@ export function useRelayGroups({ selfId, selfName } = {}) {
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
   const [typingByGroup, setTypingByGroup] = useState({});
+  const [readByGroup, setReadByGroup] = useState({});
   const [replyTarget, setReplyTarget] = useState(null);
   const [groupError, setGroupError] = useState(null);
 
@@ -216,6 +217,21 @@ export function useRelayGroups({ selfId, selfName } = {}) {
             }
           };
         });
+        break;
+      }
+      case 'group:read': {
+        const { groupId, readerId, at } = data;
+        if (!groupId || !readerId) break;
+        if (readerId === selfId) {
+          setGroups((previous) => previous.map((item) => (
+            item.id === groupId ? { ...item, unreadCount: 0, lastReadAt: at || Date.now() } : item
+          )));
+          break;
+        }
+        setReadByGroup((previous) => ({
+          ...previous,
+          [groupId]: { ...(previous[groupId] || {}), [readerId]: at || Date.now() }
+        }));
         break;
       }
       case 'group:typing': {
@@ -443,6 +459,11 @@ export function useRelayGroups({ selfId, selfName } = {}) {
   const activeThread = threads[activeGroupId] || EMPTY_THREAD;
   const myRole = activeGroup?.members?.find((member) => member.id === selfId)?.role || activeGroup?.role || 'member';
 
+  const activeReadAt = useMemo(() => {
+    const room = readByGroup[activeGroupId] || {};
+    return Object.values(room).reduce((latest, at) => (at > latest ? at : latest), 0);
+  }, [readByGroup, activeGroupId]);
+
   const typingNames = useMemo(() => {
     const room = typingByGroup[activeGroupId] || {};
     const now = Date.now();
@@ -467,6 +488,7 @@ export function useRelayGroups({ selfId, selfName } = {}) {
 
     messages: activeThread.messages,
     hasMoreMessages: activeThread.hasMore,
+    activeReadAt,
     loadingThread,
     loadThread,
     loadOlder,

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
  */
 
 const social = () => (typeof window !== 'undefined' ? window.native?.social : null);
+const relay = () => (typeof window !== 'undefined' ? window.native?.relay : null);
 
 const EMPTY_THREAD = { messages: [], hasMore: false, oldestTime: null, loading: false, loaded: false };
 const TYPING_TTL = 6000;
@@ -261,6 +262,37 @@ export function useSocial(account) {
     }
   }, [selfId]);
 
+  /** Patch an existing bubble in place after a remote edit or delete. */
+  const applyMessageUpdate = useCallback((message) => {
+    if (!message?.id) return;
+
+    setConversations((previous) => {
+      let changed = false;
+      const next = { ...previous };
+      for (const [friendId, item] of Object.entries(previous)) {
+        if (!item.messages.some((m) => m.id === message.id)) continue;
+        next[friendId] = {
+          ...item,
+          messages: item.messages.map((m) => (m.id === message.id ? { ...m, ...message } : m))
+        };
+        changed = true;
+      }
+      return changed ? next : previous;
+    });
+
+    const friendId = message.senderId === selfId ? message.receiverId : message.senderId;
+    setFriends((previous) => previous.map((friend) => (
+      friend.id === friendId && friend.lastMessageTime === message.createdAt
+        ? {
+          ...friend,
+          lastMessageContent: message.isDeleted
+            ? 'Message deleted'
+            : (message.content || message.mediaName || 'Sent attachment')
+        }
+        : friend
+    )));
+  }, [selfId]);
+
   const handleEvent = useCallback((event) => {
     if (!event) return;
     for (const sub of subscribersRef.current) {
@@ -270,6 +302,10 @@ export function useSocial(account) {
     switch (event.type) {
       case 'message:new':
         applyMessage(event.message);
+        break;
+
+      case 'message:updated':
+        applyMessageUpdate(event.message);
         break;
 
       case 'message:reaction':
@@ -357,7 +393,7 @@ export function useSocial(account) {
       default:
         break;
     }
-  }, [applyMessage, loadRequests, loadFriends, loadConversations, loadBlocked, selfId]);
+  }, [applyMessage, applyMessageUpdate, loadRequests, loadFriends, loadConversations, loadBlocked, selfId]);
 
   useEffect(() => {
     const api = social();
@@ -447,6 +483,8 @@ export function useSocial(account) {
       mediaName: mediaOptions.mediaName || null,
       mediaKind: mediaOptions.mediaKind || null,
       isMedia: Boolean(mediaOptions.isMedia || mediaOptions.mediaUrl),
+      replyTo: mediaOptions.replyTo || null,
+      reply: mediaOptions.reply || null,
       isRead: 0,
       createdAt: Date.now(),
       reactions: [],
@@ -482,6 +520,47 @@ export function useSocial(account) {
     }
     return res;
   }, [applyMessage, selfId]);
+
+  /** Drop the failed placeholder and send the very same payload again. */
+  const retryMessage = useCallback(async (friendId, message) => {
+    const targetId = friendId || activeChatIdRef.current;
+    if (!targetId || !message) return { ok: false, error: 'Nothing to retry.' };
+
+    setConversations((previous) => {
+      const existing = previous[targetId] || EMPTY_THREAD;
+      return {
+        ...previous,
+        [targetId]: { ...existing, messages: existing.messages.filter((m) => m.id !== message.id) }
+      };
+    });
+
+    return sendMessage(targetId, message.content || '', {
+      mediaUrl: message.mediaUrl || null,
+      mediaName: message.mediaName || null,
+      mediaKind: message.mediaKind || null,
+      isMedia: Boolean(message.isMedia),
+      replyTo: message.replyTo || null,
+      reply: message.reply || null
+    });
+  }, [sendMessage]);
+
+  const editMessage = useCallback(async (messageId, content) => {
+    const api = relay();
+    if (!api?.editDirectMessage) return { ok: false, error: 'Relay is unavailable.' };
+    const res = await api.editDirectMessage(messageId, content);
+    if (res?.ok && res.message) applyMessageUpdate(res.message);
+    else if (res?.error) setSocialError(res.error);
+    return res;
+  }, [applyMessageUpdate]);
+
+  const deleteMessage = useCallback(async (messageId) => {
+    const api = relay();
+    if (!api?.deleteDirectMessage) return { ok: false, error: 'Relay is unavailable.' };
+    const res = await api.deleteDirectMessage(messageId);
+    if (res?.ok && res.message) applyMessageUpdate(res.message);
+    else if (res?.error) setSocialError(res.error);
+    return res;
+  }, [applyMessageUpdate]);
 
   const uploadMedia = useCallback(async (dataUrl, filename) => {
     const api = social();
@@ -655,7 +734,7 @@ export function useSocial(account) {
   }, []);
 
   const unreadTotal = useMemo(
-    () => friends.reduce((total, friend) => total + (friend.unreadCount || 0), 0),
+    () => friends.reduce((total, friend) => total + (friend.muted ? 0 : friend.unreadCount || 0), 0),
     [friends]
   );
   const pendingRequestsTotal = requests.received?.length || 0;
@@ -697,6 +776,9 @@ export function useSocial(account) {
     sendRequest,
     respondRequest,
     sendMessage,
+    retryMessage,
+    editMessage,
+    deleteMessage,
     uploadMedia,
     subscribe,
     setMessageReaction,

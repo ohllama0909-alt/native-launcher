@@ -49,6 +49,8 @@ function getFriends(db, userId) {
       u.created_at AS memberSince,
       f.is_best_friend AS isBestFriend,
       f.nickname,
+      f.pinned,
+      f.muted,
       f.created_at AS friendsSince,
       p.status AS rawStatus,
       p.activity,
@@ -103,6 +105,8 @@ function getFriends(db, userId) {
       memberSince: r.memberSince || null,
       isBestFriend: Boolean(r.isBestFriend),
       nickname: r.nickname || null,
+      pinned: Boolean(r.pinned),
+      muted: Boolean(r.muted),
       friendsSince: r.friendsSince,
       status: isOnline ? (r.rawStatus || 'online') : 'offline',
       activity: isOnline ? (r.activity || 'In Launcher') : null,
@@ -225,8 +229,16 @@ function removeFriend(db, userId, friendId) {
   return { ok: true, participants: [userId, friendId] };
 }
 
-function updateFriendAttributes(db, userId, friendId, { isBestFriend, nickname } = {}) {
+function updateFriendAttributes(db, userId, friendId, { isBestFriend, nickname, pinned, muted } = {}) {
   if (!areFriends(db, userId, friendId)) throw new Error('This player is not on your friends list.');
+  if (typeof pinned === 'boolean') {
+    db.prepare('UPDATE friends SET pinned = ? WHERE user_id = ? AND friend_id = ?')
+      .run(pinned ? 1 : 0, userId, friendId);
+  }
+  if (typeof muted === 'boolean') {
+    db.prepare('UPDATE friends SET muted = ? WHERE user_id = ? AND friend_id = ?')
+      .run(muted ? 1 : 0, userId, friendId);
+  }
   if (typeof isBestFriend === 'boolean') {
     db.prepare('UPDATE friends SET is_best_friend = ? WHERE user_id = ? AND friend_id = ?')
       .run(isBestFriend ? 1 : 0, userId, friendId);
@@ -270,18 +282,50 @@ function listBlocked(db, userId) {
   `).all(userId);
 }
 
+/**
+ * Collapse the flat SQL row into the renderer shape, including the quoted
+ * parent message, edit marker and tombstone state.
+ */
 function mapMessageRow(row) {
   let reactions = [];
   if (row.reactionsJson) {
     try { reactions = JSON.parse(row.reactionsJson) || []; } catch {}
   }
-  delete row.reactionsJson;
-  return {
+
+  const reply = row.replyTo
+    ? {
+      id: row.replyTo,
+      senderId: row.replySenderId || null,
+      senderName: row.replySenderName || null,
+      content: row.replyDeletedAt ? '' : (row.replyContent || ''),
+      mediaName: row.replyDeletedAt ? null : (row.replyMediaName || null),
+      mediaUrl: row.replyDeletedAt ? null : (row.replyMediaUrl || null),
+      deleted: Boolean(row.replyDeletedAt)
+    }
+    : null;
+
+  const deleted = Boolean(row.deletedAt);
+
+  const message = {
     ...row,
-    isMedia: Boolean(row.isMedia),
+    content: deleted ? '' : row.content,
+    mediaUrl: deleted ? null : row.mediaUrl,
+    mediaName: deleted ? null : row.mediaName,
+    isMedia: deleted ? false : Boolean(row.isMedia),
+    isDeleted: deleted,
     isRead: Number(row.isRead || 0),
-    reactions: reactions.filter((item) => item && item.reaction)
+    reactions: deleted ? [] : reactions.filter((item) => item && item.reaction),
+    reply
   };
+
+  delete message.reactionsJson;
+  delete message.replySenderId;
+  delete message.replySenderName;
+  delete message.replyContent;
+  delete message.replyMediaName;
+  delete message.replyMediaUrl;
+  delete message.replyDeletedAt;
+  return message;
 }
 
 const MESSAGE_SELECT = `
@@ -295,10 +339,21 @@ const MESSAGE_SELECT = `
     m.media_kind AS mediaKind,
     m.is_media AS isMedia,
     m.is_read AS isRead,
+    m.reply_to AS replyTo,
+    m.edited_at AS editedAt,
+    m.deleted_at AS deletedAt,
     m.created_at AS createdAt,
     (SELECT json_group_array(json_object('userId', r.user_id, 'reaction', r.reaction))
-     FROM message_reactions r WHERE r.message_id = m.id) AS reactionsJson
+     FROM message_reactions r WHERE r.message_id = m.id) AS reactionsJson,
+    parent.sender_id AS replySenderId,
+    parentAuthor.username AS replySenderName,
+    parent.content AS replyContent,
+    parent.media_name AS replyMediaName,
+    parent.media_url AS replyMediaUrl,
+    parent.deleted_at AS replyDeletedAt
   FROM messages m
+  LEFT JOIN messages parent ON parent.id = m.reply_to
+  LEFT JOIN users parentAuthor ON parentAuthor.id = parent.sender_id
 `;
 
 /** Mark every unread message from `friendId` as read. Returns affected ids. */
@@ -389,33 +444,30 @@ function getUpdatesSince(db, userId, since = 0) {
   };
 }
 
-function sendMessage(db, senderId, receiverId, content, { mediaUrl = null, mediaName = null, mediaKind = null, isMedia = 0 } = {}) {
+function sendMessage(db, senderId, receiverId, content, { mediaUrl = null, mediaName = null, mediaKind = null, isMedia = 0, replyTo = null } = {}) {
   const clean = String(content || '').trim();
   if (!clean && !mediaUrl) throw new Error('Message content or media attachment cannot be empty.');
   if (clean.length > MESSAGE_LIMIT) throw new Error(`Message is too long (maximum ${MESSAGE_LIMIT} characters).`);
   if (isBlockedPair(db, senderId, receiverId)) throw new Error('Cannot send message to this player.');
   if (!areFriends(db, senderId, receiverId)) throw new Error('You can only message players on your friends list.');
 
+  let parentId = null;
+  if (replyTo) {
+    const parent = db.prepare('SELECT id, sender_id, receiver_id FROM messages WHERE id = ?').get(String(replyTo));
+    const inThread = parent &&
+      [parent.sender_id, parent.receiver_id].sort().join(':') === [senderId, receiverId].sort().join(':');
+    if (!inThread) throw new Error('Cannot reply to that message.');
+    parentId = parent.id;
+  }
+
   const id = `msg-${crypto.randomBytes(8).toString('hex')}`;
   const now = Date.now();
   db.prepare(`
-    INSERT INTO messages (id, sender_id, receiver_id, content, media_url, media_name, media_kind, is_media, is_read, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-  `).run(id, senderId, receiverId, clean, mediaUrl, mediaName, mediaKind, isMedia ? 1 : 0, now);
+    INSERT INTO messages (id, sender_id, receiver_id, content, media_url, media_name, media_kind, is_media, is_read, reply_to, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+  `).run(id, senderId, receiverId, clean, mediaUrl, mediaName, mediaKind, isMedia ? 1 : 0, parentId, now);
 
-  return {
-    id,
-    senderId,
-    receiverId,
-    content: clean,
-    mediaUrl,
-    mediaName,
-    mediaKind,
-    isMedia: Boolean(isMedia),
-    isRead: 0,
-    createdAt: now,
-    reactions: []
-  };
+  return mapMessageRow(db.prepare(`${MESSAGE_SELECT} WHERE m.id = ?`).get(id));
 }
 
 function setMessageReaction(db, messageId, userId, reaction) {

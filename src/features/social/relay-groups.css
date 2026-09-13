@@ -6,36 +6,6 @@
  * apply automatically and the accent follows --brand.
  */
 
-/* ── Inbox group rows ──────────────────────────────────────────────────── */
-
-.relay-group-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: 2px 10px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--ease-out), border-color var(--ease-out), transform var(--ease-out);
-}
-
-.relay-group-row:hover {
-  background: var(--component-bg-hover);
-  border-color: var(--component-border);
-}
-
-.relay-group-row.is-active {
-  background: var(--brand-subtle);
-  border-color: var(--brand-border);
-}
-
-.relay-group-row.is-active .relay-group-row__name { color: var(--fg-primary); }
-
 .relay-group-avatar {
   grid-row: 1 / span 2;
   display: grid;
@@ -57,185 +27,26 @@
 
 .relay-group-avatar--lg { width: 64px; height: 64px; font-size: 20px; border-radius: var(--radius-md); }
 
-.relay-group-row__name {
-  grid-column: 2;
-  grid-row: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--fg-primary);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.relay-group-row__snippet {
-  grid-column: 2;
-  grid-row: 2;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--fg-muted);
-  font-size: 11.5px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.relay-group-row__snippet em { color: var(--fg-secondary); font-style: normal; }
-
-.relay-group-row__time {
-  grid-column: 3;
-  grid-row: 1;
-  color: var(--fg-muted);
-  font-size: 10.5px;
-  font-variant-numeric: tabular-nums;
-}
-
-.relay-group-row__badge {
-  grid-column: 3;
-  grid-row: 2;
-  justify-self: end;
-  min-width: 18px;
-  padding: 1px 6px;
-  border-radius: var(--radius-full);
-  background: var(--brand);
-  color: var(--fg-on-brand);
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.relay-group-row.is-muted .relay-group-row__badge {
-  background: var(--component-bg-pressed);
-  color: var(--fg-muted);
-}
-
-.relay-group-row__members {
-  grid-column: 3;
-  grid-row: 2;
-  justify-self: end;
-  color: var(--fg-muted);
-  font-size: 10.5px;
-}
-
-/* ── Reactions ─────────────────────────────────────────────────────── */
-
-.relay-reactions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-top: 5px;
-}
-
-.relay-reactions--right { justify-content: flex-end; }
-
-.relay-reaction-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--component-border);
-  border-radius: var(--radius-full);
-  background: var(--component-bg);
-  color: var(--fg-secondary);
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background var(--ease-out), border-color var(--ease-out), transform var(--ease-out);
-}
-
-.relay-reaction-pill:hover {
-  background: var(--component-bg-hover);
-  border-color: var(--component-border-hover);
-  transform: translateY(-1px);
-}
-
-.relay-reaction-pill.is-mine {
-  border-color: var(--brand-border);
-  background: var(--brand-subtle);
-  color: var(--fg-primary);
-  box-shadow: var(--shadow-brand);
-}
-
-.relay-reaction-pill__emoji { font-size: 13px; }
-.relay-reaction-pill__count { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
-
-.relay-reaction-picker { position: relative; display: inline-flex; }
-
-.relay-reaction-add {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--fg-muted);
-  opacity: 0;
-  cursor: pointer;
-  transition: opacity var(--ease-out), background var(--ease-out), color var(--ease-out);
-}
-
-.relay-reaction-add svg { width: 15px; height: 15px; }
-
-.relay-message:hover .relay-reaction-add,
-.relay-reaction-add:focus-visible,
-.relay-reactions:hover .relay-reaction-add { opacity: 1; }
-
-.relay-reaction-add:hover {
-  background: var(--component-bg-hover);
-  border-color: var(--component-border);
-  color: var(--fg-primary);
-}
-
-.relay-reaction-scrim { position: fixed; inset: 0; z-index: 40; }
-
-.relay-reaction-tray {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 41;
-  display: grid;
-  grid-template-columns: repeat(4, 30px);
-  gap: 2px;
-  padding: 6px;
-  border: 1px solid var(--component-border);
-  border-radius: var(--radius-md);
-  background: var(--page-elevated);
-  box-shadow: var(--shadow-popover);
-}
-
-.relay-reaction-tray__item {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background var(--ease-out), transform var(--ease-spring);
-}
-
-.relay-reaction-tray__item:hover { background: var(--component-bg-hover); transform: scale(1.12); }
-
 /* ── Replies ──────────────────────────────────────────────────────── */
 
 .relay-reply-quote {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   max-width: 100%;
-  margin-bottom: 3px;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  margin-bottom: 2px;
+  padding: 4px 9px 4px 7px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--fg-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   cursor: pointer;
   text-align: left;
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.relay-reply-quote:hover { border-color: var(--brand-border); }
 
 .relay-reply-quote__spine {
   width: 2px;
@@ -261,11 +72,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 6px;
+  margin: 0;
   padding: 7px 10px;
-  border: 1px solid var(--component-border);
+  border: 1px solid var(--hairline);
   border-left: 2px solid var(--brand);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--component-bg);
 }
 
