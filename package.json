@@ -67,14 +67,14 @@
           ]
         }
       ],
-      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}",
+      "artifactName": "Noctra-Client-Portable-${version}-${arch}.${ext}",
       "icon": "src/assets/noctra-icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "Noctra Client",
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+      "artifactName": "Noctra-Client-Setup-${version}-${arch}.${ext}"
     },
     "mac": {
       "target": [
@@ -94,7 +94,7 @@
         }
       ],
       "icon": "src/assets/noctra-icon.png",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "artifactName": "Noctra-Client-${version}-${arch}.${ext}",
       "category": "public.app-category.games",
       "identity": null
     },
@@ -114,7 +114,7 @@
         }
       ],
       "icon": "src/assets/noctra-icon.png",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "artifactName": "Noctra-Client-${version}-${arch}.${ext}",
       "category": "Game",
       "syncDesktopName": true,
       "synopsis": "A Minecraft launcher"
