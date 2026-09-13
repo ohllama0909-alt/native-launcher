@@ -76,14 +76,18 @@ test('social db: creates users, manages friend requests, friendships, and presen
   assert.equal(refreshedFriendsA[0].activity, 'In-game: Hypixel ⚡');
   assert.equal(refreshedFriendsA[0].serverAddress, 'mc.hypixel.net:25565');
 
-  // Nickname and Best Friend
+  // Nickname, Best Friend, Pinned, and Muted
   authDb.updateFriendAttributes(userA.id, userB.id, {
     nickname: 'B-Boy',
-    isBestFriend: true
+    isBestFriend: true,
+    pinned: true,
+    muted: true
   });
   const updatedFriendsA = authDb.getFriends(userA.id);
   assert.equal(updatedFriendsA[0].nickname, 'B-Boy');
   assert.equal(updatedFriendsA[0].isBestFriend, true);
+  assert.equal(updatedFriendsA[0].pinned, true);
+  assert.equal(updatedFriendsA[0].muted, true);
 
   // Chat Messaging
   const msg1 = authDb.sendMessage(userA.id, userB.id, 'Hey Player B!');
@@ -93,11 +97,19 @@ test('social db: creates users, manages friend requests, friendships, and presen
   const msg2 = authDb.sendMessage(userB.id, userA.id, 'Hey! Ready for bedwars?');
   assert.ok(msg2.id);
 
+  // Reply message
+  const msg3 = authDb.sendMessage(userA.id, userB.id, 'Sounds great!', { replyTo: msg2.id });
+  assert.ok(msg3.id);
+  assert.ok(msg3.reply);
+  assert.equal(msg3.reply.id, msg2.id);
+  assert.equal(msg3.reply.content, 'Hey! Ready for bedwars?');
+
   // Retrieve message history
   const history = authDb.getMessages(userA.id, userB.id);
-  assert.equal(history.messages.length, 2);
+  assert.equal(history.messages.length, 3);
   assert.equal(history.messages[0].content, 'Hey Player B!');
   assert.equal(history.messages[1].content, 'Hey! Ready for bedwars?');
+  assert.equal(history.messages[2].reply.id, msg2.id);
 
   // Unfriend
   authDb.removeFriend(userA.id, userB.id);
