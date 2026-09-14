@@ -543,7 +543,76 @@
   user-select: none;
 }
 
-.im-file-actions button {
+.im-toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.16s ease;
+  user-select: none;
+}
+
+.im-toggle-switch:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.im-toggle-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.im-toggle-track {
+  display: block;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  transition: background 0.18s ease;
+}
+
+.im-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #9ca3af;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.18s ease;
+}
+
+.im-toggle-switch.is-enabled .im-toggle-track {
+  background: #10b981;
+}
+
+.im-toggle-switch.is-enabled .im-toggle-thumb {
+  transform: translateX(14px);
+  background: #ffffff;
+}
+
+.im-toggle-text {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+}
+
+.im-toggle-switch.is-enabled .im-toggle-text {
+  color: #10b981;
+}
+
+.im-toggle-switch.is-disabled .im-toggle-text {
+  color: #6b7280;
+}
+
+.im-file-actions button:not(.im-toggle-switch) {
   display: grid;
   place-items: center;
   width: 28px;
@@ -555,15 +624,9 @@
   transition: all 0.15s ease;
 }
 
-.im-file-actions button:hover {
+.im-file-actions button:not(.im-toggle-switch):hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
-}
-
-.im-file-actions .im-config {
-  color: var(--brand);
-  background: var(--brand-subtle);
-  border-color: var(--brand-border);
 }
 
 .im-file-actions .im-delete {
@@ -578,9 +641,13 @@
   color: #ef4444;
 }
 
+.im-file-row.is-disabled {
+  opacity: 0.58;
+}
+
 .im-file-row.is-disabled .im-file-name,
 .im-file-row.is-disabled .im-file-icon {
-  opacity: 0.45;
+  opacity: 0.5;
 }
 
 /* Skeleton Loading State */
@@ -994,15 +1061,12 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-}
-
-.im-browser-back {
-  align-self: flex-start;
-  margin-bottom: 12px;
+  height: 100%;
 }
 
 .im-browser .browse-view {
   padding: 0;
+  overflow-y: auto;
 }
 
 .im-browser .browse-top-bar {
@@ -1012,6 +1076,90 @@
 .im-browser .browse-grid {
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
+}
+
+.im-toast {
+  position: absolute;
+  bottom: 24px;
+  right: 28px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(22, 27, 34, 0.96);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.15);
+  backdrop-filter: blur(16px);
+  z-index: 100;
+  animation: im-toast-slide 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes im-toast-slide {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.im-toast-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.16);
+  color: #10b981;
+}
+
+.im-toast-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.im-toast-title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.im-toast-body {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.im-toast-dismiss {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin-left: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.im-toast-dismiss:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .im-notice {

@@ -164,7 +164,12 @@ select {
 }
 
 :root .instance-card.menu-open {
-  z-index: 30;
+  z-index: 120 !important;
+  overflow: visible !important;
+}
+
+:root .instances-popover {
+  z-index: 140 !important;
 }
 
 /* ---- 4. Secondary + browse buttons (Browse mods, Open folder, ...) ---- */

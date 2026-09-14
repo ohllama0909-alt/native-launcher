@@ -91,7 +91,6 @@ export default function BrowseView({
   const [sort, setSort] = useState('relevance');
   const [page, setPage] = useState(1);
   const [selectedCategories, setSelectedCategories] = useState([]);
-  const [filterToInstance, setFilterToInstance] = useState(true);
 
   const [categoryTags, setCategoryTags] = useState([]);
   const [results, setResults] = useState([]);
@@ -110,7 +109,25 @@ export default function BrowseView({
   const [depPrompt, setDepPrompt] = useState(null);
   const [resolvingDeps, setResolvingDeps] = useState(false);
 
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const showToast = useCallback((title, body) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ title, body });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+    }, 3800);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   const resultsRef = useRef(null);
+  const browseContainerRef = useRef(null);
 
   useEffect(() => {
     if (fixedContentType) setContentType(fixedContentType);
@@ -143,7 +160,7 @@ export default function BrowseView({
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, contentType, selectedCategories, sort, filterToInstance]);
+  }, [debouncedQuery, contentType, selectedCategories, sort]);
 
   useEffect(() => {
     setSelectedCategories([]);
@@ -216,12 +233,12 @@ export default function BrowseView({
     if (selectedCategories.length) {
       facets.push(selectedCategories.map((name) => `categories:${name}`));
     }
-    if (activeType.id !== 'modpack' && filterToInstance && targetVersion) {
+    if (activeType.id !== 'modpack' && targetVersion) {
       facets.push([`versions:${targetVersion}`]);
     }
     // Only mods are tagged by mod loader. Shaders use iris/optifine/canvas and
     // resourcepacks are not tagged at all, so applying it there returns zero.
-    if (activeType.id === 'mod' && filterToInstance && loaderFacet) {
+    if (activeType.id === 'mod' && loaderFacet) {
       facets.push([`categories:${loaderFacet}`]);
     }
 
@@ -266,7 +283,6 @@ export default function BrowseView({
     selectedCategories,
     sort,
     page,
-    filterToInstance,
     targetVersion,
     loaderFacet,
     t
@@ -290,7 +306,10 @@ export default function BrowseView({
       const created = await window.native.modpacks.install(id);
       if (created) {
         onAddInstance?.(created);
-        onNotify?.(t('browse.modpackInstalled'), t('browse.readyToPlay', { name: project.title }));
+        const title = t('browse.modpackInstalled');
+        const body = t('browse.readyToPlay', { name: project.title });
+        onNotify?.(title, body);
+        showToast(title, body);
       }
     } catch (err) {
       onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
@@ -402,12 +421,12 @@ export default function BrowseView({
       });
 
       await refreshInstalled();
-      onNotify?.(
-        t('browse.installed'),
-        extras.length > 0
-          ? `${project.title} and ${extras.length} ${extras.length === 1 ? 'dependency' : 'dependencies'} added to ${target.name}`
-          : t('browse.addedTo', { name: project.title, instance: target.name })
-      );
+      const notifTitle = t('browse.installed');
+      const notifBody = extras.length > 0
+        ? `${project.title} and ${extras.length} ${extras.length === 1 ? 'dependency' : 'dependencies'} added to ${target.name}`
+        : t('browse.addedTo', { name: project.title, instance: target.name });
+      onNotify?.(notifTitle, notifBody);
+      showToast(notifTitle, notifBody);
     } catch (err) {
       onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
     } finally {
@@ -577,8 +596,32 @@ export default function BrowseView({
 
   const goToPage = (next) => {
     setPage(Math.min(totalPages, Math.max(1, next)));
+    browseContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     resultsRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const renderToast = () => toast ? (
+    <div className="browse-download-toast" role="status">
+      <span className="browse-download-toast-icon">
+        <NativeIcon name="check-circle" size={16} />
+      </span>
+      <div className="browse-download-toast-info">
+        <strong>{toast.title}</strong>
+        <span>{toast.body}</span>
+      </div>
+      <button
+        type="button"
+        className="browse-download-toast-close"
+        onClick={() => {
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          setToast(null);
+        }}
+        aria-label="Dismiss notification"
+      >
+        <NativeIcon name="close" size={13} />
+      </button>
+    </div>
+  ) : null;
 
   if (detail) {
     const project = detailData || detail;
@@ -641,18 +684,19 @@ export default function BrowseView({
           onCancel={() => setDepPrompt(null)}
           onConfirm={confirmDepPrompt}
         />
+        {renderToast()}
       </div>
     );
   }
 
   return (
-    <div className="browse-view">
+    <div className="browse-view" ref={browseContainerRef}>
       <header className="browse-header">
         <div className="browse-title-group">
           {onBack && (
             <button type="button" className="browse-back-link" onClick={onBack}>
               <NativeIcon name="arrow-left" size={15} />
-              <span>{t('common.back')}</span>
+              <span>{fixedContentType ? 'Back to installed content' : t('common.back')}</span>
             </button>
           )}
           <h1 className="browse-title">{pageTitle || t('nav.browse')}</h1>
@@ -739,20 +783,6 @@ export default function BrowseView({
             </button>
           ))}
         </div>
-
-        {activeType.id !== 'modpack' && target && (
-          <button
-            type="button"
-            className={`browse-compat-toggle ${filterToInstance ? 'active' : ''}`}
-            onClick={() => setFilterToInstance((value) => !value)}
-            title={t('browse.compatibleOnly')}
-          >
-            <NativeIcon name={filterToInstance ? 'check-circle' : 'circle'} size={15} />
-            <span>
-              {t('browse.compatibleWith', { version: `${targetVersion}${activeType.id === 'mod' && loaderFacet ? ' ' + targetLoader : ''}` })}
-            </span>
-          </button>
-        )}
       </div>
 
       <div className="browse-body-row">
@@ -1094,6 +1124,7 @@ export default function BrowseView({
         onCancel={() => setDepPrompt(null)}
         onConfirm={confirmDepPrompt}
       />
+      {renderToast()}
     </div>
   );
 }

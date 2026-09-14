@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ChevronDown, FolderOpen, Globe2, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, FolderOpen, Globe2, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import SettingsTab from './SettingsTab.jsx';
 import InstanceContentTab from './InstanceContentTab.jsx';
 import BrowseView from '../browser/BrowseView.jsx';
@@ -23,10 +23,8 @@ export default function ClusterDetailView({
 
   // Default tab: 'mods' for modded instances, 'worlds' for vanilla (no loader tab!)
   const [tab, setTab] = useState(() => {
-    if (initialTab === 'overview' || initialTab === 'loader') {
-      return vanilla ? 'worlds' : 'mods';
-    }
-    if (vanilla && ['mods', 'shaders'].includes(initialTab)) {
+    if (initialTab === 'overview') {
+      if (!vanilla) return 'mods';
       return 'worlds';
     }
     return initialTab;
@@ -35,7 +33,24 @@ export default function ClusterDetailView({
   const [query, setQuery] = useState('');
   const [filtered, setFiltered] = useState(false);
   const [browser, setBrowser] = useState(null);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(null);
+  const noticeTimerRef = useRef(null);
+
+  const showNotice = (title, body) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    const payload = body ? { title, body } : { title: '', body: title };
+    setNotice(payload);
+    noticeTimerRef.current = setTimeout(() => {
+      setNotice(null);
+    }, 4000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
+
   const [dirty, setDirty] = useState(false);
   const dialog = useRef(null);
   const closeRef = useRef(null);
@@ -116,7 +131,7 @@ export default function ClusterDetailView({
     try {
       await window.native.instance.openFolder(cluster.id, folder);
     } catch (error) {
-      setNotice(error.message);
+      showNotice('Could not open folder', error.message);
     }
   };
 
@@ -125,7 +140,8 @@ export default function ClusterDetailView({
     setQuery('');
     setFiltered(false);
     setBrowser(null);
-    setNotice('');
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    setNotice(null);
   };
 
   const searchPlaceholder = tab === 'settings'
@@ -214,9 +230,6 @@ export default function ClusterDetailView({
         <main className="im-main">
           {browser ? (
             <div className="im-browser">
-              <button className="im-browser-back" onClick={() => setBrowser(null)}>
-                <ArrowLeft size={16}/> Back to installed content
-              </button>
               <BrowseView
                 key={browser}
                 fixedContentType={browser}
@@ -224,7 +237,7 @@ export default function ClusterDetailView({
                 selectedCluster={cluster}
                 onSelectCluster={() => {}}
                 onBack={() => setBrowser(null)}
-                onNotify={(title, body) => setNotice(`${title}: ${body}`)}
+                onNotify={(title, body) => showNotice(title, body)}
               />
             </div>
           ) : (
@@ -292,9 +305,23 @@ export default function ClusterDetailView({
           </div>
 
           {notice && (
-            <div className="im-notice" role="status">
-              <span>{notice}</span>
-              <button aria-label="Dismiss message" onClick={() => setNotice('')}>
+            <div className="im-toast" role="status">
+              <div className="im-toast-icon">
+                <CheckCircle2 size={16}/>
+              </div>
+              <div className="im-toast-content">
+                {notice.title && <strong className="im-toast-title">{notice.title}</strong>}
+                <span className="im-toast-body">{notice.body}</span>
+              </div>
+              <button
+                type="button"
+                className="im-toast-dismiss"
+                aria-label="Dismiss message"
+                onClick={() => {
+                  if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+                  setNotice(null);
+                }}
+              >
                 <X size={14}/>
               </button>
             </div>

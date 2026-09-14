@@ -103,6 +103,7 @@ contextBridge.exposeInMainWorld('native', {
     openFolder:  (id, sub)  => ipcRenderer.invoke('instance:openFolder', id, sub),
     worldList:   (id)       => ipcRenderer.invoke('instance:worldList', id),
     deleteWorld: (id, name) => ipcRenderer.invoke('instance:deleteWorld', id, name),
+    toggleFile:  (id, sub, filename, enabled) => ipcRenderer.invoke('instance:toggleFile', id, sub, filename, enabled),
     getLogFile:  (id)       => ipcRenderer.invoke('instance:getLogFile', id),
     isInstalled: (version, loader) => ipcRenderer.invoke('instance:isInstalled', version, loader),
     verifyInstallation: (version, loader) => ipcRenderer.invoke('instance:verifyInstallation', version, loader),

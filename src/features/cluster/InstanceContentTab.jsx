@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FolderOpen, Globe2, Package, Plus, RotateCcw, Settings2, Trash2 } from 'lucide-react';
+import { FolderOpen, Globe2, Package, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 const formatSize = bytes => {
   if (!Number.isFinite(bytes)) return '';
@@ -93,6 +93,32 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
 
   const openFolder = () => action(() => window.native.instance.openFolder(cluster.id, folder));
 
+  const toggleContent = row => {
+    const nextEnabled = !row.enabled;
+    action(async () => {
+      if (type === 'mods' && row.managed) {
+        await window.native.mods.toggle({
+          instanceId: cluster.id,
+          projectId: row.id,
+          enabled: nextEnabled
+        });
+      } else if (window.native?.instance?.toggleFile) {
+        await window.native.instance.toggleFile(
+          cluster.id,
+          folder,
+          row.filename,
+          nextEnabled
+        );
+      } else {
+        await window.native.mods.toggle({
+          instanceId: cluster.id,
+          projectId: row.id,
+          enabled: nextEnabled
+        });
+      }
+    });
+  };
+
   const remove = row => {
     if (
       !window.confirm(
@@ -114,7 +140,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
     row =>
       `${row.title} ${row.metadata?.author || ''} ${row.filename || ''}`
         .toLowerCase()
-        .includes(query.toLowerCase()) && !(type === 'mods' && filtered && !row.enabled)
+        .includes(query.toLowerCase()) && !(filtered && !row.enabled)
   );
 
   if (filtered && type !== 'mods') {
@@ -208,34 +234,21 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
               </span>
 
               <div className="im-file-actions">
-                {type === 'mods' && row.managed && (
-                  <label>
-                    <span>Enabled</span>
-                    <input
-                      type="checkbox"
-                      aria-label={`Enable ${row.title}`}
-                      checked={row.enabled}
-                      disabled={busy}
-                      onChange={event =>
-                        action(() =>
-                          window.native.mods.toggle({
-                            instanceId: cluster.id,
-                            projectId: row.id,
-                            enabled: event.target.checked
-                          })
-                        )
-                      }
-                    />
-                  </label>
-                )}
-                {type === 'mods' && (
+                {['mods', 'shaders', 'textures'].includes(type) && (
                   <button
-                    className="im-config"
-                    aria-label={`Open configuration folder for ${row.title}`}
-                    title="Open shared config folder (if supported by the mod)"
-                    onClick={() => action(() => window.native.instance.openFolder(cluster.id, 'config'))}
+                    type="button"
+                    role="switch"
+                    aria-checked={row.enabled}
+                    aria-label={`Enable ${row.title}`}
+                    className={`im-toggle-switch ${row.enabled ? 'is-enabled' : 'is-disabled'}`}
+                    disabled={busy}
+                    onClick={() => toggleContent(row)}
+                    title={row.enabled ? `Disable ${row.title}` : `Enable ${row.title}`}
                   >
-                    <Settings2 size={14}/>
+                    <span className="im-toggle-track">
+                      <span className="im-toggle-thumb" />
+                    </span>
+                    <span className="im-toggle-text">{row.enabled ? 'Enabled' : 'Disabled'}</span>
                   </button>
                 )}
                 {row.managed || type === 'worlds' ? (

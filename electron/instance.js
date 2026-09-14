@@ -666,6 +666,20 @@ function init(dependencies, ipcMain) {
   ipcMain.handle('instance:isInstalled', (_e, version, loader) => isInstalled(version, loader));
   ipcMain.handle('instance:verifyInstallation', (_e, version, loader) => verifyInstallation(version, loader));
   ipcMain.handle('instance:installedVersions', () => installedVersions());
+
+  ipcMain.handle('instance:toggleFile', async (_e, instanceId, subpath, filename, enabled) => {
+    const dir = resolveInside(instanceDir(instanceId), subpath || '');
+    if (!filename || filename.includes('/') || filename.includes('\\')) throw new Error('Invalid filename');
+    const cleanName = filename.replace(/\.disabled$/, '');
+    const newName = enabled ? cleanName : `${cleanName}.disabled`;
+    const src = resolveInside(dir, filename);
+    const dst = resolveInside(dir, newName);
+    if (src !== dst) {
+      if (fs.existsSync(dst)) throw new Error('A file with that name already exists');
+      if (fs.existsSync(src)) fs.renameSync(src, dst);
+    }
+    return newName;
+  });
 }
 
 module.exports = { init, resolveInside, isInstalled, verifyInstallation, installedVersions, cleanServerAddress, parseServerConnections };
