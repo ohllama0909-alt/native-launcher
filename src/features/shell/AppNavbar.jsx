@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ArrowUp, Bell, Blocks, Compass, Download, Home, Layers3, Lock, MessageSquare, Minus, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Blocks, Download, Home, Layers3, Lock, Minus, PackageOpen, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -11,10 +11,9 @@ import './AppNavbar.css';
 export const NAV_ITEMS = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
   { id: 'skins', labelKey: 'nav.locker', icon: User },
-  { id: 'relay', labelKey: 'nav.relay', icon: MessageSquare },
   { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
   { id: 'versions', labelKey: 'nav.versions', icon: Blocks },
-  { id: 'browse', labelKey: 'nav.browse', icon: Compass }
+  { id: 'modpacks', labelKey: 'browse.modpacks', icon: PackageOpen }
 ];
 
 function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = null, tone = null, children, className = '', locked = false, lockTooltip = '' }) {
@@ -205,13 +204,6 @@ export default function AppNavbar({
               <User size={21} strokeWidth={1.9} aria-hidden="true" />
             )}
           </RailButton>
-          <RailButton
-            icon={Bell}
-            badge={notifications}
-            onClick={onOpenNotifications}
-            label={t('window.notifications')}
-            tone={notifications > 0 ? 'alert' : null}
-          />
           <RailButton icon={Settings} onClick={onOpenSettings} label={t('common.settings')} status={settingsStatus} />
         </div>
       </aside>

@@ -444,8 +444,9 @@ function listDir(instanceId, subpath) {
         if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  } catch {
-    return [];
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
   }
 }
 
@@ -464,8 +465,9 @@ function worldList(instanceId) {
         return { name: e.name, modified, sizeBytes };
       })
       .sort((a, b) => b.modified - a.modified);
-  } catch {
-    return [];
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
   }
 }
 
@@ -641,10 +643,11 @@ function init(dependencies, ipcMain) {
     listDir(instanceId, subpath || '')
   );
 
-  ipcMain.handle('instance:openFolder', (_e, instanceId, subpath) => {
+  ipcMain.handle('instance:openFolder', async (_e, instanceId, subpath) => {
     const target = resolveInside(instanceDir(instanceId), subpath || '');
     fs.mkdirSync(target, { recursive: true });
-    return shell.openPath(target);
+    const error = await shell.openPath(target);
+    if (error) throw new Error(error);
   });
 
   ipcMain.handle('instance:worldList', (_e, instanceId) => worldList(instanceId));

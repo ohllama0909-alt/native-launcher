@@ -361,6 +361,15 @@ export default function InstancesView({
                   className={`instance-card ${isSelected ? 'is-selected' : ''} ${
                     running ? 'is-running' : ''
                   } ${menuOpen ? 'menu-open' : ''}`}
+                  tabIndex={0}
+                  aria-label={`Manage ${instance.name}`}
+                  onKeyDown={(event) => {
+                    if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) {
+                      event.preventDefault();
+                      onSelect?.(instance.id);
+                      onOpenCluster?.(instance);
+                    }
+                  }}
                   onClick={() => {
                     onSelect?.(instance.id);
                     onOpenCluster?.(instance);

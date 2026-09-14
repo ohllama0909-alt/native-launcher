@@ -291,6 +291,12 @@ export default function useInstances(initialData = null) {
       }));
     },
 
+    async saveOverrides(id, values) {
+      const next = { ...data, instances: data.instances.map(item => item.id === id ? { ...item, overrides: values.overrides } : item) };
+      await saveData(next);
+      setData(current => ({ ...current, instances: current.instances.map(item => item.id === id ? { ...item, overrides: values.overrides } : item) }));
+    },
+
     /** Clears recorded history for one instance without deleting it. */
     resetStats(id) {
       setData((current) => ({
