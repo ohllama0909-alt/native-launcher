@@ -239,10 +239,10 @@ export default function InstancesView({
             type="button"
             className={`instances-browse-link-btn ${activeSubTab === 'browse' ? 'active' : ''}`}
             onClick={() => setActiveSubTab((prev) => (prev === 'browse' ? 'instances' : 'browse'))}
-            title="Browse mods, resource packs, shaders, and modpacks"
+            title={activeSubTab === 'browse' ? 'View Instances' : 'Browse compatible mods'}
           >
             <NativeIcon name="compass" size={16} />
-            <span>{activeSubTab === 'browse' ? 'View Instances' : 'Browse Content'}</span>
+            <span>{activeSubTab === 'browse' ? 'View Instances' : 'Browse Mods'}</span>
           </button>
 
           <button type="button" className="instances-brand-btn" onClick={onOpenCreateModal}>
@@ -269,13 +269,14 @@ export default function InstancesView({
           onClick={() => setActiveSubTab('browse')}
         >
           <NativeIcon name="compass" size={15} />
-          <span>Browse Mods & Packs</span>
+          <span>Browse Mods</span>
         </button>
       </div>
 
       {activeSubTab === 'browse' ? (
         <div className="instances-browse-container">
           <BrowseView
+            excludeTypes={['modpack']}
             instances={instances}
             selectedCluster={instances.find((i) => i.id === selectedId) || instances[0]}
             onSelectCluster={onSelect}

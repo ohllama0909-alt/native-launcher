@@ -75,6 +75,8 @@ function loaderOf(instance) {
 export default function BrowseView({
   initialIntent,
   fixedContentType = null,
+  allowedTypes = null,
+  excludeTypes = [],
   pageTitle = null,
   instances = [],
   selectedCluster,
@@ -85,7 +87,29 @@ export default function BrowseView({
   onNotify
 }) {
   const { t, formatNumber } = useI18n();
-  const [contentType, setContentType] = useState(fixedContentType || 'mod');
+
+  const availableContentTypes = useMemo(() => {
+    let types = CONTENT_TYPES;
+    if (Array.isArray(allowedTypes) && allowedTypes.length > 0) {
+      types = types.filter((entry) => allowedTypes.includes(entry.id));
+    }
+    if (Array.isArray(excludeTypes) && excludeTypes.length > 0) {
+      types = types.filter((entry) => !excludeTypes.includes(entry.id));
+    }
+    return types.length > 0 ? types : CONTENT_TYPES;
+  }, [allowedTypes, excludeTypes]);
+
+  const [contentType, setContentType] = useState(() => {
+    if (fixedContentType) return fixedContentType;
+    if (Array.isArray(allowedTypes) && allowedTypes.length > 0 && !allowedTypes.includes('mod')) {
+      return allowedTypes[0];
+    }
+    if (Array.isArray(excludeTypes) && excludeTypes.includes('mod')) {
+      const fallback = CONTENT_TYPES.find((entry) => !excludeTypes.includes(entry.id));
+      return fallback ? fallback.id : 'mod';
+    }
+    return 'mod';
+  });
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sort, setSort] = useState('relevance');
@@ -130,20 +154,24 @@ export default function BrowseView({
   const browseContainerRef = useRef(null);
 
   useEffect(() => {
-    if (fixedContentType) setContentType(fixedContentType);
-  }, [fixedContentType]);
+    if (fixedContentType) {
+      setContentType(fixedContentType);
+    } else if (!availableContentTypes.some((entry) => entry.id === contentType)) {
+      setContentType(availableContentTypes[0]?.id || 'mod');
+    }
+  }, [fixedContentType, availableContentTypes, contentType]);
 
   useEffect(() => {
     if (!initialIntent) return;
-    if (CONTENT_TYPES.some((entry) => entry.id === initialIntent.contentType)) {
+    if (availableContentTypes.some((entry) => entry.id === initialIntent.contentType)) {
       setContentType(initialIntent.contentType);
     }
     setQuery(initialIntent.query || '');
     setDebouncedQuery(initialIntent.query || '');
     setDetail(null);
-  }, [initialIntent?.nonce]);
+  }, [initialIntent?.nonce, availableContentTypes]);
 
-  const activeType = CONTENT_TYPES.find((entry) => entry.id === contentType) || CONTENT_TYPES[0];
+  const activeType = availableContentTypes.find((entry) => entry.id === contentType) || availableContentTypes[0] || CONTENT_TYPES[0];
   const target = selectedCluster || instances[0] || null;
   const targetVersion = versionOf(target);
   const targetLoader = loaderOf(target);
@@ -743,19 +771,21 @@ export default function BrowseView({
         )}
       </header>
 
-      {!fixedContentType && <nav className="browse-type-tabs">
-        {CONTENT_TYPES.map((type) => (
-          <button
-            key={type.id}
-            type="button"
-            className={`browse-type-tab ${contentType === type.id ? 'active' : ''}`}
-            onClick={() => setContentType(type.id)}
-          >
-            <NativeIcon name={type.icon} size={15} />
-            <span>{t(type.labelKey)}</span>
-          </button>
-        ))}
-      </nav>}
+      {!fixedContentType && availableContentTypes.length > 1 && (
+        <nav className="browse-type-tabs">
+          {availableContentTypes.map((type) => (
+            <button
+              key={type.id}
+              type="button"
+              className={`browse-type-tab ${contentType === type.id ? 'active' : ''}`}
+              onClick={() => setContentType(type.id)}
+            >
+              <NativeIcon name={type.icon} size={15} />
+              <span>{t(type.labelKey)}</span>
+            </button>
+          ))}
+        </nav>
+      )}
 
       <div className="browse-controls-row">
         <label className="browse-search">
