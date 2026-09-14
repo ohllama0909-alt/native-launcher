@@ -107,7 +107,7 @@
   top: 18px;
   width: 32px;
   height: 32px;
-  z-index: 10;
+  z-index: 20;
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.04);
@@ -1062,11 +1062,29 @@
   flex: 1;
   min-height: 0;
   height: 100%;
+  padding-right: 30px;
 }
 
 .im-browser .browse-view {
-  padding: 0;
+  padding: 0 4px 16px 0;
   overflow-y: auto;
+}
+
+.im-browser .browse-header {
+  padding-top: 2px;
+}
+
+.im-browser .content-detail-page {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.im-browser .content-detail-nav {
+  padding: 0 16px;
+}
+
+.im-browser .content-detail-scroll {
+  padding: 20px 8px 32px 0;
 }
 
 .im-browser .browse-top-bar {

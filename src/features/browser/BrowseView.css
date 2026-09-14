@@ -824,7 +824,7 @@
 .content-detail-description img { max-width: 100%; border-radius: var(--radius); }
 .content-detail-description a { color: var(--brand-soft); }
 .content-detail-description pre { overflow-x: auto; padding: 13px; border-radius: var(--radius); background: var(--page-sunken); }
-.content-detail-sidebar { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 0; }
+.content-detail-sidebar { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; }
 .content-detail-sidebar > section { padding: 14px; }
 .content-detail-sidebar h3 { margin: 0 0 10px; color: var(--fg-muted); font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase; }
 .content-detail-stat-grid { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
@@ -1123,6 +1123,8 @@
     align-items: center;
     gap: 8px;
     overflow-x: auto;
+    padding-right: 24px;
+    top: 10px;
   }
 
   .browse-categories-list {

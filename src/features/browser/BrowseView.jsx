@@ -703,42 +703,44 @@ export default function BrowseView({
           <p className="browse-subtitle">{fixedContentType === 'modpack' ? 'Discover complete, ready-to-play Minecraft experiences.' : t('browse.subtitle')}</p>
         </div>
 
-        <div className="browse-instance-picker">
-          <span className="browse-picker-label">{t('browse.installingTo')}</span>
-          <div className="browse-picker-wrap">
-            <button
-              type="button"
-              className="browse-picker-btn"
-              onClick={() => setInstancePickerOpen((value) => !value)}
-              disabled={instances.length === 0}
-            >
-              <NativeIcon name="cube" size={15} />
-              <span>{target ? target.name : t('browse.noInstances')}</span>
-              <NativeIcon name="chevron-down" size={13} />
-            </button>
+        {!fixedContentType && (
+          <div className="browse-instance-picker">
+            <span className="browse-picker-label">{t('browse.installingTo')}</span>
+            <div className="browse-picker-wrap">
+              <button
+                type="button"
+                className="browse-picker-btn"
+                onClick={() => setInstancePickerOpen((value) => !value)}
+                disabled={instances.length === 0}
+              >
+                <NativeIcon name="cube" size={15} />
+                <span>{target ? target.name : t('browse.noInstances')}</span>
+                <NativeIcon name="chevron-down" size={13} />
+              </button>
 
-            {instancePickerOpen && instances.length > 0 && (
-              <div className="browse-picker-popup">
-                {instances.map((instance) => (
-                  <button
-                    key={instance.id}
-                    type="button"
-                    className={`browse-picker-item ${target?.id === instance.id ? 'active' : ''}`}
-                    onClick={() => {
-                      onSelectCluster?.(instance.id);
-                      setInstancePickerOpen(false);
-                    }}
-                  >
-                    <span className="browse-picker-name">{instance.name}</span>
-                    <span className="browse-picker-meta">
-                      {`${versionOf(instance)} ${loaderOf(instance)}`}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+              {instancePickerOpen && instances.length > 0 && (
+                <div className="browse-picker-popup">
+                  {instances.map((instance) => (
+                    <button
+                      key={instance.id}
+                      type="button"
+                      className={`browse-picker-item ${target?.id === instance.id ? 'active' : ''}`}
+                      onClick={() => {
+                        onSelectCluster?.(instance.id);
+                        setInstancePickerOpen(false);
+                      }}
+                    >
+                      <span className="browse-picker-name">{instance.name}</span>
+                      <span className="browse-picker-meta">
+                        {`${versionOf(instance)} ${loaderOf(instance)}`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {!fixedContentType && <nav className="browse-type-tabs">
