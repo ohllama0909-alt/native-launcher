@@ -364,6 +364,16 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   const directList = filterList(mergedFriends.filter((thread) => !thread.pinned)
     .sort((a, b) => (b.lastStamp || 0) - (a.lastStamp || 0)));
 
+  const activeNow = useMemo(() => mergedFriends
+    .filter((friend) => ['online', 'in-launcher', 'in-menus', 'in-game'].includes(String(friend.status).toLowerCase()))
+    .sort((a, b) => {
+      const aPlaying = String(a.status).toLowerCase() === 'in-game';
+      const bPlaying = String(b.status).toLowerCase() === 'in-game';
+      if (aPlaying !== bPlaying) return aPlaying ? -1 : 1;
+      return (a.nickname || a.name || '').localeCompare(b.nickname || b.name || '');
+    })
+    .slice(0, 8), [mergedFriends]);
+
   // ── Messages ────────────────────────────────────────────────────────
 
   const currentMessages = useMemo(() => {
@@ -1438,6 +1448,51 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
           </div>
         )}
       </main>
+
+      <aside className="relay-activity" aria-label="Active friends">
+        <div className="relay-activity-heading">
+          <div>
+            <span className="relay-activity-eyebrow">Presence</span>
+            <h3>Active now</h3>
+          </div>
+          <span className="relay-activity-count">{activeNow.length}</span>
+        </div>
+
+        <div className="relay-activity-list">
+          {activeNow.length > 0 ? activeNow.map((friend) => {
+            const presence = getPresence(friend);
+            return (
+              <button
+                type="button"
+                className="relay-activity-card"
+                key={friend.id}
+                onClick={() => handleSelectThread(friend)}
+              >
+                <span className="relay-activity-avatar-wrap">
+                  <RelayAvatar name={friend.name} skinUrl={friend.skinUrl} size={34} />
+                  <i style={{ backgroundColor: presence.color }} />
+                </span>
+                <span className="relay-activity-copy">
+                  <strong>{friend.nickname || friend.name}</strong>
+                  <small>{presence.text}</small>
+                </span>
+                <ChevronRight size={14} className="relay-activity-arrow" />
+              </button>
+            );
+          }) : (
+            <div className="relay-activity-empty">
+              <span className="relay-activity-empty-icon"><Sparkles size={18} /></span>
+              <strong>Quiet for now</strong>
+              <p>When friends start playing or open Noctra, they’ll show up here.</p>
+            </div>
+          )}
+        </div>
+
+        <button type="button" className="relay-activity-manage" onClick={() => setFriendCenterOpen(true)}>
+          <Users size={14} />
+          <span>Manage friends</span>
+        </button>
+      </aside>
 
       <GroupCreateModal
         open={createOpen}

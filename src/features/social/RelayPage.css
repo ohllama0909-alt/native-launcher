@@ -21,11 +21,140 @@
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: var(--relay-rail) minmax(0, 1fr);
+  grid-template-columns: var(--relay-rail) minmax(0, 1fr) minmax(210px, 252px);
   background: var(--page);
   color: var(--fg-primary);
   font-family: var(--font-sans);
   overflow: hidden;
+}
+
+/* ── Active presence rail ─────────────────────────────────
+   Mirrors the compact social hierarchy of the reference while every
+   material and state continues to inherit the appearance system. */
+
+.relay-activity {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px 12px;
+  background: var(--page-elevated);
+  border-left: 1px solid var(--hairline);
+  user-select: none;
+}
+
+.relay-activity-heading {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px 13px;
+}
+
+.relay-activity-eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--brand-2);
+  font: 700 9px/1 var(--font-sans);
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.relay-activity-heading h3 {
+  margin: 0;
+  color: var(--fg-primary-hover);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.relay-activity-count {
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-full);
+  color: var(--brand-2);
+  background: var(--brand-subtle);
+  font: 700 9px var(--font-mono);
+}
+
+.relay-activity-list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.relay-activity-card {
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid var(--hairline) !important;
+  border-radius: var(--radius-md);
+  background: var(--component-bg) !important;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--relay-fast) var(--relay-ease), background-color var(--relay-fast) var(--relay-ease), border-color var(--relay-fast) var(--relay-ease);
+}
+
+.relay-activity-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--brand-border) !important;
+  background: var(--component-bg-hover) !important;
+}
+
+.relay-activity-avatar-wrap { position: relative; flex: none; width: 34px; height: 34px; }
+.relay-activity-avatar-wrap > :first-child { border-radius: var(--radius-sm); overflow: hidden; }
+.relay-activity-avatar-wrap i {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--component-bg);
+  border-radius: 50%;
+}
+.relay-activity-card:hover .relay-activity-avatar-wrap i { border-color: var(--component-bg-hover); }
+.relay-activity-copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.relay-activity-copy strong { overflow: hidden; color: var(--fg-primary); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.relay-activity-copy small { overflow: hidden; color: var(--fg-muted); font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.relay-activity-arrow { flex: none; color: var(--fg-muted); opacity: 0; transform: translateX(-3px); transition: opacity var(--relay-fast), transform var(--relay-fast); }
+.relay-activity-card:hover .relay-activity-arrow { opacity: 1; transform: none; color: var(--brand-2); }
+
+.relay-activity-empty {
+  margin-top: 4px;
+  padding: 28px 17px;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  color: var(--fg-muted);
+  text-align: center;
+}
+.relay-activity-empty-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius); color: var(--brand-2); background: var(--brand-subtle); }
+.relay-activity-empty strong { color: var(--fg-secondary); font-size: 12px; }
+.relay-activity-empty p { margin: 0; font-size: 10.5px; line-height: 1.45; }
+.relay-activity-manage { height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 10px; border: 1px solid var(--hairline) !important; border-radius: var(--radius); color: var(--fg-secondary) !important; background: var(--component-bg) !important; font-size: 11.5px; font-weight: 650; cursor: pointer; }
+.relay-activity-manage:hover { color: var(--fg-primary-hover) !important; border-color: var(--brand-border) !important; background: var(--brand-subtle) !important; }
+
+@media (max-width: 1080px) {
+  .relay-page { grid-template-columns: 260px minmax(0, 1fr); }
+  .relay-activity { display: none; }
+}
+
+@media (max-width: 760px) {
+  .relay-page { grid-template-columns: 224px minmax(0, 1fr); }
+  .relay-inbox-header { padding-inline: 12px; }
+  .relay-chat-header { padding-inline: 12px; gap: 9px; }
+  .relay-convo-search-bar { display: none; }
 }
 
 .relay-page button,
