@@ -74,6 +74,8 @@ function loaderOf(instance) {
 
 export default function BrowseView({
   initialIntent,
+  fixedContentType = null,
+  pageTitle = null,
   instances = [],
   selectedCluster,
   onSelectCluster,
@@ -83,7 +85,7 @@ export default function BrowseView({
   onNotify
 }) {
   const { t, formatNumber } = useI18n();
-  const [contentType, setContentType] = useState('mod');
+  const [contentType, setContentType] = useState(fixedContentType || 'mod');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sort, setSort] = useState('relevance');
@@ -109,6 +111,10 @@ export default function BrowseView({
   const [resolvingDeps, setResolvingDeps] = useState(false);
 
   const resultsRef = useRef(null);
+
+  useEffect(() => {
+    if (fixedContentType) setContentType(fixedContentType);
+  }, [fixedContentType]);
 
   useEffect(() => {
     if (!initialIntent) return;
@@ -210,7 +216,7 @@ export default function BrowseView({
     if (selectedCategories.length) {
       facets.push(selectedCategories.map((name) => `categories:${name}`));
     }
-    if (filterToInstance && targetVersion) {
+    if (activeType.id !== 'modpack' && filterToInstance && targetVersion) {
       facets.push([`versions:${targetVersion}`]);
     }
     // Only mods are tagged by mod loader. Shaders use iris/optifine/canvas and
@@ -649,8 +655,8 @@ export default function BrowseView({
               <span>{t('common.back')}</span>
             </button>
           )}
-          <h1 className="browse-title">{t('nav.browse')}</h1>
-          <p className="browse-subtitle">{t('browse.subtitle')}</p>
+          <h1 className="browse-title">{pageTitle || t('nav.browse')}</h1>
+          <p className="browse-subtitle">{fixedContentType === 'modpack' ? 'Discover complete, ready-to-play Minecraft experiences.' : t('browse.subtitle')}</p>
         </div>
 
         <div className="browse-instance-picker">
@@ -691,7 +697,7 @@ export default function BrowseView({
         </div>
       </header>
 
-      <nav className="browse-type-tabs">
+      {!fixedContentType && <nav className="browse-type-tabs">
         {CONTENT_TYPES.map((type) => (
           <button
             key={type.id}
@@ -703,7 +709,7 @@ export default function BrowseView({
             <span>{t(type.labelKey)}</span>
           </button>
         ))}
-      </nav>
+      </nav>}
 
       <div className="browse-controls-row">
         <label className="browse-search">

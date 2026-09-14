@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('native', {
   },
   settings: {
     load: () => ipcRenderer.invoke('settings:load'),
+    systemMemory: () => ipcRenderer.invoke('settings:systemMemory'),
     save: (settings) => ipcRenderer.invoke('settings:save', settings),
     detectJava: () => ipcRenderer.invoke('settings:detectJava'),
     dataDir: () => ipcRenderer.invoke('settings:dataDir'),
@@ -73,6 +74,7 @@ contextBridge.exposeInMainWorld('native', {
   },
   mods: {
     installed: (instanceId) => ipcRenderer.invoke('mods:installed', instanceId),
+    toggle: (payload) => ipcRenderer.invoke('mods:toggle', payload),
     install: (payload) => ipcRenderer.invoke('mods:install', payload),
     remove: (payload) => ipcRenderer.invoke('mods:remove', payload)
   },

@@ -67,6 +67,25 @@ function init(dependencies, ipcMain) {
 
   ipcMain.handle('mods:installed', (_event, instanceId) => readManifest(instanceId));
 
+  ipcMain.handle('mods:toggle', (_event, { instanceId, projectId, enabled }) => {
+    const manifest = readManifest(instanceId);
+    const raw = manifest[projectId];
+    if (!raw) throw new Error('Mod is no longer installed');
+    const entry = typeof raw === 'string' ? { filename: raw, folder: 'mods' } : raw;
+    if ((entry.folder || 'mods') !== 'mods') throw new Error('Only mods can be toggled');
+    const filename = enabled ? entry.filename.replace(/\.disabled$/, '') : entry.filename.replace(/\.disabled$/, '') + '.disabled';
+    const source = validateDestination(instanceId, 'mods', entry.filename).target;
+    const target = validateDestination(instanceId, 'mods', filename).target;
+    if (source !== target) {
+      if (fs.existsSync(target)) throw new Error('A mod with that filename already exists');
+      fs.renameSync(source, target);
+    }
+    manifest[projectId] = { ...entry, filename, enabled: Boolean(enabled) };
+    try { writeManifest(instanceId, manifest); }
+    catch (error) { if (source !== target) fs.renameSync(target, source); throw error; }
+    return manifest;
+  });
+
   // folder: mods | resourcepacks | shaderpacks | datapacks
   ipcMain.handle(
     'mods:install',
@@ -90,12 +109,12 @@ function init(dependencies, ipcMain) {
     if (entry) {
       // older manifests stored a bare filename string in the mods folder
       const filename = typeof entry === 'string' ? entry : entry.filename;
-      const folder = typeof entry === 'string' ? 'mods' : entry.folder;
+      const folder = typeof entry === 'string' ? 'mods' : entry.folder || 'mods';
       try {
         const { target } = validateDestination(instanceId, folder, filename);
         fs.unlinkSync(target);
-      } catch {
-        // file already gone — still drop it from the manifest
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
       }
       delete manifest[projectId];
       writeManifest(instanceId, manifest);

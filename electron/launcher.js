@@ -356,7 +356,7 @@ async function launch(payloadOrInstance = {}, maybeAccount = null, maybeOptions 
     const ov = instance.overrides || {};
     const memory = ov.memory?.enabled ? ov.memory : settings.memory;
     const resolution = ov.resolution?.enabled ? ov.resolution : settings.resolution;
-    const jvmArgs = typeof ov.jvmArgs === 'string' && ov.jvmArgs.trim()
+    const jvmArgs = ov.jvmEnabled !== false && typeof ov.jvmArgs === 'string' && ov.jvmArgs.trim()
       ? ov.jvmArgs.trim().split(/\s+/)
       : null;
 

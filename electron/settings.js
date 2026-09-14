@@ -174,6 +174,7 @@ function init(dependencies, ipcMain) {
   deps = dependencies;
 
   ipcMain.handle('settings:load', () => load());
+  ipcMain.handle('settings:systemMemory', () => ({ totalGb: os.totalmem() / 1024 ** 3 }));
   ipcMain.handle('settings:save', (_e, next) => save(next));
   ipcMain.handle('settings:detectJava', () => detectJava());
   ipcMain.handle('settings:dataDir', () => deps.app.getPath('userData'));

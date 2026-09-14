@@ -1,160 +1,307 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import Icon from '../../components/ui/Icon.jsx';
-import OverviewTab from './OverviewTab.jsx';
-import LogsTab from './LogsTab.jsx';
-import ScreenshotsTab from './ScreenshotsTab.jsx';
-import ModsTab from './ModsTab.jsx';
-import PacksTab from './PacksTab.jsx';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, ChevronDown, FolderOpen, Globe2, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import SettingsTab from './SettingsTab.jsx';
-import { useI18n } from '../../i18n/I18nProvider.jsx';
-import LaunchActionButton from '../launcher/LaunchActionButton.jsx';
-import useIsInstalled from '../instances/useIsInstalled.js';
-import { getClusterArt } from '../../data/versionsData.js';
+import InstanceContentTab from './InstanceContentTab.jsx';
+import BrowseView from '../browser/BrowseView.jsx';
 import './ClusterDetailView.css';
+import './InstanceManager.css';
 
 export default function ClusterDetailView({
   cluster,
+  instances = [],
+  onSelectCluster,
   onBack,
-  backLabel = 'Back to Home',
   onLaunch,
   onKill,
   launcherState,
   onUpdateCluster,
-  onNavigateBrowse,
   initialTab = 'overview'
 }) {
-  const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const loader = cluster.mc_loader || cluster.loader || 'Vanilla';
+  const vanilla = loader.toLowerCase() === 'vanilla';
 
-  const loaderName = String(cluster?.mc_loader || cluster?.loader || 'Vanilla');
-  const isVanilla = loaderName.toLowerCase() === 'vanilla';
-
-  /* Vanilla instances have no mod loader, so mods and shaders simply cannot
-     be installed. Resource packs still work, so Textures stays. */
-  const tabs = useMemo(() => {
-    const list = [
-      { id: 'overview', key: 'cluster.overview' },
-      { id: 'logs', key: 'cluster.logs' },
-      { id: 'screenshots', key: 'cluster.screenshots' }
-    ];
-
-    if (!isVanilla) {
-      list.push({ id: 'mods', key: 'cluster.mods' });
-      list.push({ id: 'shaders', key: 'cluster.shaders' });
+  // Default tab: 'mods' for modded instances, 'worlds' for vanilla (no loader tab!)
+  const [tab, setTab] = useState(() => {
+    if (initialTab === 'overview' || initialTab === 'loader') {
+      return vanilla ? 'worlds' : 'mods';
     }
+    if (vanilla && ['mods', 'shaders'].includes(initialTab)) {
+      return 'worlds';
+    }
+    return initialTab;
+  });
 
-    list.push({ id: 'textures', key: 'cluster.textures' });
-    list.push({ id: 'settings', key: 'common.settings' });
-    return list;
-  }, [isVanilla]);
+  const [query, setQuery] = useState('');
+  const [filtered, setFiltered] = useState(false);
+  const [browser, setBrowser] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [dirty, setDirty] = useState(false);
+  const dialog = useRef(null);
+  const closeRef = useRef(null);
 
-  /* Never leave the page on a tab that is not on screen. */
+  const confirmDiscard = () => !dirty || window.confirm('Discard unsaved instance settings?');
+  closeRef.current = () => {
+    if (browser) setBrowser(null);
+    else if (confirmDiscard()) onBack();
+  };
+
   useEffect(() => {
-    if (!tabs.some((tab) => tab.id === activeTab)) setActiveTab('overview');
-  }, [tabs, activeTab]);
+    const previous = document.activeElement;
+    const root = document.getElementById('root');
+    const wasInert = root?.inert;
+    if (root) root.inert = true;
+    dialog.current?.focus();
 
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab, cluster?.id]);
+    const handleKey = (event) => {
+      const nested = dialog.current?.querySelector('.dep-prompt-backdrop, .content-modal-backdrop');
+      if (event.key === 'Escape' && !nested) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeRef.current();
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [...(nested || dialog.current).querySelectorAll(
+        'button, input, select, textarea, [tabindex="0"], a[href]'
+      )].filter(el => !el.matches(':disabled') && el.getClientRects().length);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first) {
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
 
-  if (!cluster) {
-    return (
-      <div className="cluster-detail-view">
-        <button className="cluster-back-link" onClick={onBack}>
-          <Icon name="arrow-left" size={14} />
-          <span>{backLabel}</span>
-        </button>
-        <div className="tab-empty-placeholder">{t('cluster.noneSelected')}</div>
-      </div>
-    );
-  }
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('keydown', handleKey, true);
+      if (root) root.inert = wasInert;
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
 
-  const isInstalled = useIsInstalled(cluster, launcherState?.status);
+  // Main navigation tabs (Loader tab removed per user request)
+  const contentTabs = [
+    ...(!vanilla ? [
+      ['mods', 'Mods', Package],
+      ['shaders', 'Shaders', Sparkles]
+    ] : []),
+    ['worlds', 'Worlds', Globe2],
+    ['textures', 'Resources', Layers]
+  ];
 
-  const handleOpenFolder = () => {
-    if (window.native?.instance?.openFolder) {
-      window.native.instance.openFolder(cluster.id, '');
+  const folder = {
+    mods: 'mods',
+    shaders: 'shaderpacks',
+    textures: 'resourcepacks',
+    worlds: 'saves',
+    logs: 'logs',
+    screenshots: 'screenshots'
+  }[tab] || '';
+
+  const browseType = {
+    mods: 'mod',
+    shaders: 'shader',
+    textures: 'resourcepack'
+  }[tab];
+
+  const openFolder = async () => {
+    try {
+      await window.native.instance.openFolder(cluster.id, folder);
+    } catch (error) {
+      setNotice(error.message);
     }
   };
 
-  const version = cluster.mc_version || cluster.version || '';
-  const title = cluster.name || `${loaderName} ${version}`;
+  const switchTab = (id) => {
+    setTab(id);
+    setQuery('');
+    setFiltered(false);
+    setBrowser(null);
+    setNotice('');
+  };
 
-  const fallbackDesc = isVanilla
-    ? t('cluster.vanillaDescription', { version })
-    : t('cluster.loaderDescription', { version, loader: loaderName });
+  const searchPlaceholder = tab === 'settings'
+    ? 'Search settings…'
+    : tab === 'worlds'
+      ? 'Find a world…'
+      : tab === 'mods'
+        ? 'Find a mod…'
+        : tab === 'shaders'
+          ? 'Find a shader…'
+          : 'Find a resource pack…';
 
-  const backgroundArt = getClusterArt(cluster);
-
-  return (
-    <div className="cluster-detail-view">
-      <div className="cluster-detail-bg-layer" aria-hidden="true">
-        <img className="cluster-detail-bg-img" src={backgroundArt} alt="" />
-        <div className="cluster-detail-bg-overlay" />
-        <div className="cluster-detail-bg-fade" />
-      </div>
-
-      <div className="cluster-detail-content-wrapper">
-        <button className="cluster-back-link" onClick={onBack}>
-          <Icon name="arrow-left" size={14} />
-          <span>{backLabel}</span>
+  return createPortal(
+    <div
+      className="instance-manager-backdrop"
+      onMouseDown={event => {
+        if (event.target === event.currentTarget) closeRef.current();
+      }}
+    >
+      <section
+        className={`instance-manager ${browser ? 'is-browsing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Manage ${cluster.name || cluster.version}`}
+        tabIndex={-1}
+        ref={dialog}
+      >
+        <button
+          className="im-close"
+          aria-label="Close instance settings"
+          onClick={() => closeRef.current()}
+        >
+          <X size={18}/>
         </button>
 
-        <div className="cluster-header-row">
-          <div className="cluster-header-text">
-            <h1 className="cluster-detail-title">{title}</h1>
-            <p className="cluster-detail-desc">{cluster.description || fallbackDesc}</p>
+        <aside className="im-sidebar">
+          <div className="im-version">
+            <span className="im-version-label">VERSION</span>
+            <div className="im-version-selector">
+              <select
+                aria-label="Select instance"
+                value={cluster.id}
+                onChange={event => {
+                  if (confirmDiscard()) onSelectCluster?.(event.target.value);
+                }}
+              >
+                {(instances.length ? instances : [cluster]).map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.mc_version || item.version}
+                    {instances.filter(i => (i.mc_version || i.version) === (item.mc_version || item.version)).length > 1
+                      ? ` · ${item.name}`
+                      : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={13} className="im-version-chevron" />
+            </div>
           </div>
 
-          <div className="cluster-header-actions">
-            <button
-              className="cluster-icon-btn"
-              onClick={handleOpenFolder}
-              title={t('cluster.openGameFolder')}
-            >
-              <Icon name="folder" size={18} />
-            </button>
+          <nav className="im-nav-list" aria-label="Instance sections">
+            {contentTabs.map(([id, title, Glyph]) => (
+              <button
+                key={id}
+                className={`im-nav ${tab === id ? 'active' : ''} im-nav-${id}`}
+                aria-current={tab === id ? 'page' : undefined}
+                onClick={() => switchTab(id)}
+              >
+                <Glyph size={16} />
+                <span>{title}</span>
+              </button>
+            ))}
+          </nav>
 
-            <LaunchActionButton
-              instance={cluster}
-              launcherState={launcherState}
-              isInstalled={isInstalled}
-              onLaunch={onLaunch}
-              onKill={onKill}
+          <div className="im-sidebar-footer">
+            <button
+              className={`im-nav im-nav-settings ${tab === 'settings' ? 'active' : ''}`}
+              aria-current={tab === 'settings' ? 'page' : undefined}
+              onClick={() => switchTab('settings')}
+            >
+              <Settings2 size={16} />
+              <span>Advanced</span>
+            </button>
+          </div>
+        </aside>
+
+        <main className="im-main">
+          {browser ? (
+            <div className="im-browser">
+              <button className="im-browser-back" onClick={() => setBrowser(null)}>
+                <ArrowLeft size={16}/> Back to installed content
+              </button>
+              <BrowseView
+                key={browser}
+                fixedContentType={browser}
+                instances={[cluster]}
+                selectedCluster={cluster}
+                onSelectCluster={() => {}}
+                onBack={() => setBrowser(null)}
+                onNotify={(title, body) => setNotice(`${title}: ${body}`)}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="im-toolbar">
+                <label className="im-search">
+                  <Search size={16}/>
+                  <input
+                    aria-label="Search instance content"
+                    placeholder={searchPlaceholder}
+                    value={query}
+                    onChange={event => setQuery(event.target.value)}
+                  />
+                </label>
+                <div className="im-toolbar-actions">
+                  {browseType && (
+                    <button
+                      className="im-browse"
+                      title="Browse compatible content"
+                      aria-label="Browse compatible content"
+                      onClick={() => setBrowser(browseType)}
+                    >
+                      <Globe2 size={18}/>
+                    </button>
+                  )}
+                  <button
+                    title={tab === 'settings' ? 'Show enabled overrides only' : tab === 'mods' ? 'Show enabled mods only' : 'Sort alphabetically'}
+                    aria-label={tab === 'settings' ? 'Show enabled overrides only' : tab === 'mods' ? 'Show enabled mods only' : 'Sort alphabetically'}
+                    aria-pressed={filtered}
+                    onClick={() => setFiltered(!filtered)}
+                  >
+                    <SlidersHorizontal size={17}/>
+                  </button>
+                  <button
+                    title="Open folder"
+                    aria-label="Open folder"
+                    onClick={openFolder}
+                  >
+                    <FolderOpen size={17}/>
+                  </button>
+                </div>
+              </div>
+
+              {['mods', 'shaders', 'textures', 'worlds', 'screenshots'].includes(tab) && (
+                <InstanceContentTab
+                  key={tab}
+                  cluster={cluster}
+                  type={tab}
+                  query={query}
+                  filtered={filtered}
+                  onBrowse={() => setBrowser(browseType)}
+                />
+              )}
+            </>
+          )}
+
+          <div className="im-settings-host" hidden={tab !== 'settings' || !!browser}>
+            <SettingsTab
+              cluster={cluster}
+              onUpdateCluster={onUpdateCluster}
+              query={query}
+              enabledOnly={filtered}
+              onDirtyChange={setDirty}
             />
           </div>
-        </div>
 
-        <div className="cluster-tabs-bar">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                className={`cluster-tab-btn ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <span>{t(tab.key)}</span>
-                {isActive && <div className="cluster-tab-underline" />}
+          {notice && (
+            <div className="im-notice" role="status">
+              <span>{notice}</span>
+              <button aria-label="Dismiss message" onClick={() => setNotice('')}>
+                <X size={14}/>
               </button>
-            );
-          })}
-        </div>
-
-        <div className="cluster-tab-content-area">
-          {activeTab === 'overview' && <OverviewTab cluster={cluster} />}
-          {activeTab === 'logs' && <LogsTab cluster={cluster} />}
-          {activeTab === 'screenshots' && <ScreenshotsTab cluster={cluster} />}
-          {activeTab === 'mods' && !isVanilla && (
-            <ModsTab cluster={cluster} onNavigateBrowse={onNavigateBrowse} />
+            </div>
           )}
-          {activeTab === 'shaders' && !isVanilla && <PacksTab cluster={cluster} type="shaders" onNavigateBrowse={onNavigateBrowse} />}
-          {activeTab === 'textures' && <PacksTab cluster={cluster} type="textures" onNavigateBrowse={onNavigateBrowse} />}
-          {activeTab === 'settings' && (
-            <SettingsTab cluster={cluster} onUpdateCluster={onUpdateCluster} />
-          )}
-        </div>
-      </div>
-    </div>
+        </main>
+      </section>
+    </div>,
+    document.body
   );
 }

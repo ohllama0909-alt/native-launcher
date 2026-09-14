@@ -37,8 +37,8 @@ export default function FriendContextMenu({ context, onClose, onJoinServer, onOp
   return (
     <div ref={menuRef} className="friend-context-menu" style={position} onClick={(e) => e.stopPropagation()} role="menu">
       <button type="button" className={`context-menu-item item-join-server${isServerJoinable ? '' : ' is-disabled'}`} disabled={!isServerJoinable} onClick={() => run(() => onJoinServer(friend))}><Play size={14} className="icon-join" fill="currentColor" /><span>Join Server</span></button>
-      <button type="button" className="context-menu-item" onClick={() => run(() => onOpenChat(friend))}><MessageSquare size={14} /><span>Send Message</span></button>
-      <button type="button" className="context-menu-item is-disabled" disabled title="Groups coming soon"><Layers size={14} /><span>Add to Group</span></button>
+      {onOpenChat && <button type="button" className="context-menu-item" onClick={() => run(() => onOpenChat(friend))}><MessageSquare size={14} /><span>Send Message</span></button>}
+      {onOpenChat && <button type="button" className="context-menu-item is-disabled" disabled title="Groups coming soon"><Layers size={14} /><span>Add to Group</span></button>}
       <button type="button" className="context-menu-item" onClick={() => run(() => onToggleBestFriend(friend))}><Star size={14} fill={friend.isBestFriend ? 'currentColor' : 'none'} color={friend.isBestFriend ? '#fbbf24' : 'currentColor'} /><span>{friend.isBestFriend ? 'Remove Best Friend' : 'Add Best Friend'}</span></button>
       <button type="button" className="context-menu-item" onClick={() => run(() => onSetNickname(friend))}><Tag size={14} /><span>Set Nickname</span></button>
       <button type="button" className="context-menu-item" onClick={() => run(() => navigator.clipboard?.writeText(friend.name))}><Copy size={14} /><span>Copy IGN</span></button>
