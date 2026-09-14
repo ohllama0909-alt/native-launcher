@@ -66,16 +66,16 @@ process.stdout.write(JSON.stringify({ lockerHtml, relayHtml }));
   const { lockerHtml, relayHtml } = JSON.parse(raw);
 
   // Locker verification
-  assert.ok(lockerHtml.includes('Noctra Locker is exclusive to Noctra Accounts'), 'Locker gate title is rendered');
-  assert.ok(lockerHtml.includes('Sign In with Noctra'), 'Locker gate has Sign In with Noctra CTA');
+  assert.ok(lockerHtml.includes('Noctra account required'), 'Locker gate title is rendered');
+  assert.ok(lockerHtml.includes('Sign in'), 'Locker gate has Sign in CTA');
   assert.ok(lockerHtml.includes('Back to Home'), 'Locker gate has Back to Home CTA');
-  assert.ok(lockerHtml.includes('Custom Skins &amp; HD Capes') || lockerHtml.includes('Custom Skins & HD Capes'), 'Locker gate mentions skins and capes');
+  assert.ok(lockerHtml.includes('skins and capes'), 'Locker gate mentions skins and capes');
 
   // Relay verification
-  assert.ok(relayHtml.includes('Relay is exclusive to Noctra Accounts'), 'Relay gate title is rendered');
-  assert.ok(relayHtml.includes('Sign In with Noctra'), 'Relay gate has Sign In with Noctra CTA');
+  assert.ok(relayHtml.includes('Noctra account required'), 'Relay gate title is rendered');
+  assert.ok(relayHtml.includes('Sign in'), 'Relay gate has Sign in CTA');
   assert.ok(relayHtml.includes('Back to Home'), 'Relay gate has Back to Home CTA');
-  assert.ok(relayHtml.includes('Direct &amp; Group Messaging') || relayHtml.includes('Direct & Group Messaging'), 'Relay gate mentions messaging');
+  assert.ok(relayHtml.includes('chat with friends'), 'Relay gate mentions chat with friends');
 });
 
 test('account gating logic distinguishes Noctra accounts from guest/microsoft/offline', () => {

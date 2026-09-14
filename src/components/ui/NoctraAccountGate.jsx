@@ -1,110 +1,55 @@
 import React from 'react';
-import { ArrowRight, CheckCircle2, Home, Lock } from 'lucide-react';
-import Logo from './Logo.jsx';
+import { LogIn } from 'lucide-react';
+import mascotImg from '../../assets/noctra-account-required.png';
 import './NoctraAccountGate.css';
 
 export default function NoctraAccountGate({ feature = 'locker', onOpenAccountSwitcher, onBackHome }) {
   const isLocker = feature === 'locker';
 
+  const subtitle = isLocker
+    ? 'Sign in with a Noctra account to customize your skins and capes.'
+    : feature === 'relay'
+    ? 'Sign in with a Noctra account to chat with friends.'
+    : 'Sign in with a Noctra account to customize your public profile.';
+
   return (
-    <div className="noctra-account-gate" role="region" aria-label={isLocker ? 'Noctra Locker Restricted' : 'Noctra Relay Restricted'}>
-      <div className="gate-ambient-glow" aria-hidden="true" />
+    <div
+      className="noctra-account-gate"
+      role="region"
+      aria-label="Noctra account required"
+    >
+      <div className="gate-content">
+        <img
+          src={mascotImg}
+          alt=""
+          className="gate-mascot"
+          draggable="false"
+          width={188}
+          height={197}
+        />
 
-      <div className="gate-card">
-        <div className="gate-icon-badge">
-          <Logo height={32} variant="mark" />
-          <span className="gate-lock-corner" aria-hidden="true">
-            <Lock size={12} strokeWidth={2.6} />
-          </span>
-        </div>
+        <h2 className="gate-title">Noctra account required</h2>
 
-        <span className="gate-pill">
-          {isLocker ? 'Noctra Locker Exclusive' : 'Noctra Relay Exclusive'}
-        </span>
+        <p className="gate-subtitle">{subtitle}</p>
 
-        <h2 className="gate-title">
-          {isLocker
-            ? 'Noctra Locker is exclusive to Noctra Accounts'
-            : 'Relay is exclusive to Noctra Accounts'}
-        </h2>
+        <button
+          type="button"
+          className="gate-btn-signin"
+          onClick={onOpenAccountSwitcher}
+        >
+          <LogIn size={18} strokeWidth={2.4} aria-hidden="true" />
+          <span>Sign in</span>
+        </button>
 
-        <p className="gate-subtitle">
-          {isLocker
-            ? 'Custom skins, HD capes, and real-time wardrobe cloud sync are exclusively available on Noctra accounts. Sign in or register a Noctra account to unlock your locker.'
-            : 'Group chats, direct messaging, rich presence, and server joins require a Noctra account. Sign in or register a Noctra account to connect with friends.'}
-        </p>
-
-        <div className="gate-features">
-          {isLocker ? (
-            <>
-              <div className="gate-feature-item">
-                <CheckCircle2 size={16} className="gate-feature-icon" />
-                <div className="gate-feature-text">
-                  <strong>Custom Skins & HD Capes</strong>
-                  <small>Upload and wear custom skins with Classic or Slim player models.</small>
-                </div>
-              </div>
-              <div className="gate-feature-item">
-                <CheckCircle2 size={16} className="gate-feature-icon" />
-                <div className="gate-feature-text">
-                  <strong>Instant Cloud Sync</strong>
-                  <small>Wardrobe states sync automatically to your CustomSkinLoader instances.</small>
-                </div>
-              </div>
-              <div className="gate-feature-item">
-                <CheckCircle2 size={16} className="gate-feature-icon" />
-                <div className="gate-feature-text">
-                  <strong>Cloud Wardrobe Storage</strong>
-                  <small>Save and organize your favorite outfits across all your computers.</small>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="gate-feature-item">
-                <CheckCircle2 size={16} className="gate-feature-icon" />
-                <div className="gate-feature-text">
-                  <strong>Direct & Group Messaging</strong>
-                  <small>Real-time encrypted chat with rich replies, reactions, and file sharing.</small>
-                </div>
-              </div>
-              <div className="gate-feature-item">
-                <CheckCircle2 size={16} className="gate-feature-icon" />
-                <div className="gate-feature-text">
-                  <strong>Live Presence & Quick Join</strong>
-                  <small>See when friends are online and jump right into their game servers.</small>
-                </div>
-              </div>
-              <div className="gate-feature-item">
-                <CheckCircle2 size={16} className="gate-feature-icon" />
-                <div className="gate-feature-text">
-                  <strong>Party Invites & Chimes</strong>
-                  <small>Never miss a message with desktop notifications and audio chimes.</small>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="gate-actions">
+        {onBackHome && (
           <button
             type="button"
-            className="gate-btn-primary"
-            onClick={onOpenAccountSwitcher}
-          >
-            <Logo height={16} variant="mark" />
-            <span>Sign In with Noctra</span>
-            <ArrowRight size={14} />
-          </button>
-          <button
-            type="button"
-            className="gate-btn-secondary"
+            className="gate-btn-home"
             onClick={onBackHome}
           >
-            <Home size={14} />
-            <span>Back to Home</span>
+            Back to Home
           </button>
-        </div>
+        )}
       </div>
     </div>
   );
