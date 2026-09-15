@@ -120,7 +120,10 @@ export function GroupCreateModal({ open, friends = [], onClose, onCreate, upload
             title="Upload group icon"
           >
             {iconUrl ? (
-              <img src={iconUrl} alt="Group icon" />
+              <>
+                <img src={iconUrl} alt="Group icon" />
+                <span className="relay-group-icon-picker__hint"><Camera size={13} /> Change</span>
+              </>
             ) : (
               <div className="relay-group-icon-placeholder">
                 <Camera size={22} />
