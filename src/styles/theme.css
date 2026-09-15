@@ -140,53 +140,6 @@
   --online: var(--color-success);
 }
 
-/* Ankama-inspired 2026 shell: cool ink surfaces and a focused indigo signal. */
-:root {
-  --color-bg-beyond-black: #070b1a;
-  --color-surface-dark: #0a0f22;
-  --color-surface-elevated: #10162c;
-  --page: #070b1a;
-  --page-elevated: #0a0f22;
-  --page-sunken: #060a18;
-  --elevated-bg: #11182f;
-  --component-bg: rgba(20, 27, 52, .76);
-  --component-bg-hover: rgba(31, 40, 72, .9);
-  --component-bg-pressed: rgba(38, 48, 86, .95);
-  --component-border: rgba(157, 174, 222, .1);
-  --component-border-hover: rgba(137, 158, 255, .25);
-  --hairline: rgba(151, 168, 215, .075);
-  --hairline-strong: rgba(151, 168, 215, .14);
-  --fg-primary: #e5e9f8;
-  --fg-primary-hover: #ffffff;
-  --fg-secondary: #9ca6c5;
-  --fg-muted: #66708f;
-  --brand: #506cff;
-  --brand-hover: #6380ff;
-  --brand-pressed: #3e56d9;
-  --brand-2: #8194ff;
-  --brand-subtle: rgba(80, 108, 255, .14);
-  --brand-subtle-hover: rgba(80, 108, 255, .22);
-  --brand-border: rgba(106, 130, 255, .38);
-  --brand-glow: rgba(59, 55, 255, .28);
-  --brand-gradient: linear-gradient(135deg, #406dff 0%, #5a5df8 55%, #7848ed 100%);
-  --launch-gradient: linear-gradient(135deg, #2879ff, #555cf7 58%, #6d44dc);
-  --nav-rail-width: 196px;
-  --navbar-height: 34px;
-  --social-drawer-width: 252px;
-  --home-padding: clamp(26px, 4vw, 54px);
-  --page-padding: 30px;
-  --radius-sm: 7px;
-  --radius: 10px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --shadow-card: 0 18px 45px -24px rgba(0, 0, 0, .9);
-  --shadow-lift: 0 25px 60px -28px rgba(0, 0, 0, .95);
-  --shadow-brand: 0 14px 30px -17px rgba(63, 83, 255, .75);
-  --surface-glass: rgba(10, 15, 34, .72);
-  --surface-glass-strong: rgba(7, 11, 27, .91);
-}
-
 /* ---------- surfaces ---------- */
 
 :root[data-surface='dim'] {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ArrowUp, Blocks, Compass, Download, Home, Layers3, Lock, MessageCircle, Minus, PackageOpen, RefreshCw, Settings, Shirt, User, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Blocks, Download, Home, Layers3, Lock, Minus, PackageOpen, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -10,12 +10,10 @@ import './AppNavbar.css';
 /** Primary destinations, in the order they appear in the rail. */
 export const NAV_ITEMS = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
-  { id: 'browse', labelKey: 'nav.browse', icon: Compass },
+  { id: 'skins', labelKey: 'nav.locker', icon: User },
   { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
   { id: 'versions', labelKey: 'nav.versions', icon: Blocks },
-  { id: 'modpacks', labelKey: 'browse.modpacks', icon: PackageOpen },
-  { id: 'skins', labelKey: 'nav.locker', icon: Shirt },
-  { id: 'relay', labelKey: 'nav.relay', icon: MessageCircle }
+  { id: 'modpacks', labelKey: 'browse.modpacks', icon: PackageOpen }
 ];
 
 function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = null, tone = null, children, className = '', locked = false, lockTooltip = '' }) {
@@ -29,7 +27,6 @@ function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = nu
       data-tooltip={lockTooltip || label}
     >
       {children || (Icon ? <Icon size={21} strokeWidth={1.9} aria-hidden="true" /> : null)}
-      <span className="rail-label">{label}</span>
       {badge > 0 && <em className="rail-badge">{badge > 99 ? '99+' : badge}</em>}
       {locked && (
         <span className="rail-lock-badge" aria-hidden="true">
@@ -159,18 +156,16 @@ export default function AppNavbar({
       </header>
 
       <aside className="noctra-rail" aria-label={t('nav.primary')}>
-        <div className="rail-profile">
-          <button type="button" className="noctra-logo" onClick={() => onSelectTab('home')} aria-label="Noctra Client">
-            <Logo height={30} variant="mark" />
-          </button>
-          <button type="button" className="rail-profile-copy" onClick={onOpenAccountSwitcher}>
-            <strong>Noctra</strong>
-            <span>{account?.name || t('account.accounts')}</span>
-          </button>
-          {account?.name ? <PlayerAvatar account={account} size={28} radius={8} /> : null}
-        </div>
+        <button
+          type="button"
+          className="noctra-logo"
+          onClick={() => onSelectTab('home')}
+          aria-label="Noctra Client"
+          data-tooltip="Noctra Client"
+        >
+          <Logo height={30} variant="mark" />
+        </button>
 
-        <span className="rail-section-label">Explore</span>
         <nav className="rail-group" aria-label={t('nav.primary')}>
           {NAV_ITEMS.map(({ id, labelKey, icon }) => {
             const isRestricted = (id === 'skins' || id === 'relay') && !isNoctra;
@@ -191,7 +186,7 @@ export default function AppNavbar({
           })}
         </nav>
 
-        <span className="rail-section-label rail-section-label--account">Account</span>
+        <span className="rail-divider" aria-hidden="true" />
 
         <div className="rail-spacer" />
 
