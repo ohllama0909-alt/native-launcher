@@ -93,6 +93,11 @@ function connectionCount() {
   return total;
 }
 
+/** Number of distinct signed-in Noctra users with a live event stream. */
+function connectedUserCount() {
+  return clients.size;
+}
+
 const heartbeatTimer = setInterval(heartbeat, 15_000);
 if (heartbeatTimer.unref) heartbeatTimer.unref();
 
@@ -103,5 +108,6 @@ module.exports = {
   setTyping,
   isTyping,
   isConnected,
-  connectionCount
+  connectionCount,
+  connectedUserCount
 };

@@ -166,6 +166,10 @@
   animation: relay-fade 160ms var(--ease-out);
 }
 
+.relay-modal-scrim--settings {
+  inset: var(--navbar-height) 0 0 var(--nav-rail-width);
+}
+
 .relay-modal {
   display: flex;
   flex-direction: column;
@@ -495,7 +499,7 @@
 
 .relay-modal--settings {
   width: min(940px, calc(100vw - 40px));
-  height: min(700px, calc(100vh - 48px));
+  height: min(700px, calc(100vh - var(--navbar-height) - 40px));
   max-height: none;
   padding: 0;
   gap: 0;

@@ -158,7 +158,8 @@
 @media (max-width: 860px) {
   .relay-page,
   .relay-page.has-profile-panel { grid-template-columns: 260px minmax(0, 1fr); }
-  .np-panel { display: none; }
+  .np-panel,
+  .relay-members-panel { display: none; }
 }
 
 @media (max-width: 760px) {

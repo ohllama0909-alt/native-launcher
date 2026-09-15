@@ -118,6 +118,7 @@ contextBridge.exposeInMainWorld('native', {
   },
   social: {
     getFriends: () => ipcRenderer.invoke('social:getFriends'),
+    getStats: () => ipcRenderer.invoke('social:getStats'),
     getRequests: () => ipcRenderer.invoke('social:getRequests'),
     // Preloads the tail of every conversation in one call.
     getConversations: (perFriend = 40) => ipcRenderer.invoke('social:getConversations', { perFriend }),

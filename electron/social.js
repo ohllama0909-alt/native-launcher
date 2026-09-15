@@ -301,6 +301,10 @@ function init(dependencies, ipcMain) {
     return { ok: false, friends: cache.friends || [], error: res?.error };
   });
 
+  ipcMain.handle('social:getStats', async () => {
+    return await socialFetch('/v1/social/stats');
+  });
+
   ipcMain.handle('social:getRequests', async () => {
     const cache = readCache();
     const res = await socialFetch('/v1/social/requests');

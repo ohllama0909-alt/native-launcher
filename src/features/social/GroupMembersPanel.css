@@ -1,0 +1,110 @@
+.relay-members-panel {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--hairline);
+  background: var(--page-elevated);
+  animation: relay-members-slide 220ms var(--ease-out);
+}
+
+.relay-members-panel__banner {
+  position: relative;
+  height: 84px;
+  flex: none;
+  border-bottom: 1px solid var(--brand-border);
+  background: var(--brand-subtle);
+}
+
+.relay-members-panel__banner::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--brand);
+  opacity: .65;
+}
+
+.relay-members-panel__close {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface-glass-strong);
+  color: var(--fg-primary-hover);
+  cursor: pointer;
+}
+
+.relay-members-panel__close:hover { border-color: var(--component-border-hover); background: var(--component-bg-hover); color: #fff; }
+
+.relay-members-panel__avatar {
+  z-index: 1;
+  width: max-content;
+  margin: -35px 0 0 16px;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--page-elevated);
+}
+
+.relay-members-panel__body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 14px 16px;
+}
+
+.relay-members-panel__identity { display: grid; gap: 4px; }
+.relay-members-panel__identity h3 { margin: 0; color: var(--fg-primary-hover); font-size: 18px; line-height: 1.2; }
+.relay-members-panel__identity > span { color: var(--fg-muted); font-size: 11.5px; }
+.relay-members-panel__identity p { margin: 4px 0 0; color: var(--fg-secondary); font-size: 12px; line-height: 1.45; }
+
+.relay-members-panel__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.relay-members-panel__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px dotted var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--component-bg);
+  color: var(--fg-secondary);
+  font-size: 10.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.relay-members-panel__actions button:hover { border-color: var(--brand-border); background: var(--brand-subtle); color: var(--fg-primary-hover); }
+
+.relay-members-panel__divider { height: 1px; flex: none; background: var(--hairline); }
+.relay-members-panel__heading { display: flex; align-items: center; justify-content: space-between; color: var(--fg-muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.relay-members-panel__heading strong { color: var(--fg-secondary); font: 700 10px var(--font-mono); }
+
+.relay-members-panel__list { min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 3px; }
+.relay-members-panel__row { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 7px; border-radius: var(--radius-sm); }
+.relay-members-panel__row:hover { background: var(--component-bg-hover); }
+.relay-members-panel__row.is-offline { opacity: .52; }
+.relay-members-panel__member-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
+.relay-members-panel__member-copy > div { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.relay-members-panel__member-copy strong { overflow: hidden; color: var(--fg-primary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.relay-members-panel__member-copy small { overflow: hidden; color: var(--fg-muted); font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.relay-members-panel__role { display: inline-flex; color: var(--fg-secondary); }
+.relay-members-panel__role.is-owner { color: var(--brand-2); }
+.relay-members-panel__empty { display: grid; justify-items: center; gap: 7px; padding: 28px 10px; color: var(--fg-muted); font-size: 11px; }
+
+@keyframes relay-members-slide {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+:root[data-motion='reduced'] .relay-members-panel { animation: none; }

@@ -15,6 +15,7 @@ const rank = (role) => (role === 'owner' ? 3 : role === 'admin' ? 2 : 1);
 export function GroupSettingsModal({
   open,
   group,
+  initialTab = 'overview',
   selfId,
   friends = [],
   onClose,
@@ -37,14 +38,14 @@ export function GroupSettingsModal({
   const [confirmLeave, setConfirmLeave] = useState(false);
 
   useEffect(() => {
-    setTab('overview');
+    setTab(initialTab);
     setName(group?.name || '');
     setDescription(group?.description || '');
     setQuery('');
     setError(null);
     setConfirmDelete(false);
     setConfirmLeave(false);
-  }, [group?.id, group?.name, group?.description]);
+  }, [group?.id, group?.name, group?.description, initialTab]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -106,7 +107,7 @@ export function GroupSettingsModal({
       : 'Customize how this group appears to everyone.';
 
   return (
-    <div className="relay-modal-scrim" onMouseDown={(event) => event.target === event.currentTarget && onClose?.()}>
+    <div className="relay-modal-scrim relay-modal-scrim--settings" onMouseDown={(event) => event.target === event.currentTarget && onClose?.()}>
       <div className="relay-modal relay-modal--settings" role="dialog" aria-label="Group settings">
         <div className="relay-settings-layout">
         <aside className="relay-settings-sidebar">

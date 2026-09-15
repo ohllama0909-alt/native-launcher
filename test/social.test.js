@@ -146,6 +146,15 @@ test('social api: rejects unauthenticated requests and handles social endpoints 
     assert.equal(authJson.ok, true);
     assert.ok(Array.isArray(authJson.friends));
 
+    const statsRes = await fetch(`${base}/v1/social/stats`, {
+      headers: { Authorization: `Bearer ${session.token}` }
+    });
+    assert.equal(statsRes.status, 200);
+    const statsJson = await statsRes.json();
+    assert.equal(statsJson.ok, true);
+    assert.equal(Number.isInteger(statsJson.onlineUsers), true);
+    assert.ok(statsJson.onlineUsers >= 0);
+
     // 4. Update presence
     const presenceRes = await fetch(`${base}/v1/social/presence`, {
       method: 'POST',

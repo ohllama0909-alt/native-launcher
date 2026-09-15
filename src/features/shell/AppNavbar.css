@@ -57,6 +57,19 @@
   box-shadow: 0 0 7px var(--color-success);
 }
 
+.noctra-live-users {
+  color: var(--fg-secondary) !important;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.noctra-live-users > svg {
+  color: var(--success);
+  filter: drop-shadow(0 0 4px var(--success-subtle));
+}
+
+.noctra-live-users > b { color: var(--fg-primary-hover); }
+
 /* ---------- titlebar update pill ----------
    The persistent, clickable update indicator. It only renders when the
    updater has something to say (available / downloading / ready / checking);

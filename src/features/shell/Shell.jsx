@@ -287,6 +287,7 @@ export default function Shell({
         networkStatus={networkStatus}
         onOpenUpdater={openUpdater}
         friendsBadge={isNoctra ? social.badgeTotal : 0}
+        liveUserCount={social.liveUserCount}
       />
 
       <div className="shell-content-layer">

@@ -37,6 +37,7 @@ import ThreadRow from './ThreadRow.jsx';
 import { ReplyComposerBar } from './ReplyPreview.jsx';
 import Badges from './Badges.jsx';
 import UserProfilePanel from './UserProfilePanel.jsx';
+import GroupMembersPanel from './GroupMembersPanel.jsx';
 import FriendsHome from './FriendsHome.jsx';
 import './RelayPage.css';
 import './relay-groups.css';
@@ -113,6 +114,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   const relayGroups = useRelayGroups({ selfId, selfName: account?.name || 'You' });
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('overview');
   const [friendCenterOpen, setFriendCenterOpen] = useState(false);
 
   const [selectedId, setSelectedId] = useState(null);
@@ -908,7 +910,11 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
     { key: 'direct', label: 'Direct messages', list: directList, empty: 'No direct messages', grouped: false }
   ];
 
-  const hasProfilePanel = Boolean(activeEntity && !isGroupThread && showProfilePanel);
+  const hasProfilePanel = Boolean(activeEntity && showProfilePanel);
+  const openGroupSettings = (initialTab = 'overview') => {
+    setSettingsInitialTab(initialTab);
+    setSettingsOpen(true);
+  };
 
   return (
     <div className={`relay-page ${hasProfilePanel ? 'has-profile-panel' : ''}`} data-testid="relay-page">
@@ -1002,7 +1008,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                             }}
                             onOpenSettings={(t) => {
                               setSelectedId(t.id);
-                              setSettingsOpen(true);
+                              openGroupSettings();
                             }}
                             onLeaveGroup={handleGroupLeave}
                             onDeleteGroup={handleGroupDelete}
@@ -1032,7 +1038,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
             <header className="relay-chat-header">
               <div
                 className="relay-peer-info"
-                onClick={() => isGroupThread && setSettingsOpen(true)}
+                onClick={() => isGroupThread && openGroupSettings()}
                 title={isGroupThread ? 'Group settings & members' : undefined}
                 data-testid="relay-peer-info"
               >
@@ -1099,10 +1105,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                 {isGroupThread && (
                   <button
                     type="button"
-                    className="relay-action-btn"
-                    data-testid="relay-group-settings-btn"
-                    onClick={() => setSettingsOpen(true)}
-                    title="Group settings & members"
+                    className={`relay-action-btn ${showProfilePanel ? 'is-active' : ''}`}
+                    data-testid="relay-group-members-toggle-btn"
+                    onClick={() => setShowProfilePanel((visible) => !visible)}
+                    title={showProfilePanel ? 'Hide group members' : 'Show group members'}
                   >
                     <Users size={16} />
                   </button>
@@ -1152,7 +1158,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                           <button
                             type="button"
                             onClick={() => {
-                              setSettingsOpen(true);
+                              openGroupSettings();
                               setShowMenuDropdown(false);
                             }}
                           >
@@ -1524,7 +1530,15 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
         )}
       </main>
 
-      {activeEntity && !isGroupThread && showProfilePanel ? (
+      {activeEntity && isGroupThread && showProfilePanel ? (
+        <GroupMembersPanel
+          group={relayGroups.activeGroup || activeEntity}
+          selfId={selfId}
+          onClose={() => setShowProfilePanel(false)}
+          onOpenSettings={() => openGroupSettings()}
+          onInvite={() => openGroupSettings('invite')}
+        />
+      ) : activeEntity && !isGroupThread && showProfilePanel ? (
         <UserProfilePanel
           user={activeEntity}
           presence={activePresence}
@@ -1573,6 +1587,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
       <GroupSettingsModal
         open={settingsOpen}
         group={relayGroups.activeGroup}
+        initialTab={settingsInitialTab}
         selfId={selfId}
         friends={social?.friends || []}
         uploadMedia={social?.uploadMedia}
