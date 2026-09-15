@@ -133,8 +133,12 @@
 
 .dropdown-option.active {
   background: var(--brand-subtle);
-  color: var(--brand-soft);
+  color: #ffffff;
   font-weight: 600;
+}
+
+.dropdown-option.active svg {
+  color: #ffffff;
 }
 
 .dropdown-option:disabled {

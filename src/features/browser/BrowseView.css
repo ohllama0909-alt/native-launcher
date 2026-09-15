@@ -405,8 +405,12 @@
 
 .browse-sort-popover-item.active {
   background: var(--brand-subtle);
-  color: var(--brand);
+  color: #ffffff;
   font-weight: 600;
+}
+
+.browse-sort-popover-item.active svg {
+  color: #ffffff;
 }
 
 .browse-active-filters {
@@ -590,21 +594,65 @@
 }
 
 .browse-category-search {
-  height: 32px;
+  height: 38px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 9px;
+  gap: 8px;
+  padding: 0 11px;
   border: 1px solid var(--component-border);
-  border-radius: 8px;
-  background: var(--page-sunken);
+  border-radius: var(--radius, 8px);
+  background: var(--component-bg, #141015);
   color: var(--fg-muted);
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease), background 0.15s var(--ease);
 }
 
-.browse-category-search:focus-within { border-color: var(--brand-border); }
-.browse-category-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--fg-primary); font: 500 11px var(--font-sans); }
-.browse-category-search input::placeholder { color: var(--fg-muted); }
-.browse-category-search button { width: 18px; height: 18px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--ghost-overlay); color: var(--fg-muted); cursor: pointer; }
+.browse-category-search:hover {
+  border-color: var(--component-border-hover);
+  background: var(--component-bg-hover);
+}
+
+.browse-category-search:focus-within {
+  border-color: var(--brand);
+  background: var(--component-bg-hover);
+  box-shadow: 0 0 0 3px var(--brand-subtle);
+}
+
+.browse-category-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.browse-category-search input::placeholder {
+  color: var(--fg-muted);
+  font-size: 12.5px;
+}
+
+.browse-category-search button {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ghost-overlay);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+}
+
+.browse-category-search button:hover {
+  background: var(--ghost-overlay-hover);
+  color: var(--fg-primary);
+}
 
 .browse-categories-empty {
   margin: 0;

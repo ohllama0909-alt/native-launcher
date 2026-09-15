@@ -282,10 +282,15 @@ select {
 
 :root .instances-chip.active,
 :root .instance-chip.brand,
-:root .instances-popover-item.active,
 :root .instances-empty-icon,
 :root .instance-add-card:hover {
   color: var(--brand-soft);
+}
+
+:root .instances-popover-item.active,
+:root .browse-sort-popover-item.active,
+:root .dropdown-option.active {
+  color: #ffffff;
 }
 
 :root .instances-popover-item.danger {

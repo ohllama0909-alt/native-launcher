@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AppNavbar from './AppNavbar.jsx';
 import HomeView from '../home/HomeView.jsx';
 import InstancesView from '../instances/InstancesView.jsx';
@@ -7,6 +7,7 @@ import BrowseView from '../browser/BrowseView.jsx';
 import ModpacksView from '../browser/ModpacksView.jsx';
 import ClusterDetailView from '../cluster/ClusterDetailView.jsx';
 import LockerView from '../skins/LockerView.jsx';
+import RelayPage from '../social/RelayPage.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import FriendContextMenu from '../social/FriendContextMenu.jsx';
 import NicknameModal from '../social/NicknameModal.jsx';
@@ -20,6 +21,26 @@ import usePlaytimeTracker from '../instances/usePlaytimeTracker.js';
 import NoctraAccountGate from '../../components/ui/NoctraAccountGate.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './Shell.css';
+
+const playRelayChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.24);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+    osc.onended = () => ctx.close().catch(() => {});
+  } catch {}
+};
 
 export default function Shell({
   isMaximized,
@@ -56,6 +77,8 @@ export default function Shell({
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
+  const [relayActiveThreadId, setRelayActiveThreadId] = useState(null);
+  const relayNotificationRef = useRef({});
 
   const openUpdater = useCallback(() => {
     setSettingsOpen(false);
@@ -93,6 +116,77 @@ export default function Shell({
       ].slice(0, 60)
     );
   }, [locale]);
+
+  /* Relay emits `{ type, message }` payloads; the drawer wants title + body. */
+  const notifyRelay = useCallback((payload, body) => {
+    if (typeof payload === 'string') {
+      notify(payload, body);
+      return;
+    }
+    if (!payload?.message) return;
+    const title = payload.type === 'error'
+      ? 'Relay error'
+      : 'Relay';
+    notify(title, payload.message);
+  }, [notify]);
+
+  relayNotificationRef.current = {
+    selfId: social.selfId,
+    friends: social.friends,
+    currentTab,
+    activeThreadId: relayActiveThreadId
+  };
+
+  useEffect(() => {
+    if (!isNoctra) return undefined;
+    return social.subscribe((event) => {
+      const state = relayNotificationRef.current;
+      let title = '';
+      let body = '';
+      let threadId = null;
+
+      if (event?.type === 'message:new' && event.message?.senderId !== state.selfId) {
+        threadId = event.message.senderId;
+        const friend = state.friends.find((item) => item.id === threadId);
+        title = friend?.nickname || friend?.name || event.message.senderName || 'Direct Message';
+        body = event.message.content || (event.message.mediaName ? `Sent an attachment: ${event.message.mediaName}` : 'Sent an attachment');
+      } else if (event?.type === 'group:message') {
+        const message = event.data?.message ?? event.message;
+        threadId = event.data?.groupId ?? event.groupId;
+        if (!message || message.senderId === state.selfId || message.isSystem) return;
+        const sender = message.senderName || 'Member';
+        const group = event.data?.groupName || event.groupName || 'Group';
+        title = `${sender} (${group})`;
+        body = message.content || (message.mediaName ? `Sent an attachment: ${message.mediaName}` : 'Sent an attachment');
+      } else if (event?.type === 'request:changed' && event.actorId !== state.selfId) {
+        const actor = event.actorName || 'A player';
+        if (event.action === 'accepted') {
+          title = 'Friend Request Accepted';
+          body = `${actor} accepted your friend request.`;
+        } else if (!event.action || event.action === 'sent') {
+          title = 'Friend Request';
+          body = `${actor} sent you a friend request.`;
+        }
+      }
+
+      if (!title) return;
+      if (threadId) {
+        let mutedIds = {};
+        try {
+          mutedIds = JSON.parse(localStorage.getItem('noctra_relay_store_v5') || '{}').mutedIds || {};
+        } catch {}
+        const friend = state.friends.find((item) => item.id === threadId);
+        if (mutedIds[threadId] ?? friend?.muted) return;
+      }
+      const viewingThread = threadId && state.currentTab === 'relay' &&
+        state.activeThreadId === threadId && document.hasFocus();
+      if (viewingThread) return;
+
+      notify(title, body);
+      playRelayChime();
+      window.native?.showNotification?.(title, body);
+    });
+  }, [isNoctra, notify, social.subscribe]);
 
   const handleLaunch = (cluster, options = {}) => {
     if (!cluster) return;
@@ -226,6 +320,24 @@ export default function Shell({
           )
         )}
 
+        {currentTab === 'relay' && (
+          isNoctra ? (
+            <RelayPage
+              account={account}
+              social={social}
+              onJoinServer={handleJoinServer}
+              onNotify={notifyRelay}
+              onActiveThreadChange={setRelayActiveThreadId}
+            />
+          ) : (
+            <NoctraAccountGate
+              feature="relay"
+              onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
+              onBackHome={() => setCurrentTab('home')}
+            />
+          )
+        )}
+
 
         {currentTab === 'instances' && (
           <InstancesView
@@ -350,7 +462,10 @@ export default function Shell({
           context={social.contextMenu}
           onClose={() => social.setContextMenu(null)}
           onJoinServer={handleJoinServer}
-          onOpenChat={undefined}
+          onOpenChat={(friend) => {
+            social.setActiveChatFriend(friend);
+            setCurrentTab('relay');
+          }}
           onToggleBestFriend={(friend) =>
             social.updateFriend(friend.id, { isBestFriend: !friend.isBestFriend })
           }

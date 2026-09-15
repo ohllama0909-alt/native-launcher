@@ -930,7 +930,7 @@ export default function BrowseView({
 
           {categories.length > 6 && (
             <label className="browse-category-search">
-              <NativeIcon name="search" size={13} />
+              <NativeIcon name="search" size={14} />
               <input
                 value={categoryQuery}
                 onChange={(event) => setCategoryQuery(event.target.value)}
@@ -938,7 +938,7 @@ export default function BrowseView({
               />
               {categoryQuery && (
                 <button type="button" onClick={() => setCategoryQuery('')} aria-label="Clear category search">
-                  <NativeIcon name="close" size={11} />
+                  <NativeIcon name="close" size={12} />
                 </button>
               )}
             </label>

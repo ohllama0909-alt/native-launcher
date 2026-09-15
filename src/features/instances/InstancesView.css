@@ -408,7 +408,12 @@
 }
 
 .instances-popover-item.active {
-  color: #cbbcff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.instances-popover-item.active svg {
+  color: #ffffff;
 }
 
 .instances-popover-item.danger {
