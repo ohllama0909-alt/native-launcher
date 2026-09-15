@@ -1125,26 +1125,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                 >
                   <Pin size={16} />
                 </button>
-                {!isGroupThread && (
-                  <button
-                    type="button"
-                    className={`relay-action-btn ${showProfilePanel ? 'is-active' : ''}`}
-                    data-testid="relay-profile-toggle-btn"
-                    onClick={() => setShowProfilePanel((p) => !p)}
-                    title={showProfilePanel ? 'Hide profile' : 'Show profile'}
-                  >
-                    <UserSquare2 size={16} />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="relay-action-btn"
-                  data-testid="relay-close-chat-btn"
-                  onClick={handleDeselectChat}
-                  title="Close conversation (Esc)"
-                >
-                  <X size={17} />
-                </button>
 
                 <div className="relay-menu-wrapper">
                   <button
@@ -1271,6 +1251,27 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                     </div>
                   )}
                 </div>
+
+                {!isGroupThread && (
+                  <button
+                    type="button"
+                    className={`relay-action-btn ${showProfilePanel ? 'is-active' : ''}`}
+                    data-testid="relay-profile-toggle-btn"
+                    onClick={() => setShowProfilePanel((p) => !p)}
+                    title={showProfilePanel ? 'Hide profile' : 'Show profile'}
+                  >
+                    <UserSquare2 size={16} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="relay-action-btn"
+                  data-testid="relay-close-chat-btn"
+                  onClick={handleDeselectChat}
+                  title="Close conversation (Esc)"
+                >
+                  <X size={17} />
+                </button>
               </div>
             </header>
 

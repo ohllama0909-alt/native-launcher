@@ -721,21 +721,23 @@
   height: var(--relay-header-h);
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 0 18px;
+  gap: 12px;
+  padding: 0 16px;
   background: var(--surface-glass-strong);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--hairline);
   z-index: 3;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .relay-peer-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  flex-shrink: 0;
-  max-width: 360px;
+  flex: 0 1 auto;
+  max-width: 240px;
   cursor: default;
 }
 
@@ -790,7 +792,7 @@
 
 .relay-join-inline:hover { background: var(--brand); color: var(--fg-on-brand); }
 
-.relay-convo-search-bar { flex: 1; max-width: 340px; margin-left: auto; }
+.relay-convo-search-bar { flex: 0 1 200px; min-width: 90px; max-width: 220px; margin-left: auto; }
 
 .relay-search-clear {
   flex: none;
@@ -803,7 +805,7 @@
 
 .relay-search-clear:hover { color: var(--fg-primary); }
 
-.relay-header-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.relay-header-actions { display: flex; align-items: center; gap: 3px; flex: none; }
 
 .relay-action-btn {
   width: 30px;
