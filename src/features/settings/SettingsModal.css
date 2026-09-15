@@ -443,3 +443,32 @@
   .settings-nav-item { justify-content: center; padding: 0; }
   .settings-scroll-body, .settings-content-header { padding-inline: 20px; }
 }
+
+/* Solid Check Updates button (no gradient) */
+:root .settings-update-check-btn,
+:root .settings-modal .sub-btn.brand-btn,
+:root .settings-row .sub-btn.brand-btn {
+  background: var(--brand) !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: var(--fg-on-brand, #ffffff) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 4px 14px var(--brand-glow);
+}
+
+:root .settings-update-check-btn:hover:not(:disabled),
+:root .settings-modal .sub-btn.brand-btn:hover:not(:disabled),
+:root .settings-row .sub-btn.brand-btn:hover:not(:disabled) {
+  background: var(--brand-hover) !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, 0.35);
+  filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38), 0 6px 18px var(--brand-glow);
+}
+
+:root .settings-update-check-btn:active:not(:disabled),
+:root .settings-modal .sub-btn.brand-btn:active:not(:disabled),
+:root .settings-row .sub-btn.brand-btn:active:not(:disabled) {
+  background: var(--brand-pressed) !important;
+  background-image: none !important;
+  transform: scale(0.98);
+}

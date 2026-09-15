@@ -296,7 +296,7 @@ export default function SettingsModal({
                       <span className="settings-row-title">Noctra Client</span>
                       <span className="settings-row-desc">v{window.native?.version || '1.0.0'}</span>
                     </div>
-                    <button className="sub-btn brand-btn" onClick={onOpenUpdater}>
+                    <button className="sub-btn brand-btn settings-update-check-btn" onClick={onOpenUpdater}>
                       <Icon name="refresh" size={14} />
                       <span>{t('settings.checkUpdates')}</span>
                     </button>
