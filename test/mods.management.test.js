@@ -14,7 +14,7 @@ function fixture(t, entry = { filename: 'example.jar', folder: 'mods' }) {
   fs.writeFileSync(path.join(dir, '.native-mods.json'), JSON.stringify({ example: entry }));
   const handlers = {};
   mods.init({ app: { getPath: () => root } }, { handle: (name, fn) => { handlers[name] = fn; } });
-  return { dir, call: (name, payload) => handlers[`mods:${name}`](null, { instanceId: 'test', projectId: 'example', ...payload }) };
+  return { dir, root, call: (name, payload) => handlers[`mods:${name}`](null, { instanceId: 'test', projectId: 'example', ...payload }) };
 }
 
 test('enabling and disabling mods renames the actual file and persists state', t => {
@@ -57,4 +57,40 @@ test('malformed filenames cannot escape the content folder', t => {
 test('non-mod content cannot be renamed by the mod toggle', t => {
   const { call } = fixture(t, { filename: 'example.jar', folder: 'resourcepacks' });
   assert.throws(() => call('toggle', { enabled: false }), /Only mods/);
+});
+
+test('mods cannot be installed to a vanilla instance', async (t) => {
+  const { root, call } = fixture(t);
+  fs.writeFileSync(path.join(root, 'instances.json'), JSON.stringify({
+    instances: [
+      { id: 'test', name: 'Vanilla 1.20', loader: 'Vanilla' }
+    ]
+  }));
+  await assert.rejects(
+    async () => {
+      await call('install', { url: 'https://example.com/mod.jar', filename: 'mod.jar', folder: 'mods' });
+    },
+    /Mods cannot be installed to Vanilla instances/
+  );
+});
+
+test('isVanillaInstance detects vanilla vs modded loaders correctly', (t) => {
+  const { root } = fixture(t);
+  fs.writeFileSync(path.join(root, 'instances.json'), JSON.stringify({
+    instances: [
+      { id: 'v1', name: 'Vanilla', loader: 'Vanilla' },
+      { id: 'v2', name: 'Vanilla lower', loader: 'vanilla' },
+      { id: 'v3', name: 'No loader' },
+      { id: 'f1', name: 'Fabric', loader: 'Fabric' },
+      { id: 'fg1', name: 'Forge', loader: 'Forge' },
+      { id: 'q1', name: 'Quilt', loader: 'Quilt' }
+    ]
+  }));
+  assert.equal(mods.isVanillaInstance('v1'), true);
+  assert.equal(mods.isVanillaInstance('v2'), true);
+  assert.equal(mods.isVanillaInstance('v3'), true);
+  assert.equal(mods.isVanillaInstance('f1'), false);
+  assert.equal(mods.isVanillaInstance('fg1'), false);
+  assert.equal(mods.isVanillaInstance('q1'), false);
+  assert.equal(mods.isVanillaInstance('non-existent'), false);
 });

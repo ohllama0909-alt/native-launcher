@@ -72,6 +72,12 @@ function loaderOf(instance) {
   return instance?.mc_loader || instance?.loader || 'Vanilla';
 }
 
+function isVanilla(instance) {
+  if (!instance) return false;
+  const loader = (loaderOf(instance) || '').toLowerCase();
+  return !loader || loader === 'vanilla';
+}
+
 export default function BrowseView({
   initialIntent,
   fixedContentType = null,
@@ -84,7 +90,8 @@ export default function BrowseView({
   onBack,
   onAddInstance,
   onOpenCluster,
-  onNotify
+  onNotify,
+  initialResults = []
 }) {
   const { t, formatNumber } = useI18n();
 
@@ -117,7 +124,7 @@ export default function BrowseView({
   const [selectedCategories, setSelectedCategories] = useState([]);
 
   const [categoryTags, setCategoryTags] = useState([]);
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(initialResults);
   const [totalHits, setTotalHits] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -132,23 +139,6 @@ export default function BrowseView({
   const [instancePickerOpen, setInstancePickerOpen] = useState(false);
   const [depPrompt, setDepPrompt] = useState(null);
   const [resolvingDeps, setResolvingDeps] = useState(false);
-
-  const [toast, setToast] = useState(null);
-  const toastTimerRef = useRef(null);
-
-  const showToast = useCallback((title, body) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast({ title, body });
-    toastTimerRef.current = setTimeout(() => {
-      setToast(null);
-    }, 3800);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
 
   const resultsRef = useRef(null);
   const browseContainerRef = useRef(null);
@@ -172,9 +162,18 @@ export default function BrowseView({
   }, [initialIntent?.nonce, availableContentTypes]);
 
   const activeType = availableContentTypes.find((entry) => entry.id === contentType) || availableContentTypes[0] || CONTENT_TYPES[0];
-  const target = selectedCluster || instances[0] || null;
+  const target = useMemo(() => {
+    if (selectedCluster) return selectedCluster;
+    if (contentType === 'mod') {
+      const modded = instances.find((i) => !isVanilla(i));
+      if (modded) return modded;
+    }
+    return instances[0] || null;
+  }, [selectedCluster, instances, contentType]);
   const targetVersion = versionOf(target);
   const targetLoader = loaderOf(target);
+  const isTargetVanilla = isVanilla(target);
+  const isModOnVanilla = activeType.id === 'mod' && isTargetVanilla;
   const loaderFacet = LOADER_FACETS.has(targetLoader.toLowerCase())
     ? targetLoader.toLowerCase()
     : null;
@@ -337,7 +336,6 @@ export default function BrowseView({
         const title = t('browse.modpackInstalled');
         const body = t('browse.readyToPlay', { name: project.title });
         onNotify?.(title, body);
-        showToast(title, body);
       }
     } catch (err) {
       onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
@@ -454,7 +452,6 @@ export default function BrowseView({
         ? `${project.title} and ${extras.length} ${extras.length === 1 ? 'dependency' : 'dependencies'} added to ${target.name}`
         : t('browse.addedTo', { name: project.title, instance: target.name });
       onNotify?.(notifTitle, notifBody);
-      showToast(notifTitle, notifBody);
     } catch (err) {
       onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
     } finally {
@@ -465,6 +462,14 @@ export default function BrowseView({
   const installContent = async (project) => {
     if (!target?.id) {
       onNotify?.(t('browse.noInstanceSelected'), t('browse.createBeforeInstall'));
+      return;
+    }
+
+    if (activeType.id === 'mod' && isTargetVanilla) {
+      onNotify?.(
+        'Cannot Install Mod',
+        `Mods cannot be installed on Vanilla instances (${target?.name || 'Vanilla'}). Please select or create a Fabric, Forge, NeoForge, or Quilt instance.`
+      );
       return;
     }
 
@@ -554,6 +559,13 @@ export default function BrowseView({
   };
 
   const handleInstall = (project) => {
+    if (activeType.id === 'mod' && isTargetVanilla) {
+      onNotify?.(
+        'Cannot Install Mod',
+        `Mods cannot be installed on Vanilla instances (${target?.name || 'Vanilla'}). Please select or create a Fabric, Forge, NeoForge, or Quilt instance.`
+      );
+      return;
+    }
     if (activeType.id === 'modpack') installModpack(project);
     else installContent(project);
   };
@@ -628,28 +640,6 @@ export default function BrowseView({
     resultsRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const renderToast = () => toast ? (
-    <div className="browse-download-toast" role="status">
-      <span className="browse-download-toast-icon">
-        <NativeIcon name="check-circle" size={16} />
-      </span>
-      <div className="browse-download-toast-info">
-        <strong>{toast.title}</strong>
-        <span>{toast.body}</span>
-      </div>
-      <button
-        type="button"
-        className="browse-download-toast-close"
-        onClick={() => {
-          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-          setToast(null);
-        }}
-        aria-label="Dismiss notification"
-      >
-        <NativeIcon name="close" size={13} />
-      </button>
-    </div>
-  ) : null;
 
   if (detail) {
     const project = detailData || detail;
@@ -681,10 +671,34 @@ export default function BrowseView({
               {installed && activeType.id !== 'modpack' ? (
                 <button type="button" className="content-remove-btn" onClick={() => handleRemove(detail)} disabled={busy}>{t('common.remove')}</button>
               ) : (
-                <button type="button" className="content-install-btn content-detail-install" onClick={() => handleInstall(detail)} disabled={busy || (activeType.id !== 'modpack' && !target)}>{busy ? <NativeIcon name="refresh" size={14} className="is-spinning" /> : <NativeIcon name="download" size={14} />} {activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</button>
+                <button
+                  type="button"
+                  className={`content-install-btn content-detail-install ${isModOnVanilla ? 'is-disabled-vanilla' : ''}`}
+                  onClick={() => handleInstall(detail)}
+                  disabled={busy || (activeType.id !== 'modpack' && !target) || isModOnVanilla}
+                  title={isModOnVanilla ? 'Mods cannot be installed on Vanilla instances' : undefined}
+                >
+                  {busy ? <NativeIcon name="refresh" size={14} className="is-spinning" /> : <NativeIcon name="download" size={14} />}
+                  <span>
+                    {isModOnVanilla
+                      ? 'Vanilla (No Mods)'
+                      : activeType.id === 'modpack'
+                      ? t('browse.installPack')
+                      : t('common.install')}
+                  </span>
+                </button>
               )}
             </div>
           </section>
+
+          {isModOnVanilla && (
+            <div className="browse-vanilla-warning" role="alert">
+              <NativeIcon name="alert-triangle" size={16} />
+              <span>
+                <strong>{target?.name || 'Vanilla'}</strong> is a Vanilla instance. Minecraft Vanilla does not support mods. Switch to a Fabric, Forge, NeoForge, or Quilt instance to install mods.
+              </span>
+            </div>
+          )}
 
           <div className="content-detail-layout">
             <main className="content-detail-main">
@@ -712,7 +726,6 @@ export default function BrowseView({
           onCancel={() => setDepPrompt(null)}
           onConfirm={confirmDepPrompt}
         />
-        {renderToast()}
       </div>
     );
   }
@@ -748,22 +761,25 @@ export default function BrowseView({
 
               {instancePickerOpen && instances.length > 0 && (
                 <div className="browse-picker-popup">
-                  {instances.map((instance) => (
-                    <button
-                      key={instance.id}
-                      type="button"
-                      className={`browse-picker-item ${target?.id === instance.id ? 'active' : ''}`}
-                      onClick={() => {
-                        onSelectCluster?.(instance.id);
-                        setInstancePickerOpen(false);
-                      }}
-                    >
-                      <span className="browse-picker-name">{instance.name}</span>
-                      <span className="browse-picker-meta">
-                        {`${versionOf(instance)} ${loaderOf(instance)}`}
-                      </span>
-                    </button>
-                  ))}
+                  {instances.map((instance) => {
+                    const instVanilla = isVanilla(instance);
+                    return (
+                      <button
+                        key={instance.id}
+                        type="button"
+                        className={`browse-picker-item ${target?.id === instance.id ? 'active' : ''}`}
+                        onClick={() => {
+                          onSelectCluster?.(instance.id);
+                          setInstancePickerOpen(false);
+                        }}
+                      >
+                        <span className="browse-picker-name">{instance.name}</span>
+                        <span className="browse-picker-meta">
+                          {`${versionOf(instance)} ${loaderOf(instance)}${activeType.id === 'mod' && instVanilla ? ' · No mods' : ''}`}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -816,6 +832,15 @@ export default function BrowseView({
           ))}
         </div>
       </div>
+
+      {isModOnVanilla && (
+        <div className="browse-vanilla-warning" role="alert">
+          <NativeIcon name="alert-triangle" size={16} />
+          <span>
+            <strong>{target?.name || 'Vanilla'}</strong> is a Vanilla instance. Minecraft Vanilla does not support mods. Switch to a Fabric, Forge, NeoForge, or Quilt instance to install mods.
+          </span>
+        </div>
+      )}
 
       <div className="browse-body-row">
         <aside className="browse-categories">
@@ -981,16 +1006,23 @@ export default function BrowseView({
                       ) : (
                         <button
                           type="button"
-                          className="content-install-btn"
+                          className={`content-install-btn ${isModOnVanilla ? 'is-disabled-vanilla' : ''}`}
                           onClick={() => handleInstall(project)}
-                          disabled={isBusy || (activeType.id !== 'modpack' && !target)}
+                          disabled={isBusy || (activeType.id !== 'modpack' && !target) || isModOnVanilla}
+                          title={isModOnVanilla ? 'Mods cannot be installed on Vanilla instances' : undefined}
                         >
                           {isBusy ? (
                             <NativeIcon name="refresh" size={14} className="is-spinning" />
                           ) : (
                             <NativeIcon name="download" size={14} />
                           )}
-                          <span>{activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</span>
+                          <span>
+                            {isModOnVanilla
+                              ? 'Vanilla (No Mods)'
+                              : activeType.id === 'modpack'
+                              ? t('browse.installPack')
+                              : t('common.install')}
+                          </span>
                         </button>
                       )}
                     </div>
@@ -1135,15 +1167,22 @@ export default function BrowseView({
 
               <button
                 type="button"
-                className="content-install-btn"
+                className={`content-install-btn ${isModOnVanilla ? 'is-disabled-vanilla' : ''}`}
                 onClick={() => {
                   handleInstall(detail);
                   setDetail(null);
                 }}
-                disabled={activeType.id !== 'modpack' && !target}
+                disabled={(activeType.id !== 'modpack' && !target) || isModOnVanilla}
+                title={isModOnVanilla ? 'Mods cannot be installed on Vanilla instances' : undefined}
               >
                 <NativeIcon name="download" size={14} />
-                <span>{activeType.id === 'modpack' ? t('browse.installPack') : t('common.install')}</span>
+                <span>
+                  {isModOnVanilla
+                    ? 'Vanilla (No Mods)'
+                    : activeType.id === 'modpack'
+                    ? t('browse.installPack')
+                    : t('common.install')}
+                </span>
               </button>
             </footer>
           </div>
@@ -1156,7 +1195,6 @@ export default function BrowseView({
         onCancel={() => setDepPrompt(null)}
         onConfirm={confirmDepPrompt}
       />
-      {renderToast()}
     </div>
   );
 }

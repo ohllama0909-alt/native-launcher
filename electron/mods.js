@@ -62,6 +62,23 @@ function cleanMetadata(metadata) {
   };
 }
 
+function isVanillaInstance(instanceId) {
+  if (!deps?.app) return false;
+  try {
+    const instPath = path.join(deps.app.getPath('userData'), 'instances.json');
+    if (!fs.existsSync(instPath)) return false;
+    const raw = fs.readFileSync(instPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed) ? parsed : parsed.instances || [];
+    const inst = list.find((item) => item && item.id === instanceId);
+    if (!inst) return false;
+    const loader = (inst.mc_loader || inst.loader || 'Vanilla').toLowerCase();
+    return !loader || loader === 'vanilla';
+  } catch {
+    return false;
+  }
+}
+
 function init(dependencies, ipcMain) {
   deps = dependencies;
 
@@ -90,6 +107,9 @@ function init(dependencies, ipcMain) {
   ipcMain.handle(
     'mods:install',
     async (_event, { instanceId, projectId, url, filename, folder = 'mods', metadata }) => {
+      if (folder === 'mods' && isVanillaInstance(instanceId)) {
+        throw new Error('Mods cannot be installed to Vanilla instances. Please use Fabric, Forge, NeoForge, or Quilt.');
+      }
       const parsedUrl = new URL(url);
       if (!['https:', 'http:'].includes(parsedUrl.protocol)) throw new Error('Unsupported download URL');
       const { dir, target } = validateDestination(instanceId, folder, filename);
@@ -123,4 +143,4 @@ function init(dependencies, ipcMain) {
   });
 }
 
-module.exports = { init, resolveInside, validateDestination, cleanMetadata };
+module.exports = { init, resolveInside, validateDestination, cleanMetadata, isVanillaInstance };
