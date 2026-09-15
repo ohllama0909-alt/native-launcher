@@ -21,7 +21,7 @@
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: var(--relay-rail) minmax(0, 1fr) minmax(210px, 252px);
+  grid-template-columns: var(--relay-rail) minmax(0, 1fr) 300px;
   background: var(--page);
   color: var(--fg-primary);
   font-family: var(--font-sans);
@@ -146,8 +146,13 @@
 .relay-activity-manage:hover { color: var(--fg-primary-hover) !important; border-color: var(--brand-border) !important; background: var(--brand-subtle) !important; }
 
 @media (max-width: 1080px) {
-  .relay-page { grid-template-columns: 260px minmax(0, 1fr); }
+  .relay-page { grid-template-columns: 260px minmax(0, 1fr) 280px; }
   .relay-activity { display: none; }
+}
+
+@media (max-width: 860px) {
+  .relay-page { grid-template-columns: 260px minmax(0, 1fr); }
+  .np-panel { display: none; }
 }
 
 @media (max-width: 760px) {
