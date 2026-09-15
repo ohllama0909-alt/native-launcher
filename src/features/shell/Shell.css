@@ -2,7 +2,9 @@
   position: relative;
   width: 100vw;
   height: 100vh;
-  background: var(--page);
+  background:
+    radial-gradient(circle at 70% 8%, rgba(70, 53, 255, .13), transparent 34%),
+    var(--page);
   overflow: hidden;
 }
 .shell-content-layer {
@@ -11,6 +13,9 @@
   inset: var(--navbar-height, 39px) 0 0 var(--nav-rail-width, 72px);
   display: flex;
   overflow: hidden;
+}
+.app-shell:has(.social-drawer) .shell-content-layer {
+  right: var(--social-drawer-width);
 }
 .shell-content-layer > * {
   flex: 1;
@@ -27,4 +32,8 @@
     opacity: 1;
     transform: none;
   }
+}
+
+@media (max-width: 1120px) {
+  .app-shell:has(.social-drawer) .shell-content-layer { right: 0; }
 }

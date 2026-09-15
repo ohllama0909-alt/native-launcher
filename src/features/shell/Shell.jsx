@@ -10,6 +10,8 @@ import LockerView from '../skins/LockerView.jsx';
 import NotificationDrawer from '../notifications/NotificationDrawer.jsx';
 import FriendContextMenu from '../social/FriendContextMenu.jsx';
 import NicknameModal from '../social/NicknameModal.jsx';
+import RelayPage from '../social/RelayPage.jsx';
+import SocialDrawer from './SocialDrawer.jsx';
 import useSocial from '../social/useSocial.js';
 import SettingsModal from '../settings/SettingsModal.jsx';
 import AccountSwitcherModal from '../auth/AccountSwitcherModal.jsx';
@@ -284,6 +286,23 @@ export default function Shell({
           />
         )}
 
+        {currentTab === 'relay' && (
+          isNoctra ? (
+            <RelayPage
+              account={account}
+              social={social}
+              onJoinServer={handleJoinServer}
+              onNotify={notify}
+            />
+          ) : (
+            <NoctraAccountGate
+              feature="relay"
+              onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
+              onBackHome={() => setCurrentTab('home')}
+            />
+          )
+        )}
+
 
         {instanceManagerOpen && instancesManager.selected && (
           <ClusterDetailView
@@ -301,6 +320,18 @@ export default function Shell({
           />
         )}
       </div>
+
+      {currentTab !== 'relay' && (
+        <SocialDrawer
+          friends={isNoctra ? social.friends : []}
+          account={account}
+          requests={isNoctra ? social.pendingRequestsTotal : 0}
+          onOpenRelay={(friend) => {
+            if (friend) social.setActiveChatFriend(friend);
+            setCurrentTab('relay');
+          }}
+        />
+      )}
 
       <NotificationDrawer
         open={notificationsOpen}
