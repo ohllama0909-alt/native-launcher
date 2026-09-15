@@ -407,8 +407,8 @@ export default function InstancesView({
               return (
                 <article
                   key={instance.id}
-                  className={`instance-card ${isSelected ? 'is-selected' : ''} ${
-                    running ? 'is-running' : ''
+                  className={`instance-card ${isSelected ? 'is-selected selected' : ''} ${
+                    running ? 'is-running running' : ''
                   } ${menuOpen ? 'menu-open' : ''}`}
                   tabIndex={0}
                   aria-label={`Manage ${instance.name}`}
@@ -437,7 +437,11 @@ export default function InstancesView({
 
                     <div
                       className="instance-card-hover"
-                      onClick={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        if (event.target !== event.currentTarget) {
+                          event.stopPropagation();
+                        }
+                      }}
                     >
                       <LaunchActionButton
                         instance={instance}
