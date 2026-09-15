@@ -7,10 +7,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  height: 50px;
-  min-width: 184px;
-  padding: 0 22px;
+  gap: 9px;
+  height: 48px;
+  min-width: 156px;
+  padding: 0 24px;
   overflow: hidden;
   border-radius: 12px;
   font-family: var(--font-sans);
@@ -21,28 +21,9 @@
   text-decoration: none;
   cursor: pointer;
   user-select: none;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 8px 24px var(--brand-glow);
   transition: transform .16s var(--ease-out), background-color .16s var(--ease-out), border-color .16s var(--ease-out), box-shadow .16s var(--ease-out);
-}
-
-/* A quiet stitched inset makes the primary game action read as a deliberate,
-   tactile control without adding visual weight to the rest of the interface. */
-.launch-action::after {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  z-index: 2;
-  border: 1px dashed color-mix(in srgb, currentColor 34%, transparent);
-  border-radius: 8px;
-  pointer-events: none;
-  opacity: .78;
-  transition: inset .16s var(--ease-out), opacity .16s var(--ease-out), border-color .16s var(--ease-out);
-}
-
-.launch-action:hover:not(:disabled)::after {
-  inset: 3px;
-  opacity: 1;
-  border-color: color-mix(in srgb, currentColor 52%, transparent);
 }
 
 .launch-action:focus-visible {
@@ -57,41 +38,63 @@
 
 /* ---------- States ---------- */
 
-/* Launch: Clean Apple High-Contrast Solid White */
+/* Launch: Clean High-Contrast Brand */
 .launch-action.is-launch {
   background: var(--brand);
   color: var(--fg-on-brand);
-  border-color: var(--brand-border);
-  box-shadow: 0 8px 24px var(--brand-glow);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 24px var(--brand-glow),
+    0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .launch-action.is-launch:hover:not(:disabled) {
   background: var(--brand-hover);
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1.5px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 12px 30px var(--brand-glow),
+    0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .launch-action.is-launch:active:not(:disabled) {
-  transform: scale(0.985);
+  transform: scale(0.98);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.2),
+    0 4px 14px var(--brand-glow);
 }
 
-/* Install & Download: Theme-aware Accent Gradient */
+/* Install & Download: Theme-aware Accent */
 .launch-action.is-install,
 .launch-action.is-download {
   background: var(--brand);
   color: var(--fg-on-brand, #ffffff);
-  border-color: var(--brand-border);
-  box-shadow: 0 8px 24px var(--brand-glow);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 24px var(--brand-glow),
+    0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .launch-action.is-install:hover:not(:disabled),
 .launch-action.is-download:hover:not(:disabled) {
   background: var(--brand-hover);
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1.5px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 12px 30px var(--brand-glow),
+    0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .launch-action.is-install:active:not(:disabled),
 .launch-action.is-download:active:not(:disabled) {
-  transform: scale(0.985);
+  transform: scale(0.98);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.2),
+    0 4px 14px var(--brand-glow);
 }
 
 /* Stop: Clean Apple System Red */
@@ -127,9 +130,7 @@
 /* ---------- Icon ---------- */
 
 .launch-action-icon {
-  position: absolute;
-  left: 19px;
-  z-index: 1;
+  flex: none;
   display: grid;
   place-items: center;
   transition: transform 0.2s ease;
@@ -142,7 +143,6 @@
 /* ---------- Text ---------- */
 
 .launch-action-text {
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -192,19 +192,11 @@
 
 .launch-action.size-md {
   height: 38px;
-  min-width: 148px;
-  gap: 7px;
+  min-width: 120px;
+  gap: 8px;
   padding: 0 18px;
   font-size: 13.5px;
-}
-
-.launch-action.size-md::after {
-  inset: 3px;
-  border-radius: 7px;
-}
-
-.launch-action.size-md .launch-action-icon {
-  left: 14px;
+  border-radius: 10px;
 }
 
 .launch-action.size-md .launch-action-sub {
@@ -217,15 +209,7 @@
   gap: 6px;
   padding: 0 14px;
   font-size: 12.5px;
-}
-
-.launch-action.size-sm::after {
-  inset: 3px;
-  border-radius: 6px;
-}
-
-.launch-action.size-sm .launch-action-icon {
-  left: 11px;
+  border-radius: 8px;
 }
 
 .launch-action.size-sm .launch-action-label {
@@ -243,10 +227,6 @@
   height: 38px;
   padding: 0;
   justify-content: center;
-}
-
-.launch-action.is-icon-only .launch-action-icon {
-  position: static;
 }
 
 .launch-action.is-icon-only .launch-action-text {

@@ -57,12 +57,12 @@ export default function LaunchActionButton({
     : isVerifying
       ? 'Checking game files'
       : isDownloading
-        ? (isInstalled ? 'Repairing game' : 'Installing Minecraft')
+        ? (isInstalled ? 'Repairing game' : 'Installing…')
         : isBusy
           ? (status === 'launching' ? 'Starting Minecraft' : 'Preparing game')
           : isInstalled
             ? t('home.launch')
-            : installLabel || 'Install Minecraft';
+            : installLabel || t('common.install') || 'Install';
 
   const percent = Math.max(0, Math.min(100, Number(launcherState?.percent) || 0));
   const busyDetail = isBusy ? (launcherState?.detail || launcherState?.task || '') : '';
