@@ -9,12 +9,12 @@ import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './SettingsModal.css';
 
 const TABS = [
-  { id: 'launcher', key: 'settings.launcher', icon: 'settings-02' },
-  { id: 'minecraft', key: 'settings.minecraft', icon: 'play' },
-  { id: 'appearance', key: 'settings.appearance', icon: 'paint-pour' },
-  { id: 'java', key: 'settings.java', icon: 'terminal' },
-  { id: 'storage', key: 'settings.storage', icon: 'database' },
-  { id: 'changelog', key: 'settings.changelog', icon: 'clock-rewind' }
+  { id: 'launcher', key: 'settings.launcher', icon: 'settings-02', desc: 'Language, behavior and updates' },
+  { id: 'minecraft', key: 'settings.minecraft', icon: 'play', desc: 'Default game preferences' },
+  { id: 'appearance', key: 'settings.appearance', icon: 'paint-pour', desc: 'Theme, contrast and motion' },
+  { id: 'java', key: 'settings.java', icon: 'terminal', desc: 'Runtime and launch arguments' },
+  { id: 'storage', key: 'settings.storage', icon: 'database', desc: 'Files, caches and disk usage' },
+  { id: 'changelog', key: 'settings.changelog', icon: 'clock-rewind', desc: 'Updates and release history' }
 ];
 
 const PREFS_KEY = 'native.preferences';
@@ -172,7 +172,9 @@ export default function SettingsModal({
       >
         <aside className="settings-sidebar">
           <div className="settings-sidebar-header">
+            <span className="settings-sidebar-kicker">NOCTRA CLIENT</span>
             <span className="settings-sidebar-title">{t('common.settings')}</span>
+            <span className="settings-sidebar-subtitle">Tune the launcher to your setup.</span>
           </div>
 
           {TABS.map((tab) => (
@@ -182,15 +184,23 @@ export default function SettingsModal({
               onClick={() => setActiveTab(tab.id)}
             >
               <Icon name={tab.icon} size={16} />
-              <span>{t(tab.key)}</span>
+              <span className="settings-nav-copy"><b>{t(tab.key)}</b><small>{tab.desc}</small></span>
             </button>
           ))}
+          <div className="settings-sidebar-footer">
+            <span>Noctra Client</span>
+            <b>v{window.native?.version || '1.0.0'}</b>
+          </div>
         </aside>
 
         <main className="settings-content-area">
           <div className="settings-content-header">
-            <h2 className="settings-pane-title">{t(TABS.find((tab) => tab.id === activeTab)?.key)}</h2>
-            <button className="icon-ctrl-btn" onClick={onClose}>
+            <div className="settings-pane-heading">
+              <span>{t('common.settings')}</span>
+              <h2 className="settings-pane-title">{t(TABS.find((tab) => tab.id === activeTab)?.key)}</h2>
+              <p>{TABS.find((tab) => tab.id === activeTab)?.desc}</p>
+            </div>
+            <button className="icon-ctrl-btn settings-close-btn" onClick={onClose} aria-label={t('common.close')}>
               <Icon name="x" size={16} />
             </button>
           </div>

@@ -44,7 +44,7 @@ export const RADIUS_PRESETS = [
 
 export const DEFAULT_APPEARANCE = {
   accent: '#4c9aff',
-  surface: 'midnight',
+  surface: 'black',
   contrast: 'normal',
   radius: 'soft',
   scale: 100,

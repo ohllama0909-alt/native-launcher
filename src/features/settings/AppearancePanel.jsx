@@ -13,15 +13,19 @@ import {
 } from '../../lib/appearance.js';
 import './AppearancePanel.css';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import cavesArt from '../../assets/backgrounds/CavesAndCliffs.jpg';
+import netherArt from '../../assets/backgrounds/Nether_Update.jpg';
+import trialsArt from '../../assets/backgrounds/Tricky_Trials.jpg';
+import wildArt from '../../assets/backgrounds/Wild_Update.jpg';
 
 /* Real theme values, hardcoded on purpose: the previews used to read live
    CSS variables, so every card painted with the *active* theme and looked
    blank/identical. These paint the actual palette of each option. */
 const SURFACE_SWATCHES = {
-  dim: { page: '#12151a', card: '#1a1f26', sunken: '#0e1116', line: '#242b34' },
-  dark: { page: '#0e1014', card: '#15191f', sunken: '#0a0c10', line: '#1f242c' },
-  midnight: { page: '#08090d', card: '#101319', sunken: '#050609', line: '#1a1f27' },
-  black: { page: '#000000', card: '#08090c', sunken: '#000000', line: '#131519' }
+  dim: { page: '#12151a', card: '#1a1f26', sunken: '#0e1116', line: '#2a313b', art: cavesArt },
+  dark: { page: '#0e1014', card: '#15191f', sunken: '#0a0c10', line: '#242a33', art: wildArt },
+  midnight: { page: '#08090d', card: '#101319', sunken: '#050609', line: '#1d222b', art: trialsArt },
+  black: { page: '#000000', card: '#08090c', sunken: '#000000', line: '#17191e', art: netherArt }
 };
 
 const RADIUS_PX = { sharp: 2, soft: 10, round: 18 };
@@ -31,31 +35,32 @@ function SurfacePreview({ surfaceId, accent, radius }) {
   const corner = RADIUS_PX[radius] ?? 10;
 
   return (
-    <div className="ap-mock" style={{ background: palette.page, borderColor: palette.line }}>
-      <div className="ap-mock-bar" style={{ background: palette.sunken, borderColor: palette.line }}>
-        <span className="ap-mock-dot" style={{ background: accent }} />
-        <span className="ap-mock-line" style={{ background: palette.line, width: 26 }} />
-        <span className="ap-mock-line" style={{ background: palette.line, width: 16 }} />
+    <div className="ap-mock" style={{ background: palette.page, borderColor: palette.line, '--preview-accent': accent, '--preview-corner': `${corner}px` }}>
+      <div className="ap-mock-sidebar" style={{ background: palette.sunken, borderColor: palette.line }}>
+        <span className="ap-mock-logo" style={{ background: accent }}>N</span>
+        <span className="ap-mock-nav is-active"><i style={{ background: accent }} /><b style={{ background: palette.line }} /></span>
+        <span className="ap-mock-nav"><i style={{ background: palette.line }} /><b style={{ background: palette.line }} /></span>
+        <span className="ap-mock-nav"><i style={{ background: palette.line }} /><b style={{ background: palette.line }} /></span>
       </div>
-
-      <div className="ap-mock-body">
-        <div
-          className="ap-mock-card"
-          style={{ background: palette.card, borderColor: palette.line, borderRadius: corner }}
-        >
-          <span className="ap-mock-line" style={{ background: palette.line, width: 34 }} />
-          <span className="ap-mock-line" style={{ background: palette.line, width: 20 }} />
+      <div className="ap-mock-main">
+        <div className="ap-mock-bar" style={{ background: palette.sunken, borderColor: palette.line }}>
+          <span className="ap-mock-line" style={{ background: palette.line, width: 24 }} />
+          <span className="ap-mock-line" style={{ background: palette.line, width: 14 }} />
         </div>
-
-        <div
-          className="ap-mock-card"
-          style={{ background: palette.card, borderColor: palette.line, borderRadius: corner }}
-        >
-          <span
-            className="ap-mock-pill"
-            style={{ background: accent, borderRadius: Math.max(3, corner - 3) }}
-          />
-          <span className="ap-mock-line" style={{ background: palette.line, width: 22 }} />
+        <div className="ap-mock-content">
+          <div className="ap-mock-hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.78), rgba(0,0,0,.12)), url(${palette.art})`, borderRadius: Math.max(3, corner - 2) }}>
+            <span className="ap-mock-hero-title" />
+            <span className="ap-mock-hero-copy" />
+            <span className="ap-mock-pill" style={{ background: accent, borderRadius: Math.max(3, corner - 4) }} />
+          </div>
+          <div className="ap-mock-cards">
+            {[0, 1, 2].map((item) => (
+              <span key={item} className="ap-mock-card" style={{ background: palette.card, borderColor: palette.line, borderRadius: Math.max(3, corner - 3) }}>
+                <i style={{ backgroundImage: `url(${palette.art})` }} />
+                <b style={{ background: palette.line }} />
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -207,11 +212,12 @@ export default function AppearancePanel() {
 
 
         <div className="ap-wallpaper-preview">
-          <div className="ap-wallpaper-art" />
+          <img className="ap-wallpaper-art" src={trialsArt} alt="" />
           <div
             className="ap-wallpaper-scrim"
             style={{ opacity: appearance.wallpaperDim / 100 }}
           />
+          <span className="ap-wallpaper-window"><i /><i /><i /></span>
           <div className="ap-wallpaper-text">
             <span className="ap-wallpaper-title">{t('appearance.homeWallpaper')}</span>
             <span className="ap-wallpaper-sub">{t('appearance.liveDim')}</span>

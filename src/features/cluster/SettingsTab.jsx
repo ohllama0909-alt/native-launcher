@@ -172,9 +172,15 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
           <small className="im-heading-badge">Overrides active profile only<br/>{cluster.name || cluster.version}</small>
         </header>
 
+        <div className="im-settings-summary" aria-label="Override summary">
+          <span className={r.enabled ? 'is-active' : ''}><Maximize2 size={14}/><b>Display</b><small>{r.enabled ? `${r.width} × ${r.height}` : 'Global default'}</small></span>
+          <span className={m.enabled ? 'is-active' : ''}><Cpu size={14}/><b>Memory</b><small>{m.enabled ? `${m.max} GB` : 'Global default'}</small></span>
+          <span className={draft.jvmEnabled ? 'is-active' : ''}><Code2 size={14}/><b>Java</b><small>{draft.jvmEnabled ? 'Custom runtime' : 'Automatic'}</small></span>
+        </div>
+
         {show('Game resolution fullscreen display aspect ratio', r.enabled) && (
           <section className="im-setting">
-            <Maximize2 size={22}/>
+            <span className={`im-setting-icon ${r.enabled ? 'is-active' : ''}`}><Maximize2 size={20}/></span>
             <div>
               <header>
                 <div>
@@ -237,6 +243,7 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
                     <button
                       type="button"
                       key={label}
+                      className={Number(r.width) === width && Number(r.height) === height ? 'is-active' : ''}
                       onClick={() => applySize(width, height)}
                     >
                       {label}
@@ -259,7 +266,7 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
 
         {show('Allocated memory RAM', m.enabled) && (
           <section className="im-setting">
-            <Cpu size={22}/>
+            <span className={`im-setting-icon ${m.enabled ? 'is-active' : ''}`}><Cpu size={20}/></span>
             <div>
               <header>
                 <div>
@@ -306,7 +313,7 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
 
         {show('JVM arguments Java executable performance', draft.jvmEnabled) && (
           <section className="im-setting">
-            <Code2 size={22}/>
+            <span className={`im-setting-icon ${draft.jvmEnabled ? 'is-active' : ''}`}><Code2 size={20}/></span>
             <div>
               <header>
                 <div>
