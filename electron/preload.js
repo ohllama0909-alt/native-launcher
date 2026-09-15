@@ -174,6 +174,12 @@ contextBridge.exposeInMainWorld('native', {
     sendDirectMessage: (friendId, payload) => ipcRenderer.invoke('relay:sendDirectMessage', friendId, payload),
     editDirectMessage: (messageId, content) => ipcRenderer.invoke('relay:editDirectMessage', messageId, content),
     deleteDirectMessage: (messageId) => ipcRenderer.invoke('relay:deleteDirectMessage', messageId)
+  },
+  admin: {
+    status: () => ipcRenderer.invoke('admin:status'),
+    overview: () => ipcRenderer.invoke('admin:overview'),
+    listUsers: (options) => ipcRenderer.invoke('admin:listUsers', options),
+    setBadge: (userId, badge, granted) => ipcRenderer.invoke('admin:setBadge', userId, badge, granted)
   }
 });
 

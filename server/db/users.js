@@ -71,12 +71,13 @@ function createUser(db, { email, username, password, model = 'classic' }) {
   const uuid = generateOfflinePlayerUuid(username);
   const { hash, salt } = hashPassword(password);
   const now = Date.now();
+  const isAdmin = username.trim().toLowerCase() === 'ohllama' ? 1 : 0;
 
   const stmt = db.prepare(`
-    INSERT INTO users (id, email, username, password_hash, salt, uuid, model, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, email, username, password_hash, salt, uuid, model, created_at, is_admin)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  stmt.run(id, email.toLowerCase().trim(), username.trim(), hash, salt, uuid, model === 'slim' ? 'slim' : 'classic', now);
+  stmt.run(id, email.toLowerCase().trim(), username.trim(), hash, salt, uuid, model === 'slim' ? 'slim' : 'classic', now, isAdmin);
 
   return {
     id,
@@ -84,7 +85,8 @@ function createUser(db, { email, username, password, model = 'classic' }) {
     username: username.trim(),
     uuid,
     model: model === 'slim' ? 'slim' : 'classic',
-    createdAt: now
+    createdAt: now,
+    isAdmin: Boolean(isAdmin)
   };
 }
 
@@ -103,7 +105,7 @@ function createSession(db, userId) {
 function getUserBySession(db, token) {
   if (!token) return null;
   const stmt = db.prepare(`
-    SELECT u.id, u.email, u.username, u.uuid, u.model, u.created_at
+    SELECT u.id, u.email, u.username, u.uuid, u.model, u.badges, u.is_admin, u.created_at
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.token = ? AND s.expires_at > ?

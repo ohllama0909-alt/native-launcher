@@ -4,6 +4,7 @@ import {
   FolderOpen,
   Image as ImageIcon,
   LoaderCircle,
+  Plus,
   RefreshCw,
   Send,
   Share2,
@@ -257,6 +258,11 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
     catch (reason) { setError(reason?.message || 'Could not reveal screenshot.'); }
   };
 
+  const openFolder = async () => {
+    try { await window.native?.instance?.openFolder?.(cluster.id, 'screenshots'); }
+    catch (reason) { setError(reason?.message || 'Could not open screenshots folder.'); }
+  };
+
   const canShare = Boolean(social?.isNoctra && social?.uploadMedia && social?.sendMessage);
   const requestShare = (shot) => {
     if (!canShare) {
@@ -275,7 +281,7 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
 
       <div className="sm-panel">
         <header className="sm-heading">
-          <span className="sm-heading-icon"><ImageIcon size={21}/></span>
+          <button className="im-add sm-add" onClick={openFolder} title="Open screenshots folder" aria-label="Open screenshots folder"><Plus size={20}/></button>
           <div><h2>Screenshot manager</h2><p>Preview, organize, and share your Minecraft moments through Relay.</p></div>
           <button onClick={load} disabled={loading} title="Refresh screenshots"><RefreshCw size={15} className={loading ? 'is-spinning' : ''}/></button>
         </header>
@@ -302,7 +308,7 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
             ))}
           </div>
         ) : (
-          <div className="sm-empty"><ImageIcon size={30}/><strong>{shots.length ? 'No screenshots match' : 'No screenshots yet'}</strong><span>{shots.length ? 'Try another search.' : 'Press F2 in Minecraft and your captures will appear here.'}</span><button onClick={() => window.native?.instance?.openFolder?.(cluster.id, 'screenshots')}><FolderOpen size={14}/> Open screenshots folder</button></div>
+          <div className="sm-empty"><ImageIcon size={30}/><strong>{shots.length ? 'No screenshots match' : 'No screenshots yet'}</strong><span>{shots.length ? 'Try another search.' : 'Press F2 in Minecraft and your captures will appear here.'}</span><button onClick={openFolder}><FolderOpen size={14}/> Open screenshots folder</button></div>
         )}
       </div>
 

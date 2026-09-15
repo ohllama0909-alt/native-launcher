@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ArrowUp, Blocks, Download, Home, Layers3, Lock, MessageSquare, Minus, PackageOpen, Radio, RefreshCw, Settings, User, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Blocks, Download, Home, Layers3, Lock, MessageSquare, Minus, PackageOpen, Radio, RefreshCw, Settings, ShieldCheck, User, WifiOff, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -105,7 +105,8 @@ export default function AppNavbar({
   networkStatus = null,
   onOpenUpdater,
   friendsBadge = 0,
-  liveUserCount = null
+  liveUserCount = null,
+  isAdmin = false
 }) {
   const { t } = useI18n();
   const buildVersion = window.native?.version || packageInfo.version;
@@ -198,6 +199,14 @@ export default function AppNavbar({
         </nav>
 
         <span className="rail-divider" aria-hidden="true" />
+
+        {isAdmin && (
+          <div className="rail-group" aria-label="Administration">
+            <RailButton icon={ShieldCheck} active={currentTab === 'admin'} onClick={() => onSelectTab('admin')} label="Admin control room" className="rail-admin-btn" />
+          </div>
+        )}
+
+        {isAdmin && <span className="rail-divider" aria-hidden="true" />}
 
         <div className="rail-spacer" />
 

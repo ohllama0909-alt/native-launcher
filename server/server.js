@@ -518,6 +518,55 @@ async function handler(req, res) {
       });
     }
 
+    // ── Admin APIs (session + database role required) ─────────────────────
+    if (url.pathname.startsWith('/v1/admin/')) {
+      const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+      const authUser = db.getUserBySession(token);
+      if (!authUser) {
+        return send(res, 401, { ok: false, error: 'Noctra account session required.' });
+      }
+      const isAdmin = Boolean(authUser.is_admin);
+
+      // Any authenticated client may ask whether its own session is an admin
+      // session. All database reads and mutations below still require the role.
+      if (req.method === 'GET' && url.pathname === '/v1/admin/status') {
+        return send(res, 200, { ok: true, isAdmin }, { 'Cache-Control': 'no-store' });
+      }
+      if (!isAdmin) {
+        return send(res, 403, { ok: false, error: 'Administrator access required.' });
+      }
+
+      if (req.method === 'GET' && url.pathname === '/v1/admin/overview') {
+        return send(res, 200, { ok: true, overview: db.getAdminOverview() }, { 'Cache-Control': 'no-store' });
+      }
+
+      if (req.method === 'GET' && url.pathname === '/v1/admin/users') {
+        const result = db.listAdminUsers({
+          query: url.searchParams.get('query') || '',
+          page: url.searchParams.get('page') || 1,
+          pageSize: url.searchParams.get('pageSize') || 50
+        });
+        return send(res, 200, { ok: true, ...result }, { 'Cache-Control': 'no-store' });
+      }
+
+      const badgeMatch = url.pathname.match(/^\/v1\/admin\/users\/([^/]+)\/badges$/);
+      if (req.method === 'POST' && badgeMatch) {
+        const body = await readJson(req);
+        if (typeof body.granted !== 'boolean') {
+          return send(res, 400, { ok: false, error: 'Badge state must be a boolean.' });
+        }
+        const result = db.setUserBadge(decodeURIComponent(badgeMatch[1]), body.badge, body.granted);
+        events.publish([...new Set([result.id, ...db.getFriendIds(result.id)])], 'friends:changed', {
+          actorId: authUser.id,
+          userId: result.id,
+          badgesChanged: true
+        });
+        return send(res, 200, { ok: true, user: result }, { 'Cache-Control': 'no-store' });
+      }
+
+      return send(res, 404, { ok: false, error: 'Admin endpoint not found.' });
+    }
+
     // ── Noctra Social APIs (Noctra authenticated users only) ─────────────
     if (url.pathname.startsWith('/v1/social/')) {
       const authHeader = req.headers.authorization || '';

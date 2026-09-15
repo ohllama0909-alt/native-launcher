@@ -10,6 +10,7 @@ const instance = { id: 'visual-121', name: 'Tricky Trials', version: '1.21.7', m
 let library = { instances: [instance], selectedId: instance.id };
 let manifest = Object.fromEntries(['Litematica', 'Mod Menu', 'Inventory Profiles Next', 'Chat Patches', 'FerriteCore'].map((title, i) => [String(i), { filename: `mod-${i}.jar`, folder: 'mods', metadata: { title, author: ['masa', 'Terraformers', 'blackd', 'OBro1961', 'malte0811'][i], version: ['0.26.3', '17.0.0', '2.3.1', '8.0-alpha.8', '8.2.0'][i] } }]));
 let failWorlds = false, failSave = false;
+let adminBadges = ['developer', 'early_supporter'];
 const screenshotArt = (hue, title) => `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><defs><linearGradient id="s" y2="1"><stop stop-color="hsl(${hue} 75% 55%)"/><stop offset="1" stop-color="hsl(${hue + 60} 80% 16%)"/></linearGradient></defs><rect width="640" height="360" fill="url(#s)"/><circle cx="500" cy="80" r="34" fill="#fff6a8"/><path d="M0 285 150 130l100 102 105-142 155 195z" fill="#172b28"/><path d="M0 300h640v60H0z" fill="#173b27"/><text x="24" y="335" fill="white" font-family="sans-serif" font-size="22">${title}</text></svg>`).toString('base64')}`;
 const screenshots = [{ name: 'castle-at-sunset.png', size: 1840000, modified: Date.now() - 7200000 }, { name: 'deep-dark-expedition.png', size: 960000, modified: Date.now() - 86400000 }];
 const handles = {
@@ -17,7 +18,7 @@ const handles = {
   'instances:save': (_e, next) => { if (failSave) throw new Error('Test disk failure'); library = next; return true; },
   'settings:load': () => ({ onboarding: { completed: true, language: 'en' }, memory: { min: 1, max: 4 }, resolution: { width: 854, height: 480, fullscreen: false } }),
   'settings:systemMemory': () => ({ totalGb: 32 }), 'settings:save': () => true,
-  'accounts:list': () => ({ accounts: [{ id: 'acc-1', name: 'Noctra', type: 'noctra', token: 'visual-token' }], activeId: 'acc-1' }),
+  'accounts:list': () => ({ accounts: [{ id: 'acc-1', name: 'OhLlama', type: 'noctra', token: 'visual-token' }], activeId: 'acc-1' }),
   'wardrobe:get': () => ({ active: null, skins: [], capes: [] }), 'wardrobe:sync': () => ({ ok: true }),
   'wardrobe:avatar': () => null,
   'instance:installedVersions': () => [{ version: '1.21.7', loader: 'Fabric' }], 'instance:isInstalled': () => true,
@@ -36,7 +37,11 @@ const handles = {
   'social:getRequests': () => ({ requests: { received: [], sent: [] } }),
   'social:getConversations': () => ({ conversations: {} }),
   'social:getBlocked': () => ({ blocked: [] }),
-  'relay:getGroups': () => ({ ok: true, groups: [{ id: 'group-1', name: 'Realm Crew', memberCount: 6 }] })
+  'relay:getGroups': () => ({ ok: true, groups: [{ id: 'group-1', name: 'Realm Crew', memberCount: 6 }] }),
+  'admin:status': () => ({ ok: true, isAdmin: true }),
+  'admin:overview': () => ({ ok: true, overview: { users: 128, activeSessions: 46, onlineUsers: 31, messages: 8912, groups: 24, friendships: 206, database: { engine: 'SQLite', journalMode: 'WAL', sizeBytes: 7340032, checkedAt: Date.now(), tables: [{ name: 'users', rows: 128 }, { name: 'sessions', rows: 46 }, { name: 'friends', rows: 412 }, { name: 'friend_requests', rows: 17 }, { name: 'messages', rows: 7400 }, { name: 'groups', rows: 24 }, { name: 'group_members', rows: 180 }, { name: 'group_messages', rows: 1512 }] } } }),
+  'admin:listUsers': () => ({ ok: true, users: [{ id: 'user-owner', email: 'owner@noctra.test', username: 'OhLlama', uuid: 'owner-uuid', isAdmin: true, badges: adminBadges, createdAt: Date.now() - 864000000, status: 'online', friendCount: 32, groupCount: 5, messageCount: 842 }, { id: 'user-builder', email: 'builder@noctra.test', username: 'BuilderBee', uuid: 'builder-uuid', isAdmin: false, badges: ['bug_hunter'], createdAt: Date.now() - 172800000, status: 'offline', friendCount: 8, groupCount: 2, messageCount: 94 }], page: 1, pageSize: 50, total: 2, totalPages: 1 }),
+  'admin:setBadge': (_e, id, badge, granted) => { if (id === 'user-owner') adminBadges = granted ? [...new Set([...adminBadges, badge])] : adminBadges.filter(item => item !== badge); return { ok: true, user: { id, badges: adminBadges } }; }
 };
 for (const [name, fn] of Object.entries(handles)) ipcMain.handle(name, fn);
 for (const name of ['window:minimize', 'window:maximize', 'window:close']) ipcMain.on(name, () => {});
@@ -86,6 +91,7 @@ app.whenReady().then(async () => {
     assert.equal(await js(`document.querySelectorAll('.im-world-art').length`), 2, 'World rows render colored artwork');
     await click('.im-nav-screenshots'); await pause(350);
     assert.equal(await js(`document.querySelectorAll('.sm-card').length`), 2, 'Screenshot manager renders image cards');
+    assert.equal(await js(`!!document.querySelector('.sm-heading .sm-add svg')`), true, 'Screenshot manager matches the plus action used by other content pages');
     await screenshot('screenshots');
     await click('.sm-card-actions button'); await pause(250);
     assert.equal(await js(`document.querySelectorAll('.sm-target-list > button').length`), 2, 'Share picker includes friends and groups');
@@ -128,7 +134,14 @@ app.whenReady().then(async () => {
     assert.equal(await js(`(() => { const el = document.querySelector('.instance-manager'); return el.scrollWidth <= el.clientWidth && el.getBoundingClientRect().right <= innerWidth; })()`), true, 'No modal overflow at compact size');
     await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`); await pause();
     assert.equal(await js(`!!document.querySelector('.instance-manager')`), false, 'Escape closes manager');
-    console.log('PASS: direct settings action, screenshot manager/preview, world artwork, Browse navigation/filter controls, modal geometry, backdrop, toggle/filter, error/retry, settings editing, draft preservation, save failure/success, reopen, focus, shader browser, compact layout and Escape.');
+    win.setSize(1200, 675); await pause();
+    await js(`Array.from(document.querySelectorAll('.rail-btn')).find(b => (b.getAttribute('aria-label') || '').toLowerCase().includes('admin control')).click()`); await pause(500);
+    assert.equal(await js(`!!document.querySelector('.admin-view') && document.querySelectorAll('.admin-user-row').length === 2`), true, 'Confirmed admins can open the control room and inspect users');
+    assert.equal(await js(`document.querySelector('.admin-db-panel').textContent.includes('group_messages')`), true, 'Database overview renders table counts');
+    await click('[title="Grant Noctra Staff"]'); await pause();
+    assert.equal(adminBadges.includes('staff'), true, 'Badge grant action reaches protected IPC');
+    await screenshot('admin');
+    console.log('PASS: screenshot plus action, manager/preview, world artwork, protected admin control room, database overview, badge granting, Browse controls, modal geometry, settings persistence, compact layout and Escape.');
     app.quit();
   } catch (error) { console.error(error); await screenshot('failure'); app.exit(1); }
 });

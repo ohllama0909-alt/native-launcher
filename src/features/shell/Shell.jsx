@@ -19,6 +19,7 @@ import useLauncher from '../launcher/useLauncher.js';
 import useInstances from '../instances/useInstances.js';
 import usePlaytimeTracker from '../instances/usePlaytimeTracker.js';
 import NoctraAccountGate from '../../components/ui/NoctraAccountGate.jsx';
+import AdminView from '../admin/AdminView.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './Shell.css';
 
@@ -75,6 +76,7 @@ export default function Shell({
   const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
   const [relayActiveThreadId, setRelayActiveThreadId] = useState(null);
@@ -103,6 +105,22 @@ export default function Shell({
   usePlaytimeTracker(instancesManager.recordSession, { launcherState: launcher });
   const social = useSocial(isNoctra ? account : null);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!isNoctra) {
+      setIsAdmin(false);
+      return undefined;
+    }
+    window.native?.admin?.status?.()
+      .then((result) => { if (!cancelled) setIsAdmin(Boolean(result?.ok && result?.isAdmin)); })
+      .catch(() => { if (!cancelled) setIsAdmin(false); });
+    return () => { cancelled = true; };
+  }, [account?.id, isNoctra]);
+
+  useEffect(() => {
+    if (currentTab === 'admin' && !isAdmin) setCurrentTab('home');
+  }, [currentTab, isAdmin]);
+
   const notify = useCallback((title, body) => {
     setNotifications((prev) =>
       [
@@ -116,6 +134,12 @@ export default function Shell({
       ].slice(0, 60)
     );
   }, [locale]);
+
+  const revokeAdminView = useCallback(() => {
+    setIsAdmin(false);
+    setCurrentTab('home');
+    notify('Admin session ended', 'Your account no longer has access to the control room.');
+  }, [notify]);
 
   /* Relay emits `{ type, message }` payloads; the drawer wants title + body. */
   const notifyRelay = useCallback((payload, body) => {
@@ -288,6 +312,7 @@ export default function Shell({
         onOpenUpdater={openUpdater}
         friendsBadge={isNoctra ? social.badgeTotal : 0}
         liveUserCount={social.liveUserCount}
+        isAdmin={isAdmin}
       />
 
       <div className="shell-content-layer">
@@ -397,6 +422,10 @@ export default function Shell({
             onOpenCluster={handleOpenCluster}
             onNotify={notify}
           />
+        )}
+
+        {currentTab === 'admin' && isAdmin && (
+          <AdminView onNotify={notify} onAccessRevoked={revokeAdminView} />
         )}
 
 

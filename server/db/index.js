@@ -5,6 +5,7 @@ const { initSchema } = require('./schema');
 const usersMod = require('./users');
 const socialMod = require('./social');
 const relayMod = require('./relay');
+const adminMod = require('./admin');
 
 const DATA_DIR = path.resolve(
   process.env.NOCTRA_DATA_DIR ||
@@ -101,6 +102,11 @@ module.exports = {
   createSession: (userId) => usersMod.createSession(getDb(), userId),
   getUserBySession: (token) => usersMod.getUserBySession(getDb(), token),
   deleteSession: (token) => usersMod.deleteSession(getDb(), token),
+
+  // Server-protected administration (sanitized rows only)
+  getAdminOverview: () => adminMod.getOverview(getDb()),
+  listAdminUsers: (options) => adminMod.listUsers(getDb(), options),
+  setUserBadge: (userId, badgeId, granted) => adminMod.setUserBadge(getDb(), userId, badgeId, granted),
 
   // Social & Presence
   updatePresence: (userId, data) => socialMod.updatePresence(getDb(), userId, data),
