@@ -31,171 +31,183 @@ export default function UserProfilePanel({
   const isOnline = status === 'in-launcher' || status === 'online';
   const statusLabel = isPlaying ? 'Playing' : (isOnline ? 'Online' : 'Offline');
   const statusColor = presence?.color || (isPlaying ? '#f23f43' : isOnline ? '#23a55a' : '#80848e');
+  const bio = user.bio || user.about || user.status || '';
 
   return (
     <aside className="np-panel" role="complementary" aria-label="User Profile">
-      <button
-        type="button"
-        className="np-close"
-        onClick={onClose}
-        aria-label="Close Profile"
-        title="Close Profile"
-      >
-        <X size={16} />
-      </button>
-
-      {/* Identity */}
-      <div className="np-identity">
-        <div className="np-avatar-ring" style={{ '--np-ring': statusColor }}>
-          <RelayAvatar
-            name={user.name}
-            skinUrl={user.skinUrl}
-            size={80}
-            status={status}
-            showStatus
-            className="np-avatar"
-          />
-        </div>
-
-        <h3 className="np-name">{user.nickname || user.name}</h3>
-        <span className="np-handle">@{user.name}</span>
-
-        <span className="np-status-pill" style={{ '--np-dot': statusColor }}>
-          <span className="np-status-dot" />
-          {statusLabel}
-        </span>
-
-        <div className="np-badges">
-          <Badges user={user} size={20} />
-        </div>
+      {/* Appearance-color banner */}
+      <div className="np-banner">
+        <button
+          type="button"
+          className="np-close"
+          onClick={onClose}
+          aria-label="Close Profile"
+          title="Close Profile"
+        >
+          <X size={15} />
+        </button>
       </div>
 
-      {/* Activity */}
-      <div className="np-block">
-        <span className="np-label">Activity</span>
-        <div className={`np-card np-activity ${isPlaying ? 'is-playing' : ''}`}>
-          <span className="np-activity-icon">
-            <Gamepad2 size={18} />
+      {/* Avatar overlapping the banner */}
+      <div className="np-avatar-wrap" style={{ '--np-ring': statusColor }}>
+        <RelayAvatar
+          name={user.name}
+          skinUrl={user.skinUrl}
+          size={74}
+          status={status}
+          showStatus
+          className="np-avatar"
+        />
+      </div>
+
+      <div className="np-body">
+        {/* Identity */}
+        <div className="np-identity">
+          <div className="np-name-row">
+            <h3 className="np-name">{user.nickname || user.name}</h3>
+            <span className="np-name-badges">
+              <Badges user={user} size={18} />
+            </span>
+          </div>
+          <span className="np-handle">@{user.name}</span>
+
+          <span className="np-status-pill" style={{ '--np-dot': statusColor }}>
+            <span className="np-status-dot" />
+            {statusLabel}
           </span>
-          <div className="np-activity-text">
-            <strong>{isPlaying ? (presence?.text || 'In-game') : (isOnline ? 'In Launcher' : 'Not playing')}</strong>
-            {isPlaying && presence?.serverAddress ? (
-              <span className="np-activity-sub">
-                <Server size={11} />
-                {presence.serverAddress}
-              </span>
-            ) : (
-              <span className="np-activity-sub">{isPlaying ? 'Minecraft' : 'No active game'}</span>
+
+          {bio ? <p className="np-bio">{bio}</p> : null}
+        </div>
+
+        <div className="np-divider" />
+
+        {/* Activity */}
+        <div className="np-block">
+          <span className="np-label">Activity</span>
+          <div className={`np-card np-activity ${isPlaying ? 'is-playing' : ''}`}>
+            <span className="np-activity-icon">
+              <Gamepad2 size={18} />
+            </span>
+            <div className="np-activity-text">
+              <strong>{isPlaying ? (presence?.text || 'In-game') : (isOnline ? 'In Launcher' : 'Not playing')}</strong>
+              {isPlaying && presence?.serverAddress ? (
+                <span className="np-activity-sub">
+                  <Server size={11} />
+                  {presence.serverAddress}
+                </span>
+              ) : (
+                <span className="np-activity-sub">{isPlaying ? 'Minecraft' : 'No active game'}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Details */}
+        <div className="np-block">
+          <span className="np-label">Details</span>
+          <div className="np-card np-details">
+            <div className="np-detail-row">
+              <CalendarDays size={15} />
+              <div className="np-detail-copy">
+                <span className="np-detail-key">Member since</span>
+                <span className="np-detail-val">{formatMemberDate(user.memberSince || user.createdAt)}</span>
+              </div>
+            </div>
+            {user.friendsSince && (
+              <div className="np-detail-row">
+                <UserMinus size={15} />
+                <div className="np-detail-copy">
+                  <span className="np-detail-key">Friends since</span>
+                  <span className="np-detail-val">{formatMemberDate(user.friendsSince)}</span>
+                </div>
+              </div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Details */}
-      <div className="np-block">
-        <span className="np-label">Details</span>
-        <div className="np-card np-details">
-          <div className="np-detail-row">
-            <CalendarDays size={15} />
-            <div className="np-detail-copy">
-              <span className="np-detail-key">Member since</span>
-              <span className="np-detail-val">{formatMemberDate(user.memberSince || user.createdAt)}</span>
-            </div>
+        {/* Actions */}
+        {!isGroup && (
+          <div className="np-actions">
+            {confirmClear ? (
+              <div className="np-confirm">
+                <span>Clear chat history?</span>
+                <div className="np-confirm-btns">
+                  <button
+                    type="button"
+                    className="np-confirm-yes"
+                    onClick={() => {
+                      setConfirmClear(false);
+                      onClearHistory?.(user.id);
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button type="button" className="np-confirm-no" onClick={() => setConfirmClear(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="np-action" onClick={() => setConfirmClear(true)}>
+                <Trash2 size={15} />
+                <span>Clear chat history</span>
+              </button>
+            )}
+
+            {confirmUnfriend ? (
+              <div className="np-confirm">
+                <span>Remove @{user.name}?</span>
+                <div className="np-confirm-btns">
+                  <button
+                    type="button"
+                    className="np-confirm-yes is-danger"
+                    onClick={() => {
+                      setConfirmUnfriend(false);
+                      onUnfriend?.(user.id);
+                    }}
+                  >
+                    Unfriend
+                  </button>
+                  <button type="button" className="np-confirm-no" onClick={() => setConfirmUnfriend(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="np-action" onClick={() => setConfirmUnfriend(true)}>
+                <UserMinus size={15} />
+                <span>Remove friend</span>
+              </button>
+            )}
+
+            {confirmBlock ? (
+              <div className="np-confirm">
+                <span>Block @{user.name}?</span>
+                <div className="np-confirm-btns">
+                  <button
+                    type="button"
+                    className="np-confirm-yes is-danger"
+                    onClick={() => {
+                      setConfirmBlock(false);
+                      onBlock?.(user.id);
+                    }}
+                  >
+                    Block
+                  </button>
+                  <button type="button" className="np-confirm-no" onClick={() => setConfirmBlock(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="np-action is-danger" onClick={() => setConfirmBlock(true)}>
+                <Ban size={15} />
+                <span>Block user</span>
+              </button>
+            )}
           </div>
-          {user.friendsSince && (
-            <div className="np-detail-row">
-              <UserMinus size={15} />
-              <div className="np-detail-copy">
-                <span className="np-detail-key">Friends since</span>
-                <span className="np-detail-val">{formatMemberDate(user.friendsSince)}</span>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-
-      {/* Actions */}
-      {!isGroup && (
-        <div className="np-actions">
-          {confirmClear ? (
-            <div className="np-confirm">
-              <span>Clear chat history?</span>
-              <div className="np-confirm-btns">
-                <button
-                  type="button"
-                  className="np-confirm-yes"
-                  onClick={() => {
-                    setConfirmClear(false);
-                    onClearHistory?.(user.id);
-                  }}
-                >
-                  Clear
-                </button>
-                <button type="button" className="np-confirm-no" onClick={() => setConfirmClear(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button type="button" className="np-action" onClick={() => setConfirmClear(true)}>
-              <Trash2 size={15} />
-              <span>Clear chat history</span>
-            </button>
-          )}
-
-          {confirmUnfriend ? (
-            <div className="np-confirm">
-              <span>Remove @{user.name}?</span>
-              <div className="np-confirm-btns">
-                <button
-                  type="button"
-                  className="np-confirm-yes is-danger"
-                  onClick={() => {
-                    setConfirmUnfriend(false);
-                    onUnfriend?.(user.id);
-                  }}
-                >
-                  Unfriend
-                </button>
-                <button type="button" className="np-confirm-no" onClick={() => setConfirmUnfriend(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button type="button" className="np-action" onClick={() => setConfirmUnfriend(true)}>
-              <UserMinus size={15} />
-              <span>Remove friend</span>
-            </button>
-          )}
-
-          {confirmBlock ? (
-            <div className="np-confirm">
-              <span>Block @{user.name}?</span>
-              <div className="np-confirm-btns">
-                <button
-                  type="button"
-                  className="np-confirm-yes is-danger"
-                  onClick={() => {
-                    setConfirmBlock(false);
-                    onBlock?.(user.id);
-                  }}
-                >
-                  Block
-                </button>
-                <button type="button" className="np-confirm-no" onClick={() => setConfirmBlock(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button type="button" className="np-action is-danger" onClick={() => setConfirmBlock(true)}>
-              <Ban size={15} />
-              <span>Block user</span>
-            </button>
-          )}
-        </div>
-      )}
     </aside>
   );
 }
