@@ -204,8 +204,13 @@
   border: 1px solid var(--brand-border);
   display: grid;
   place-items: center;
-  color: var(--brand);
+  color: #ffffff !important;
   flex: none;
+}
+
+.relay-modal__badge svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 
 .relay-modal__close-btn {
@@ -286,9 +291,11 @@
 }
 
 .relay-group-icon-picker:hover:not(:disabled) {
-  border-color: #ffffff;
+  border-style: dotted !important;
+  border-width: 1.5px !important;
+  border-color: #ffffff !important;
   background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 16px rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
 }
 
 .relay-group-icon-placeholder {

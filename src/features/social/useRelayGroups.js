@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
  * unread counts in sync without extra polling.
  */
 
-const EMPTY_THREAD = Object.freeze({ messages: [], hasMore: false, oldestTime: null });
+const EMPTY_THREAD = Object.freeze({ messages: [], hasMore: false, oldestTime: null, loaded: false, loading: false });
 const THREAD_PAGE_SIZE = 50;
 const TYPING_TTL = 6_000;
 
@@ -46,6 +46,9 @@ export function useRelayGroups({ selfId, selfName } = {}) {
   const [replyTarget, setReplyTarget] = useState(null);
   const [groupError, setGroupError] = useState(null);
 
+  const inFlightThreadsRef = useRef(new Set());
+  const threadsRef = useRef({});
+  threadsRef.current = threads;
   const activeGroupRef = useRef(null);
   const typingSentAt = useRef(0);
   activeGroupRef.current = activeGroupId;
@@ -61,8 +64,29 @@ export function useRelayGroups({ selfId, selfName } = {}) {
     if (!api) { setLoadingGroups(false); return; }
     const result = await api.getGroups();
     if (result?.ok) {
-      setGroups(result.groups || []);
+      const list = result.groups || [];
+      setGroups(list);
       setGroupError(null);
+      // Preload recent group messages in background so opening any group is instantaneous
+      if (list.length > 0) {
+        Promise.allSettled(
+          list.map(async (group) => {
+            const res = await api.getGroupMessages(group.id, { limit: 25 });
+            if (res?.ok) {
+              setThreads((previous) => ({
+                ...previous,
+                [group.id]: {
+                  messages: mergeMessages(previous[group.id]?.messages, res.messages || []),
+                  hasMore: Boolean(res.hasMore),
+                  oldestTime: res.oldestTime,
+                  loaded: true,
+                  loading: false
+                }
+              }));
+            }
+          })
+        );
+      }
     } else if (result?.error) {
       setGroupError(result.error);
     }
@@ -94,25 +118,43 @@ export function useRelayGroups({ selfId, selfName } = {}) {
 
   // ── Threads ────────────────────────────────────────────────────────
 
-  const loadThread = useCallback(async (groupId) => {
+  const loadThread = useCallback(async (groupId, { force = false } = {}) => {
     const api = relay();
     if (!api || !groupId) return;
-    setLoadingThread(true);
-    const result = await api.getGroupMessages(groupId, { limit: THREAD_PAGE_SIZE });
-    if (result?.ok) {
-      setThreads((previous) => ({
-        ...previous,
-        [groupId]: {
-          messages: mergeMessages(previous[groupId]?.messages, result.messages),
-          hasMore: Boolean(result.hasMore),
-          oldestTime: result.oldestTime
-        }
-      }));
-      setGroups((previous) => previous.map((item) => (item.id === groupId ? { ...item, unreadCount: 0 } : item)));
-    } else if (result?.error) {
-      setGroupError(result.error);
+    if (inFlightThreadsRef.current.has(groupId)) return;
+
+    const existingThread = threadsRef.current[groupId];
+    const hasMessages = Boolean(existingThread?.loaded || (existingThread?.messages && existingThread.messages.length > 0));
+
+    // Only show loading skeleton if we don't already have messages in memory
+    if (!hasMessages) {
+      setLoadingThread(true);
     }
-    setLoadingThread(false);
+
+    inFlightThreadsRef.current.add(groupId);
+    try {
+      const result = await api.getGroupMessages(groupId, { limit: THREAD_PAGE_SIZE });
+      if (result?.ok) {
+        setThreads((previous) => ({
+          ...previous,
+          [groupId]: {
+            messages: mergeMessages(previous[groupId]?.messages, result.messages || []),
+            hasMore: Boolean(result.hasMore),
+            oldestTime: result.oldestTime,
+            loaded: true,
+            loading: false
+          }
+        }));
+        setGroups((previous) => previous.map((item) => (item.id === groupId ? { ...item, unreadCount: 0 } : item)));
+      } else if (result?.error) {
+        setGroupError(result.error);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      inFlightThreadsRef.current.delete(groupId);
+      setLoadingThread(false);
+    }
   }, []);
 
   const loadOlder = useCallback(async (groupId) => {
@@ -130,7 +172,9 @@ export function useRelayGroups({ selfId, selfName } = {}) {
         [groupId]: {
           messages: mergeMessages(result.messages, previous[groupId]?.messages),
           hasMore: Boolean(result.hasMore),
-          oldestTime: result.oldestTime || previous[groupId]?.oldestTime
+          oldestTime: result.oldestTime || previous[groupId]?.oldestTime,
+          loaded: true,
+          loading: false
         }
       }));
     }
@@ -139,7 +183,10 @@ export function useRelayGroups({ selfId, selfName } = {}) {
   const openGroup = useCallback((groupId) => {
     setActiveGroupId(groupId);
     setReplyTarget(null);
-    if (groupId) loadThread(groupId);
+    if (groupId) {
+      relay()?.markGroupRead?.(groupId);
+      loadThread(groupId);
+    }
   }, [loadThread]);
 
   // ── Live events ────────────────────────────────────────────────────
@@ -501,6 +548,7 @@ export function useRelayGroups({ selfId, selfName } = {}) {
     closeGroup: () => setActiveGroupId(null),
 
     messages: activeThread.messages,
+    threads,
     hasMoreMessages: activeThread.hasMore,
     activeReadAt,
     loadingThread,

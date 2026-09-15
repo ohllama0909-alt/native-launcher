@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PlayerAvatar from './PlayerAvatar.jsx';
-import { FALLBACK_SKIN, isLocalIdentity, SKIN_SERVICE, skinIdentifier } from '../../lib/skins.js';
+import { FALLBACK_SKIN, isLocalIdentity, isSlimArmTexture, sanitizeSkinArms, SKIN_SERVICE, skinIdentifier } from '../../lib/skins.js';
 
 const SKIN_PATH = '/skin/';
 const CAPE_PATH = '/cape/';
@@ -20,6 +20,38 @@ export function capeTextureUrl(account) {
   if (!account || account?.capeUrl === null || account?.capeUrl === false || account?.hasCape === false) return null;
   if (account?.capeUrl) return account.capeUrl;
   return null;
+}
+
+function prepareSkinSource(url, modelOption) {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined' || !url) {
+      resolve({ source: url, model: modelOption });
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        if (img.naturalWidth === 64 && img.naturalHeight === 64) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 64;
+          canvas.height = 64;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(img, 0, 0);
+          const isSlim = isSlimArmTexture(ctx);
+          sanitizeSkinArms(canvas);
+          const resolvedModel = isSlim ? 'slim' : (modelOption === 'slim' ? 'slim' : 'default');
+          resolve({ source: canvas, model: resolvedModel });
+          return;
+        }
+      } catch {
+        /* fallback to url */
+      }
+      resolve({ source: url, model: modelOption });
+    };
+    img.onerror = () => resolve({ source: url, model: modelOption });
+    img.src = url;
+  });
 }
 
 /**
@@ -162,9 +194,12 @@ export default function SkinViewer3D({
       loadedSkinRef.current = skinUrl;
       loadedModelRef.current = modelOption;
       const reqId = ++skinReqRef.current;
-      viewer.loadSkin(skinUrl, { model: modelOption }).then(() => {
+      prepareSkinSource(skinUrl, modelOption).then(({ source, model }) => {
         if (reqId !== skinReqRef.current) return;
-        if (viewer.renderPaused) viewer.render();
+        return viewer.loadSkin(source, { model }).then(() => {
+          if (reqId !== skinReqRef.current) return;
+          if (viewer.renderPaused) viewer.render();
+        });
       }).catch(() => {
         if (reqId !== skinReqRef.current) return;
         viewer.loadSkin(SKIN_SERVICE + SKIN_PATH + FALLBACK_SKIN).then(() => {

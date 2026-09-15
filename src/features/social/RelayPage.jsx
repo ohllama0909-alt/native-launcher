@@ -885,9 +885,11 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   }, []);
 
   const activePresence = getPresence(activeEntity);
-  const activeThreadState = !isGroupThread && activeEntity ? social?.conversations?.[activeEntity.id] : null;
+  const activeThreadState = isGroupThread
+    ? relayGroups.threads?.[activeEntity?.id]
+    : social?.conversations?.[activeEntity?.id];
   const isLoadingThread = isGroupThread
-    ? Boolean(relayGroups.loadingThread)
+    ? Boolean(!activeThreadState?.loaded && (!activeThreadState?.messages || activeThreadState.messages.length === 0) && relayGroups.loadingThread)
     : Boolean(activeThreadState?.loading) || Boolean(activeEntity && !activeThreadState?.loaded);
 
   if (social && social.isNoctra === false) {
