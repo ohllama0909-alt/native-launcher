@@ -17,11 +17,32 @@
   font-size: 14.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
   user-select: none;
   border: 1px solid transparent;
   transition: transform .16s var(--ease-out), background-color .16s var(--ease-out), border-color .16s var(--ease-out), box-shadow .16s var(--ease-out);
+}
+
+/* A quiet stitched inset makes the primary game action read as a deliberate,
+   tactile control without adding visual weight to the rest of the interface. */
+.launch-action::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  z-index: 2;
+  border: 1px dashed color-mix(in srgb, currentColor 34%, transparent);
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: .78;
+  transition: inset .16s var(--ease-out), opacity .16s var(--ease-out), border-color .16s var(--ease-out);
+}
+
+.launch-action:hover:not(:disabled)::after {
+  inset: 3px;
+  opacity: 1;
+  border-color: color-mix(in srgb, currentColor 52%, transparent);
 }
 
 .launch-action:focus-visible {
@@ -106,7 +127,9 @@
 /* ---------- Icon ---------- */
 
 .launch-action-icon {
-  flex: none;
+  position: absolute;
+  left: 19px;
+  z-index: 1;
   display: grid;
   place-items: center;
   transition: transform 0.2s ease;
@@ -119,11 +142,14 @@
 /* ---------- Text ---------- */
 
 .launch-action-text {
+  width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   line-height: 1.15;
+  text-align: center;
 }
 
 .launch-action-label {
@@ -166,10 +192,19 @@
 
 .launch-action.size-md {
   height: 38px;
-  min-width: 120px;
+  min-width: 148px;
   gap: 7px;
   padding: 0 18px;
   font-size: 13.5px;
+}
+
+.launch-action.size-md::after {
+  inset: 3px;
+  border-radius: 7px;
+}
+
+.launch-action.size-md .launch-action-icon {
+  left: 14px;
 }
 
 .launch-action.size-md .launch-action-sub {
@@ -182,6 +217,15 @@
   gap: 6px;
   padding: 0 14px;
   font-size: 12.5px;
+}
+
+.launch-action.size-sm::after {
+  inset: 3px;
+  border-radius: 6px;
+}
+
+.launch-action.size-sm .launch-action-icon {
+  left: 11px;
 }
 
 .launch-action.size-sm .launch-action-label {
@@ -199,6 +243,10 @@
   height: 38px;
   padding: 0;
   justify-content: center;
+}
+
+.launch-action.is-icon-only .launch-action-icon {
+  position: static;
 }
 
 .launch-action.is-icon-only .launch-action-text {

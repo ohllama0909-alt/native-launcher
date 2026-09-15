@@ -39,6 +39,19 @@ app.whenReady().then(async () => {
   try {
     await win.loadFile(path.join(__dirname, '../dist/index.html')); await pause(1500);
     await js(`Array.from(document.querySelectorAll('.rail-btn')).find(b => (b.getAttribute('aria-label') || '').toLowerCase().includes('instances')).click()`); await pause();
+    const launchActionVisual = await js(`(() => {
+      const button = document.querySelector('.instance-card .launch-action');
+      const label = button?.querySelector('.launch-action-label');
+      if (!button || !label) return null;
+      const buttonRect = button.getBoundingClientRect();
+      const labelRect = label.getBoundingClientRect();
+      return {
+        centerDelta: Math.abs((buttonRect.left + buttonRect.width / 2) - (labelRect.left + labelRect.width / 2)),
+        insetBorder: getComputedStyle(button, '::after').borderTopStyle
+      };
+    })()`);
+    assert.equal(launchActionVisual?.centerDelta < 2, true, 'Launch/install label is visually centered');
+    assert.equal(launchActionVisual?.insetBorder, 'dashed', 'Launch/install action has a stitched inset border');
     assert.equal(await js(`!!document.querySelector('.instance-card-settings-btn')`), true, 'Instance cards expose a direct settings action');
     await click('.instances-browse-link-btn'); await pause();
     assert.equal(await js(`!!document.querySelector('.browse-back-link')`), false, 'Instances Browse tab has no redundant back link');
