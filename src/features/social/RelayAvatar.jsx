@@ -123,7 +123,6 @@ export default function RelayAvatar({
         height: pixels,
         flex: 'none',
         borderRadius: 'var(--radius-sm, 6px)',
-        overflow: 'hidden',
         background: 'var(--component-bg, #19171e)',
         display: 'grid',
         placeItems: 'center'
@@ -132,7 +131,13 @@ export default function RelayAvatar({
       <span
         role="img"
         aria-label={name || 'Avatar'}
-        style={{ position: 'absolute', inset: 0, overflow: 'hidden', imageRendering: 'pixelated' }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 'inherit',
+          overflow: 'hidden',
+          imageRendering: 'pixelated'
+        }}
       >
         <SkinFaceLayer
           src={resolvedSkin}
@@ -150,13 +155,13 @@ export default function RelayAvatar({
           className={`relay-presence-badge ${status}`}
           style={{
             position: 'absolute',
-            right: 0,
-            bottom: 0,
-            width: Math.max(9, Math.round(pixels * 0.28)),
-            height: Math.max(9, Math.round(pixels * 0.28)),
+            right: pixels >= 48 ? -3 : -2,
+            bottom: pixels >= 48 ? -3 : -2,
+            width: Math.max(9, Math.round(pixels * 0.26)),
+            height: Math.max(9, Math.round(pixels * 0.26)),
             borderRadius: '50%',
             backgroundColor: statusColor,
-            border: '2px solid var(--page-elevated, #111013)',
+            border: `${pixels >= 48 ? 3 : 2}px solid var(--page-elevated, #111013)`,
             boxShadow: status === 'in-game' ? '0 0 6px rgba(242, 63, 67, 0.7)' : (status === 'in-launcher' || status === 'online' ? '0 0 6px rgba(35, 165, 90, 0.5)' : 'none'),
             zIndex: 2
           }}

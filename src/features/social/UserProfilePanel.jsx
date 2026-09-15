@@ -29,7 +29,6 @@ export default function UserProfilePanel({
   const status = presence?.status || 'offline';
   const isPlaying = status === 'in-game';
   const isOnline = status === 'in-launcher' || status === 'online';
-  const statusLabel = isPlaying ? 'Playing' : (isOnline ? 'Online' : 'Offline');
   const statusColor = presence?.color || (isPlaying ? '#f23f43' : isOnline ? '#23a55a' : '#80848e');
   const bio = user.bio || user.about || user.status || '';
 
@@ -70,11 +69,6 @@ export default function UserProfilePanel({
             </span>
           </div>
           <span className="np-handle">@{user.name}</span>
-
-          <span className="np-status-pill" style={{ '--np-dot': statusColor }}>
-            <span className="np-status-dot" />
-            {statusLabel}
-          </span>
 
           {bio ? <p className="np-bio">{bio}</p> : null}
         </div>
