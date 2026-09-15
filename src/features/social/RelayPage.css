@@ -474,8 +474,11 @@
 }
 
 .relay-thread-action-btn.is-active {
-  color: var(--brand);
+  background: var(--brand-subtle);
+  color: #fff;
 }
+
+.relay-thread-action-btn.is-active svg { color: #fff; stroke: #fff; }
 
 .relay-thread-flag.is-pinned {
   color: var(--brand);
@@ -819,7 +822,8 @@
 }
 
 .relay-action-btn:hover { color: var(--fg-primary-hover); background: var(--component-bg-hover); }
-.relay-action-btn.is-active { color: var(--brand-2); background: var(--brand-subtle); }
+.relay-action-btn.is-active { color: #fff; background: var(--brand-subtle); }
+.relay-action-btn.is-active svg { color: #fff; stroke: #fff; }
 
 .relay-menu-wrapper { position: relative; }
 
@@ -1570,7 +1574,8 @@
 }
 
 .relay-composer-btn:hover,
-.relay-composer-btn.is-active { color: var(--fg-primary-hover); background: var(--component-bg-hover); }
+.relay-composer-btn.is-active { color: #fff; background: var(--component-bg-hover); }
+.relay-composer-btn.is-active svg { color: #fff; stroke: #fff; }
 
 .relay-composer-btn.is-recording { color: var(--danger); background: var(--danger-subtle); }
 
