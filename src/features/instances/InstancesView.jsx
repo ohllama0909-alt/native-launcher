@@ -280,7 +280,6 @@ export default function InstancesView({
             instances={instances}
             selectedCluster={instances.find((i) => i.id === selectedId) || instances[0]}
             onSelectCluster={onSelect}
-            onBack={() => setActiveSubTab('instances')}
             onAddInstance={onOpenCreateModal}
             onOpenCluster={onOpenCluster}
             onNotify={onNotify}
@@ -461,7 +460,22 @@ export default function InstancesView({
                         {instance.name}
                       </h3>
 
-                      <div className="instance-card-menu-wrap" ref={menuOpen ? menuRef : null}>
+                      <div className="instance-card-quick-actions">
+                        <button
+                          type="button"
+                          className="instance-card-settings-btn"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelect?.(instance.id);
+                            onOpenCluster?.(instance, 'settings');
+                          }}
+                          title="Open instance settings"
+                          aria-label={`Open settings for ${instance.name}`}
+                        >
+                          <NativeIcon name="settings" size={15} />
+                        </button>
+
+                        <div className="instance-card-menu-wrap" ref={menuOpen ? menuRef : null}>
                         <button
                           type="button"
                           className="instance-card-menu-btn"
@@ -550,6 +564,7 @@ export default function InstancesView({
                             </button>
                           </div>
                         )}
+                        </div>
                       </div>
                     </div>
 

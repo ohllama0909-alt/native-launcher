@@ -39,6 +39,14 @@ app.whenReady().then(async () => {
   try {
     await win.loadFile(path.join(__dirname, '../dist/index.html')); await pause(1500);
     await js(`Array.from(document.querySelectorAll('.rail-btn')).find(b => (b.getAttribute('aria-label') || '').toLowerCase().includes('instances')).click()`); await pause();
+    assert.equal(await js(`!!document.querySelector('.instance-card-settings-btn')`), true, 'Instance cards expose a direct settings action');
+    await click('.instances-browse-link-btn'); await pause();
+    assert.equal(await js(`!!document.querySelector('.browse-back-link')`), false, 'Instances Browse tab has no redundant back link');
+    assert.equal(await js(`!!document.querySelector('.browse-filter-heading') && !!document.querySelector('.browse-sort-select')`), true, 'Browse uses the refined filter controls');
+    await click('.instances-browse-link-btn'); await pause();
+    await click('.instance-card-settings-btn'); await pause(500);
+    assert.equal(await js(`document.querySelector('.im-nav-settings')?.classList.contains('active')`), true, 'Direct settings action opens the instance Advanced page');
+    await click('.im-close'); await pause();
     await js(`document.querySelector('.instance-card').focus()`);
     await click('.instance-card'); await pause(500);
     assert.equal(await js(`!!document.querySelector('[role="dialog"].instance-manager')`), true);
@@ -84,7 +92,7 @@ app.whenReady().then(async () => {
     assert.equal(await js(`(() => { const el = document.querySelector('.instance-manager'); return el.scrollWidth <= el.clientWidth && el.getBoundingClientRect().right <= innerWidth; })()`), true, 'No modal overflow at compact size');
     await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`); await pause();
     assert.equal(await js(`!!document.querySelector('.instance-manager')`), false, 'Escape closes manager');
-    console.log('PASS: modal geometry, backdrop, toggle/filter, error/retry, settings editing, draft preservation, save failure/success, reopen, focus, shader browser, compact layout and Escape.');
+    console.log('PASS: direct settings action, Browse navigation/filter controls, modal geometry, backdrop, toggle/filter, error/retry, settings editing, draft preservation, save failure/success, reopen, focus, shader browser, compact layout and Escape.');
     app.quit();
   } catch (error) { console.error(error); await screenshot('failure'); app.exit(1); }
 });

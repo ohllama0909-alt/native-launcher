@@ -588,6 +588,38 @@
   flex: none;
 }
 
+.instance-card-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+
+.instance-card-settings-btn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--component-border);
+  border-radius: 7px;
+  background: var(--page-sunken);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: color .14s var(--ease), border-color .14s var(--ease), background .14s var(--ease), transform .14s var(--ease-out);
+}
+
+.instance-card-settings-btn:hover {
+  border-color: var(--brand-border);
+  background: var(--brand);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.instance-card-settings-btn:hover svg {
+  color: #fff;
+}
+
 .instance-card-menu-btn {
   display: grid;
   place-items: center;

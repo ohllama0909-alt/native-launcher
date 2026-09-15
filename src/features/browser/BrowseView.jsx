@@ -122,6 +122,7 @@ export default function BrowseView({
   const [sort, setSort] = useState('relevance');
   const [page, setPage] = useState(1);
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [categoryQuery, setCategoryQuery] = useState('');
 
   const [categoryTags, setCategoryTags] = useState([]);
   const [results, setResults] = useState(initialResults);
@@ -191,6 +192,7 @@ export default function BrowseView({
 
   useEffect(() => {
     setSelectedCategories([]);
+    setCategoryQuery('');
   }, [contentType]);
 
   /* ------------------------------------------------------ category tags */
@@ -217,6 +219,12 @@ export default function BrowseView({
         .map((tag) => tag.name),
     [categoryTags, activeType]
   );
+
+  const visibleCategories = useMemo(() => {
+    const term = categoryQuery.trim().toLowerCase();
+    if (!term) return categories;
+    return categories.filter((name) => name.replace(/-/g, ' ').toLowerCase().includes(term));
+  }, [categories, categoryQuery]);
 
   /* ---------------------------------------------------------- installed */
 
@@ -819,19 +827,37 @@ export default function BrowseView({
           )}
         </label>
 
-        <div className="browse-sort-group">
-          {SORTS.map((entry) => (
+        <label className="browse-sort-select">
+          <NativeIcon name="sort" size={15} />
+          <span>Sort by</span>
+          <select value={sort} onChange={(event) => setSort(event.target.value)}>
+            {SORTS.map((entry) => (
+              <option key={entry.id} value={entry.id}>{t(entry.key)}</option>
+            ))}
+          </select>
+          <NativeIcon name="chevron-down" size={13} />
+        </label>
+      </div>
+
+      {selectedCategories.length > 0 && (
+        <div className="browse-active-filters" aria-label="Active filters">
+          <span className="browse-active-filters-label">Active filters</span>
+          {selectedCategories.map((name) => (
             <button
-              key={entry.id}
+              key={name}
               type="button"
-              className={`browse-sort-btn ${sort === entry.id ? 'active' : ''}`}
-              onClick={() => setSort(entry.id)}
+              onClick={() => setSelectedCategories((current) => current.filter((entry) => entry !== name))}
+              title={`Remove ${name.replace(/-/g, ' ')} filter`}
             >
-              {t(entry.key)}
+              <span>{name.replace(/-/g, ' ')}</span>
+              <NativeIcon name="close" size={11} />
             </button>
           ))}
+          <button type="button" className="browse-clear-all" onClick={() => setSelectedCategories([])}>
+            Clear all
+          </button>
         </div>
-      </div>
+      )}
 
       {isModOnVanilla && (
         <div className="browse-vanilla-warning" role="alert">
@@ -844,13 +870,38 @@ export default function BrowseView({
 
       <div className="browse-body-row">
         <aside className="browse-categories">
-          <h2 className="browse-categories-heading">{t('browse.categories')}</h2>
+          <div className="browse-filter-heading">
+            <span className="browse-filter-icon"><NativeIcon name="filter" size={14} /></span>
+            <div>
+              <h2 className="browse-categories-heading">Filters</h2>
+              <p>{t('browse.categories')}</p>
+            </div>
+            {selectedCategories.length > 0 && <b>{selectedCategories.length}</b>}
+          </div>
+
+          {categories.length > 6 && (
+            <label className="browse-category-search">
+              <NativeIcon name="search" size={13} />
+              <input
+                value={categoryQuery}
+                onChange={(event) => setCategoryQuery(event.target.value)}
+                placeholder="Find a category"
+              />
+              {categoryQuery && (
+                <button type="button" onClick={() => setCategoryQuery('')} aria-label="Clear category search">
+                  <NativeIcon name="close" size={11} />
+                </button>
+              )}
+            </label>
+          )}
 
           {categories.length === 0 ? (
             <p className="browse-categories-empty">{t('browse.noCategories')}</p>
+          ) : visibleCategories.length === 0 ? (
+            <p className="browse-categories-empty">No matching categories</p>
           ) : (
             <div className="browse-categories-list">
-              {categories.map((name) => {
+              {visibleCategories.map((name) => {
                 const active = selectedCategories.includes(name);
                 return (
                   <button
@@ -865,7 +916,9 @@ export default function BrowseView({
                       )
                     }
                   >
-                    <span className="browse-category-dot" />
+                    <span className="browse-category-check">
+                      {active && <NativeIcon name="check" size={11} />}
+                    </span>
                     <span className="browse-category-name">{name.replace(/-/g, ' ')}</span>
                   </button>
                 );
@@ -879,6 +932,7 @@ export default function BrowseView({
               className="browse-clear-categories"
               onClick={() => setSelectedCategories([])}
             >
+              <NativeIcon name="refresh" size={12} />
               {t('browse.clearFilters')}
             </button>
           )}

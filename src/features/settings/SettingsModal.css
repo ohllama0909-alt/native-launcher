@@ -211,8 +211,9 @@
 /* 2026 settings workspace */
 .settings-modal-backdrop {
   padding: 28px;
-  background: rgba(2, 3, 5, .78);
-  backdrop-filter: blur(20px) saturate(.82);
+  background: rgba(2, 3, 5, .94);
+  backdrop-filter: blur(28px) saturate(.68);
+  -webkit-backdrop-filter: blur(28px) saturate(.68);
 }
 
 .settings-shell-container {

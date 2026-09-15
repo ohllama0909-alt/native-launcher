@@ -266,7 +266,6 @@ export default function Shell({
             instances={instancesManager.instances}
             selectedCluster={instancesManager.selected}
             onSelectCluster={instancesManager.select}
-            onBack={() => setCurrentTab(browseReturnTab)}
             onAddInstance={handleAddInstance}
             onOpenCluster={handleOpenCluster}
             onNotify={notify}

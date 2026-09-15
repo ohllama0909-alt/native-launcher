@@ -12,8 +12,9 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(4, 5, 8, 0.78);
-  backdrop-filter: blur(10px);
+  background: rgba(2, 3, 5, 0.93);
+  backdrop-filter: blur(26px) saturate(0.7);
+  -webkit-backdrop-filter: blur(26px) saturate(0.7);
   -webkit-app-region: no-drag;
   animation: im-fade-in 0.18s ease-out;
 }
