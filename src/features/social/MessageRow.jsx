@@ -64,6 +64,8 @@ export function MessageRow({
       className={[
         'relay-message-row',
         isMine ? 'is-outgoing' : 'is-incoming',
+        pickerOpen ? 'has-picker-open' : '',
+        showGroupAuthor ? 'has-author' : '',
         msg.pending ? 'is-pending' : '',
         msg.failed || msg.uploadFailed ? 'is-failed' : '',
         msg.isDeleted ? 'is-deleted' : '',
@@ -79,7 +81,7 @@ export function MessageRow({
       <div className="relay-message-content-col">
         {showGroupAuthor && <span className="relay-msg-author-name">{msg.senderName || msg.senderId}</span>}
 
-        {!msg.isDeleted && (
+        {!msg.isDeleted && !isEditing && (
           <div className="relay-msg-tools">
             <button
               type="button"
