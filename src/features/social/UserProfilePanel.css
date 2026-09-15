@@ -56,7 +56,7 @@
   margin: -40px 0 0 16px;
   width: max-content;
   padding: 4px;
-  border-radius: 50%;
+  border-radius: 12px;
   background: var(--page-elevated, #111013);
   position: relative;
   z-index: 1;
@@ -64,8 +64,7 @@
 
 .np-avatar {
   display: block;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--np-ring, transparent);
+  border-radius: 8px !important;
 }
 
 .np-body {

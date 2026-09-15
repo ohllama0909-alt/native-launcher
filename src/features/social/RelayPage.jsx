@@ -908,8 +908,10 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
     { key: 'direct', label: 'Direct messages', list: directList, empty: 'No direct messages', grouped: false }
   ];
 
+  const hasProfilePanel = Boolean(activeEntity && !isGroupThread && showProfilePanel);
+
   return (
-    <div className="relay-page" data-testid="relay-page">
+    <div className={`relay-page ${hasProfilePanel ? 'has-profile-panel' : ''}`} data-testid="relay-page">
       <aside className="relay-inbox">
         <div className="relay-inbox-header">
           <div className="relay-inbox-title-row">
@@ -1054,7 +1056,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                 <div className="relay-peer-meta">
                   <div className="relay-peer-name-row">
                     <span className="relay-peer-name">{activeEntity?.nickname || activeEntity?.name || 'Chat'}</span>
-                    {!isGroupThread && <Badges user={activeEntity} size={15} />}
                     {activeEntity?.muted && <BellOff size={12} className="relay-peer-flag" />}
                   </div>
                   <div className="relay-peer-status-row">

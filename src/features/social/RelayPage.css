@@ -21,11 +21,15 @@
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: var(--relay-rail) minmax(0, 1fr) 300px;
+  grid-template-columns: var(--relay-rail) minmax(0, 1fr);
   background: var(--page);
   color: var(--fg-primary);
   font-family: var(--font-sans);
   overflow: hidden;
+}
+
+.relay-page.has-profile-panel {
+  grid-template-columns: var(--relay-rail) minmax(0, 1fr) 300px;
 }
 
 /* ── Active presence rail ─────────────────────────────────
@@ -146,17 +150,20 @@
 .relay-activity-manage:hover { color: var(--fg-primary-hover) !important; border-color: var(--brand-border) !important; background: var(--brand-subtle) !important; }
 
 @media (max-width: 1080px) {
-  .relay-page { grid-template-columns: 260px minmax(0, 1fr) 280px; }
+  .relay-page { grid-template-columns: 260px minmax(0, 1fr); }
+  .relay-page.has-profile-panel { grid-template-columns: 260px minmax(0, 1fr) 280px; }
   .relay-activity { display: none; }
 }
 
 @media (max-width: 860px) {
-  .relay-page { grid-template-columns: 260px minmax(0, 1fr); }
+  .relay-page,
+  .relay-page.has-profile-panel { grid-template-columns: 260px minmax(0, 1fr); }
   .np-panel { display: none; }
 }
 
 @media (max-width: 760px) {
-  .relay-page { grid-template-columns: 224px minmax(0, 1fr); }
+  .relay-page,
+  .relay-page.has-profile-panel { grid-template-columns: 224px minmax(0, 1fr); }
   .relay-inbox-header { padding-inline: 12px; }
   .relay-chat-header { padding-inline: 12px; gap: 9px; }
   .relay-convo-search-bar { display: none; }
@@ -725,9 +732,10 @@
 .relay-peer-info {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   min-width: 0;
-  max-width: 300px;
+  flex-shrink: 0;
+  max-width: 360px;
   cursor: default;
 }
 
@@ -735,15 +743,15 @@
 
 .relay-peer-avatar { width: 40px; height: 40px; border-radius: var(--radius-sm); overflow: hidden; }
 
-.relay-peer-meta { min-width: 0; display: grid; gap: 1px; }
+.relay-peer-meta { min-width: 0; display: grid; gap: 2px; }
 
 .relay-peer-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
 
 .relay-peer-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.012em;
-  color: var(--fg-primary-hover);
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -754,7 +762,7 @@
 .relay-peer-status-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
 
 .relay-peer-status-text {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--fg-muted);
   white-space: nowrap;
   overflow: hidden;
