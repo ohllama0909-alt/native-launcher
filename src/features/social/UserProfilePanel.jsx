@@ -32,8 +32,8 @@ export default function UserProfilePanel({
 
   return (
     <aside className="noctra-user-profile-panel" role="complementary" aria-label="User Profile">
-      {/* Header Banner */}
-      <div className="noctra-profile-banner">
+      {/* Header */}
+      <div className="noctra-profile-header">
         <button
           type="button"
           className="noctra-profile-close-btn"
@@ -43,28 +43,23 @@ export default function UserProfilePanel({
         >
           <X size={15} />
         </button>
-      </div>
 
-      {/* Avatar with Status */}
-      <div className="noctra-profile-avatar-wrap">
-        <RelayAvatar
-          name={user.name}
-          skinUrl={user.skinUrl}
-          size={76}
-          status={presence?.status || 'offline'}
-          showStatus
-          className="noctra-profile-avatar"
-        />
-      </div>
+        <div className="noctra-profile-avatar-wrap">
+          <RelayAvatar
+            name={user.name}
+            skinUrl={user.skinUrl}
+            size={76}
+            status={presence?.status || 'offline'}
+            showStatus
+            className="noctra-profile-avatar"
+          />
+        </div>
 
-      {/* Profile Card Header */}
-      <div className="noctra-profile-header-info">
         <div className="noctra-profile-names">
           <h3 className="noctra-profile-display-name">{user.nickname || user.name}</h3>
           <span className="noctra-profile-username">@{user.name}</span>
         </div>
 
-        {/* Badges Strip */}
         <div className="noctra-profile-badges-row">
           <Badges user={user} size={20} />
         </div>
