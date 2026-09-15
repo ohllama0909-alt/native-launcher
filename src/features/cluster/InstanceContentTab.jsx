@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FolderOpen, Globe2, Package, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { FolderOpen, Package, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 const formatSize = bytes => {
   if (!Number.isFinite(bytes)) return '';
@@ -14,6 +14,21 @@ const config = {
   textures: { folder: 'resourcepacks', title: 'Resources', noun: 'resource packs' },
   screenshots: { folder: 'screenshots', title: 'Screenshots', noun: 'screenshots' }
 };
+
+function WorldArtwork({ world }) {
+  const hue = Number(world.artSeed || 0) % 360;
+  return (
+    <span className="im-world-art" style={{ '--world-hue': hue }} aria-hidden="true">
+      <span className="im-world-sky"/>
+      <span className="im-world-sun"/>
+      <span className="im-world-hill is-back"/>
+      <span className="im-world-hill is-front"/>
+      {world.iconUrl && (
+        <img src={world.iconUrl} alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }}/>
+      )}
+    </span>
+  );
+}
 
 export default function InstanceContentTab({ cluster, type, query, filtered, onBrowse }) {
   const { folder, title, noun } = config[type] || config.mods;
@@ -208,7 +223,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
                     onError={event => { event.currentTarget.style.display = 'none'; }}
                   />
                 ) : type === 'worlds' ? (
-                  <Globe2 size={22}/>
+                  <WorldArtwork world={row}/>
                 ) : (
                   <Package size={22}/>
                 )}

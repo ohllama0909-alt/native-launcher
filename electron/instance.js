@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
-const { shell } = require('electron');
+const { shell, nativeImage } = require('electron');
 const installRegistry = require('./installRegistry');
 
 /**
@@ -450,6 +450,90 @@ function listDir(instanceId, subpath) {
   }
 }
 
+/* ── screenshot manager ─────────────────────────────────────── */
+
+const SCREENSHOT_EXTENSIONS = new Map([
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.webp', 'image/webp']
+]);
+const MAX_SCREENSHOT_BYTES = 25 * 1024 * 1024;
+
+function screenshotsDir(instanceId) {
+  return resolveInside(instanceDir(instanceId), 'screenshots');
+}
+
+function screenshotPath(instanceId, filename) {
+  const name = String(filename || '');
+  if (!name || path.basename(name) !== name || !SCREENSHOT_EXTENSIONS.has(path.extname(name).toLowerCase())) {
+    throw new Error('Invalid screenshot filename.');
+  }
+  const directory = screenshotsDir(instanceId);
+  if (fs.existsSync(directory) && fs.lstatSync(directory).isSymbolicLink()) {
+    throw new Error('Invalid screenshots directory.');
+  }
+  const target = resolveInside(directory, name);
+  if (fs.existsSync(target) && fs.lstatSync(target).isSymbolicLink()) {
+    throw new Error('Screenshot links are not supported.');
+  }
+  return target;
+}
+
+function screenshotList(instanceId) {
+  const directory = screenshotsDir(instanceId);
+  try {
+    if (fs.lstatSync(directory).isSymbolicLink()) throw new Error('Invalid screenshots directory.');
+    return fs.readdirSync(directory, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && SCREENSHOT_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
+      .map((entry) => {
+        const stat = fs.statSync(path.join(directory, entry.name));
+        return { name: entry.name, size: stat.size, modified: stat.mtimeMs };
+      })
+      .sort((a, b) => b.modified - a.modified);
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+function screenshotData(instanceId, filename, options = {}) {
+  const filePath = screenshotPath(instanceId, filename);
+  const stat = fs.lstatSync(filePath);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Screenshot file not found.');
+  if (!stat.size || stat.size > MAX_SCREENSHOT_BYTES) throw new Error('Screenshot must be smaller than 25MB.');
+
+  if (options.thumbnail && nativeImage?.createFromPath) {
+    const source = nativeImage.createFromPath(filePath);
+    if (!source.isEmpty()) {
+      const { width, height } = source.getSize();
+      const scale = Math.min(1, 640 / width, 360 / height);
+      const image = scale < 1
+        ? source.resize({ width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)), quality: 'good' })
+        : source;
+      return `data:image/jpeg;base64,${image.toJPEG(82).toString('base64')}`;
+    }
+  }
+
+  const mime = SCREENSHOT_EXTENSIONS.get(path.extname(filePath).toLowerCase());
+  return `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`;
+}
+
+function revealScreenshot(instanceId, filename) {
+  const filePath = screenshotPath(instanceId, filename);
+  if (!fs.existsSync(filePath)) throw new Error('Screenshot file not found.');
+  shell.showItemInFolder?.(filePath);
+  return { ok: true };
+}
+
+function deleteScreenshot(instanceId, filename) {
+  const filePath = screenshotPath(instanceId, filename);
+  const stat = fs.lstatSync(filePath);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Screenshot file not found.');
+  fs.rmSync(filePath);
+  return { ok: true };
+}
+
 /* ── worldList ──────────────────────────────────────────────── */
 
 function worldList(instanceId) {
@@ -462,13 +546,31 @@ function worldList(instanceId) {
         let modified = 0, sizeBytes = 0;
         try { modified = fs.statSync(worldPath).mtimeMs; } catch {}
         sizeBytes = getDirSize(worldPath);
-        return { name: e.name, modified, sizeBytes };
+        let iconUrl = null;
+        try {
+          const iconPath = resolveInside(worldPath, 'icon.png');
+          const iconStat = fs.lstatSync(iconPath);
+          if (iconStat.isFile() && !iconStat.isSymbolicLink() && iconStat.size > 0 && iconStat.size <= 1024 * 1024) {
+            iconUrl = `data:image/png;base64,${fs.readFileSync(iconPath).toString('base64')}`;
+          }
+        } catch {}
+        const artSeed = cryptoSeed(e.name);
+        return { name: e.name, modified, sizeBytes, iconUrl, artSeed };
       })
       .sort((a, b) => b.modified - a.modified);
   } catch (error) {
     if (error.code === 'ENOENT') return [];
     throw error;
   }
+}
+
+function cryptoSeed(value) {
+  let hash = 2166136261;
+  for (const character of String(value || 'world')) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }
 
 /* ── getLogFile ─────────────────────────────────────────────── */
@@ -652,6 +754,14 @@ function init(dependencies, ipcMain) {
 
   ipcMain.handle('instance:worldList', (_e, instanceId) => worldList(instanceId));
 
+  ipcMain.handle('instance:screenshotList', (_e, instanceId) => screenshotList(instanceId));
+  ipcMain.handle('instance:screenshotData', (_e, instanceId, filename, options) =>
+    screenshotData(instanceId, filename, options || {}));
+  ipcMain.handle('instance:revealScreenshot', (_e, instanceId, filename) =>
+    revealScreenshot(instanceId, filename));
+  ipcMain.handle('instance:deleteScreenshot', (_e, instanceId, filename) =>
+    deleteScreenshot(instanceId, filename));
+
   ipcMain.handle('instance:deleteWorld', (_e, instanceId, worldName) => {
     const savesDir = resolveInside(instanceDir(instanceId), 'saves');
     const worldPath = resolveInside(savesDir, worldName);
@@ -682,4 +792,16 @@ function init(dependencies, ipcMain) {
   });
 }
 
-module.exports = { init, resolveInside, isInstalled, verifyInstallation, installedVersions, cleanServerAddress, parseServerConnections };
+module.exports = {
+  init,
+  resolveInside,
+  isInstalled,
+  verifyInstallation,
+  installedVersions,
+  cleanServerAddress,
+  parseServerConnections,
+  screenshotList,
+  screenshotData,
+  deleteScreenshot,
+  worldList
+};

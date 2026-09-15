@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, CheckCircle2, ChevronDown, FolderOpen, Globe2, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, FolderOpen, Globe2, Images, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import SettingsTab from './SettingsTab.jsx';
 import InstanceContentTab from './InstanceContentTab.jsx';
+import ScreenshotManager from './ScreenshotManager.jsx';
 import BrowseView from '../browser/BrowseView.jsx';
 import './ClusterDetailView.css';
 import './InstanceManager.css';
@@ -16,6 +17,7 @@ export default function ClusterDetailView({
   onKill,
   launcherState,
   onUpdateCluster,
+  social,
   initialTab = 'overview'
 }) {
   const loader = cluster.mc_loader || cluster.loader || 'Vanilla';
@@ -69,7 +71,7 @@ export default function ClusterDetailView({
     dialog.current?.focus();
 
     const handleKey = (event) => {
-      const nested = dialog.current?.querySelector('.dep-prompt-backdrop, .content-modal-backdrop');
+      const nested = dialog.current?.querySelector('.dep-prompt-backdrop, .content-modal-backdrop, .sm-dialog-backdrop');
       if (event.key === 'Escape' && !nested) {
         event.preventDefault();
         event.stopPropagation();
@@ -109,6 +111,7 @@ export default function ClusterDetailView({
       ['shaders', 'Shaders', Sparkles]
     ] : []),
     ['worlds', 'Worlds', Globe2],
+    ['screenshots', 'Screenshots', Images],
     ['textures', 'Resources', Layers]
   ];
 
@@ -148,6 +151,8 @@ export default function ClusterDetailView({
     ? 'Search settings…'
     : tab === 'worlds'
       ? 'Find a world…'
+      : tab === 'screenshots'
+        ? 'Find a screenshot…'
       : tab === 'mods'
         ? 'Find a mod…'
         : tab === 'shaders'
@@ -281,7 +286,7 @@ export default function ClusterDetailView({
                 </div>
               </div>
 
-              {['mods', 'shaders', 'textures', 'worlds', 'screenshots'].includes(tab) && (
+              {['mods', 'shaders', 'textures', 'worlds'].includes(tab) && (
                 <InstanceContentTab
                   key={tab}
                   cluster={cluster}
@@ -289,6 +294,16 @@ export default function ClusterDetailView({
                   query={query}
                   filtered={filtered}
                   onBrowse={() => setBrowser(browseType)}
+                />
+              )}
+
+              {tab === 'screenshots' && (
+                <ScreenshotManager
+                  cluster={cluster}
+                  query={query}
+                  sortAlphabetically={filtered}
+                  social={social}
+                  onNotify={showNotice}
                 />
               )}
             </>

@@ -492,6 +492,66 @@
   object-fit: cover;
 }
 
+.im-file-icon:has(.im-world-art) {
+  width: 58px;
+  height: 42px;
+  border-color: hsla(var(--world-hue, 160), 70%, 65%, 0.2);
+  background: #10161a;
+}
+
+.im-world-art {
+  --world-hue: 160;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg,
+    hsl(var(--world-hue), 68%, 54%) 0%,
+    hsl(calc(var(--world-hue) + 34), 70%, 63%) 60%,
+    hsl(calc(var(--world-hue) + 80), 45%, 26%) 61%);
+}
+
+.im-world-art > img {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  object-fit: cover;
+}
+
+.im-world-sun {
+  position: absolute;
+  top: 6px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  background: #fff7b2;
+  box-shadow: 0 0 8px rgba(255, 242, 160, 0.85);
+}
+
+.im-world-hill {
+  position: absolute;
+  left: -9px;
+  bottom: -12px;
+  width: 54px;
+  height: 31px;
+  transform: rotate(16deg);
+  background: hsl(calc(var(--world-hue) + 76), 42%, 23%);
+  box-shadow: inset 0 5px hsl(calc(var(--world-hue) + 60), 62%, 42%);
+}
+
+.im-world-hill.is-front {
+  right: -12px;
+  left: auto;
+  bottom: -15px;
+  width: 57px;
+  height: 35px;
+  transform: rotate(-13deg);
+  background: hsl(calc(var(--world-hue) + 92), 44%, 18%);
+  box-shadow: inset 0 5px hsl(calc(var(--world-hue) + 72), 58%, 36%);
+}
+
 .im-file-name {
   min-width: 0;
   flex: 1;

@@ -10,22 +10,33 @@ const instance = { id: 'visual-121', name: 'Tricky Trials', version: '1.21.7', m
 let library = { instances: [instance], selectedId: instance.id };
 let manifest = Object.fromEntries(['Litematica', 'Mod Menu', 'Inventory Profiles Next', 'Chat Patches', 'FerriteCore'].map((title, i) => [String(i), { filename: `mod-${i}.jar`, folder: 'mods', metadata: { title, author: ['masa', 'Terraformers', 'blackd', 'OBro1961', 'malte0811'][i], version: ['0.26.3', '17.0.0', '2.3.1', '8.0-alpha.8', '8.2.0'][i] } }]));
 let failWorlds = false, failSave = false;
+const screenshotArt = (hue, title) => `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><defs><linearGradient id="s" y2="1"><stop stop-color="hsl(${hue} 75% 55%)"/><stop offset="1" stop-color="hsl(${hue + 60} 80% 16%)"/></linearGradient></defs><rect width="640" height="360" fill="url(#s)"/><circle cx="500" cy="80" r="34" fill="#fff6a8"/><path d="M0 285 150 130l100 102 105-142 155 195z" fill="#172b28"/><path d="M0 300h640v60H0z" fill="#173b27"/><text x="24" y="335" fill="white" font-family="sans-serif" font-size="22">${title}</text></svg>`).toString('base64')}`;
+const screenshots = [{ name: 'castle-at-sunset.png', size: 1840000, modified: Date.now() - 7200000 }, { name: 'deep-dark-expedition.png', size: 960000, modified: Date.now() - 86400000 }];
 const handles = {
   'instances:load': () => library,
   'instances:save': (_e, next) => { if (failSave) throw new Error('Test disk failure'); library = next; return true; },
   'settings:load': () => ({ onboarding: { completed: true, language: 'en' }, memory: { min: 1, max: 4 }, resolution: { width: 854, height: 480, fullscreen: false } }),
   'settings:systemMemory': () => ({ totalGb: 32 }), 'settings:save': () => true,
-  'accounts:list': () => ({ accounts: [{ id: 'acc-1', name: 'Noctra', type: 'offline' }], activeId: 'acc-1' }),
+  'accounts:list': () => ({ accounts: [{ id: 'acc-1', name: 'Noctra', type: 'noctra', token: 'visual-token' }], activeId: 'acc-1' }),
   'wardrobe:get': () => ({ active: null, skins: [], capes: [] }), 'wardrobe:sync': () => ({ ok: true }),
   'wardrobe:avatar': () => null,
   'instance:installedVersions': () => [{ version: '1.21.7', loader: 'Fabric' }], 'instance:isInstalled': () => true,
-  'instance:worldList': async () => { await new Promise(r => setTimeout(r, 180)); if (failWorlds) throw new Error('Test world read failure'); return [{ name: 'Survival Kingdom', modified: Date.now() - 86400000, sizeBytes: 73400320 }, { name: 'Redstone Lab', modified: Date.now() - 604800000, sizeBytes: 18874368 }]; },
+  'instance:worldList': async () => { await new Promise(r => setTimeout(r, 180)); if (failWorlds) throw new Error('Test world read failure'); return [{ name: 'Survival Kingdom', modified: Date.now() - 86400000, sizeBytes: 73400320, artSeed: 148 }, { name: 'Redstone Lab', modified: Date.now() - 604800000, sizeBytes: 18874368, artSeed: 24 }]; },
+  'instance:screenshotList': () => screenshots,
+  'instance:screenshotData': (_e, _id, name) => screenshotArt(name.includes('castle') ? 205 : 264, name),
+  'instance:revealScreenshot': () => ({ ok: true }),
+  'instance:deleteScreenshot': () => ({ ok: true }),
   'mods:installed': () => manifest,
   'mods:toggle': (_e, { projectId, enabled }) => { manifest[projectId].filename = manifest[projectId].filename.replace(/\.disabled$/, '') + (enabled ? '' : '.disabled'); return manifest; },
   'instance:listDir': (_e, _id, folder) => folder === 'mods' ? Object.values(manifest).map(mod => ({ name: mod.filename, size: 1820000 })) : [],
   'instance:openFolder': () => true,
   'settings:dataDir': () => '/tmp/noctra', 'news:list': () => ({ items: [] }), 'updater:status': () => ({ type: 'idle' }),
-  'social:getFriends': () => ({ friends: [] }), 'social:getRequests': () => ({ incoming: [], outgoing: [] }), 'social:getConversations': () => ({})
+  'social:getFriends': () => ({ ok: true, friends: [{ id: 'friend-1', name: 'BuilderBee', status: 'online' }] }),
+  'social:getStats': () => ({ ok: true, onlineUsers: 10500 }),
+  'social:getRequests': () => ({ requests: { received: [], sent: [] } }),
+  'social:getConversations': () => ({ conversations: {} }),
+  'social:getBlocked': () => ({ blocked: [] }),
+  'relay:getGroups': () => ({ ok: true, groups: [{ id: 'group-1', name: 'Realm Crew', memberCount: 6 }] })
 };
 for (const [name, fn] of Object.entries(handles)) ipcMain.handle(name, fn);
 for (const name of ['window:minimize', 'window:maximize', 'window:close']) ipcMain.on(name, () => {});
@@ -72,6 +83,18 @@ app.whenReady().then(async () => {
     await click('[aria-label="Show enabled mods only"]'); await pause();
     assert.equal(await js(`document.querySelectorAll('.im-file-row').length`), 4);
     await click('.im-nav-worlds'); await screenshot('worlds-loading'); await pause(300); await screenshot('worlds');
+    assert.equal(await js(`document.querySelectorAll('.im-world-art').length`), 2, 'World rows render colored artwork');
+    await click('.im-nav-screenshots'); await pause(350);
+    assert.equal(await js(`document.querySelectorAll('.sm-card').length`), 2, 'Screenshot manager renders image cards');
+    await screenshot('screenshots');
+    await click('.sm-card-actions button'); await pause(250);
+    assert.equal(await js(`document.querySelectorAll('.sm-target-list > button').length`), 2, 'Share picker includes friends and groups');
+    await screenshot('screenshot-share');
+    await click('.sm-share-dialog header button');
+    await click('.sm-card-preview'); await pause(250);
+    assert.equal(await js(`!!document.querySelector('.sm-preview-dialog')`), true, 'Screenshot preview opens');
+    await screenshot('screenshot-preview');
+    await click('.sm-preview-dialog header button');
     failWorlds = true; await click('.im-nav-mods'); await click('.im-nav-worlds'); await pause(400);
     assert.match(await js(`document.querySelector('.im-error').textContent`), /Test world read failure/);
     failWorlds = false; await click('.im-error button'); await pause(400);
@@ -105,7 +128,7 @@ app.whenReady().then(async () => {
     assert.equal(await js(`(() => { const el = document.querySelector('.instance-manager'); return el.scrollWidth <= el.clientWidth && el.getBoundingClientRect().right <= innerWidth; })()`), true, 'No modal overflow at compact size');
     await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`); await pause();
     assert.equal(await js(`!!document.querySelector('.instance-manager')`), false, 'Escape closes manager');
-    console.log('PASS: direct settings action, Browse navigation/filter controls, modal geometry, backdrop, toggle/filter, error/retry, settings editing, draft preservation, save failure/success, reopen, focus, shader browser, compact layout and Escape.');
+    console.log('PASS: direct settings action, screenshot manager/preview, world artwork, Browse navigation/filter controls, modal geometry, backdrop, toggle/filter, error/retry, settings editing, draft preservation, save failure/success, reopen, focus, shader browser, compact layout and Escape.');
     app.quit();
   } catch (error) { console.error(error); await screenshot('failure'); app.exit(1); }
 });

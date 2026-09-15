@@ -413,6 +413,7 @@ export default function Shell({
             launcherState={launcher}
             onUpdateCluster={instancesManager.saveOverrides}
             onNavigateBrowse={handleNavigateBrowse}
+            social={social}
           />
         )}
       </div>
