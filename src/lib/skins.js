@@ -122,6 +122,20 @@ export function readFileAsDataUrl(file) {
   });
 }
 
+/**
+ * skinview3d returns `void` when the texture is already decoded (canvas/image)
+ * and a Promise when it still needs to fetch a URL. Normalize both forms so
+ * callers can use one reliable async path without mistaking a successful
+ * synchronous load for a failure.
+ */
+export function loadSkinTexture(viewer, source, model) {
+  try {
+    return Promise.resolve(viewer.loadSkin(source, { model }));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
 export function isSlimArmTexture(context) {
   // Check the unused areas in a slim skin texture:
   // In a slim skin (3px arm width):
@@ -215,4 +229,3 @@ export function detectSkinModel(dataUrl) {
     image.src = dataUrl;
   });
 }
-

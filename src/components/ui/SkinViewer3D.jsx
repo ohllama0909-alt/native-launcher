@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PlayerAvatar from './PlayerAvatar.jsx';
-import { FALLBACK_SKIN, isLocalIdentity, isSlimArmTexture, sanitizeSkinArms, SKIN_SERVICE, skinIdentifier } from '../../lib/skins.js';
+import { FALLBACK_SKIN, isLocalIdentity, isSlimArmTexture, loadSkinTexture, sanitizeSkinArms, SKIN_SERVICE, skinIdentifier } from '../../lib/skins.js';
 
 const SKIN_PATH = '/skin/';
 const CAPE_PATH = '/cape/';
@@ -93,7 +93,10 @@ export default function SkinViewer3D({
     return () => { cancelled = true; };
   }, [account?.id, account?.skinUrl]);
 
-  const effectiveAccount = selfHealed ? { ...account, ...selfHealed } : account;
+  // A wardrobe lookup is only a fallback for an undecorated account. Once the
+  // parent supplies a newly selected skin, it must win immediately even if an
+  // older self-heal result is still being cleared by React.
+  const effectiveAccount = selfHealed && !account?.skinUrl ? { ...account, ...selfHealed } : account;
   const skinUrl = effectiveAccount?.skinUrl || skinTextureUrl(effectiveAccount);
   const capeUrl = capeTextureUrl(effectiveAccount);
   const effectiveModel = effectiveAccount?.model;
@@ -196,7 +199,7 @@ export default function SkinViewer3D({
       const reqId = ++skinReqRef.current;
       prepareSkinSource(skinUrl, modelOption).then(({ source, model }) => {
         if (reqId !== skinReqRef.current) return;
-        return viewer.loadSkin(source, { model }).then(() => {
+        return loadSkinTexture(viewer, source, model).then(() => {
           if (reqId !== skinReqRef.current) return;
           if (viewer.renderPaused) viewer.render();
         });

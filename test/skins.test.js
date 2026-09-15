@@ -11,6 +11,7 @@ const source = fs.readFileSync(path.join(__dirname, '../src/lib/skins.js'), 'utf
 
 const skinIdentifier = new Function(`${source}; return skinIdentifier;`)();
 const isLocalIdentity = new Function(`${source}; return isLocalIdentity;`)();
+const loadSkinTexture = new Function(`${source}; return loadSkinTexture;`)();
 
 test('Noctra and offline accounts default to Steve or Alex until a skin is uploaded', () => {
   assert.equal(skinIdentifier({ type: 'noctra', id: 'native-1', uuid: 'generated-uuid', name: 'PremiumName' }), 'MHF_Steve');
@@ -30,4 +31,24 @@ test('isLocalIdentity flags locally-generated accounts so they self-heal from th
   assert.equal(isLocalIdentity({ id: 'offline-abc' }), true);
   assert.equal(isLocalIdentity({ type: 'microsoft', uuid: '1234-5678', name: 'PremiumName' }), false);
   assert.equal(isLocalIdentity(undefined), false);
+});
+
+test('skin loader accepts both synchronous texture sources and asynchronous URLs', async () => {
+  const canvasViewer = {
+    loadSkin(sourceValue, options) {
+      assert.equal(sourceValue, 'decoded-canvas');
+      assert.deepEqual(options, { model: 'slim' });
+      return undefined;
+    }
+  };
+  await assert.doesNotReject(loadSkinTexture(canvasViewer, 'decoded-canvas', 'slim'));
+
+  let urlFinished = false;
+  const urlViewer = {
+    loadSkin() {
+      return Promise.resolve().then(() => { urlFinished = true; });
+    }
+  };
+  await loadSkinTexture(urlViewer, 'https://example.test/skin.png', 'default');
+  assert.equal(urlFinished, true);
 });
