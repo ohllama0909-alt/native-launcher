@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Ban, Calendar, Check, Clock, Gamepad2, Sparkles, Trash2, UserMinus, X } from 'lucide-react';
+import { Ban, CalendarDays, Gamepad2, Server, Trash2, UserMinus, X } from 'lucide-react';
 import RelayAvatar from './RelayAvatar.jsx';
 import Badges from './Badges.jsx';
 import './UserProfilePanel.css';
@@ -26,166 +26,171 @@ export default function UserProfilePanel({
 
   if (!user) return null;
 
-  const isPlaying = presence?.status === 'in-game';
-  const isOnline = presence?.status === 'in-launcher' || presence?.status === 'online';
-  const statusLabel = isPlaying ? 'Playing a game' : (isOnline ? 'In Launcher' : 'Offline');
+  const status = presence?.status || 'offline';
+  const isPlaying = status === 'in-game';
+  const isOnline = status === 'in-launcher' || status === 'online';
+  const statusLabel = isPlaying ? 'Playing' : (isOnline ? 'Online' : 'Offline');
+  const statusColor = presence?.color || (isPlaying ? '#f23f43' : isOnline ? '#23a55a' : '#80848e');
 
   return (
-    <aside className="noctra-user-profile-panel" role="complementary" aria-label="User Profile">
-      {/* Header */}
-      <div className="noctra-profile-header">
-        <button
-          type="button"
-          className="noctra-profile-close-btn"
-          onClick={onClose}
-          aria-label="Close Profile"
-          title="Close Profile"
-        >
-          <X size={15} />
-        </button>
+    <aside className="np-panel" role="complementary" aria-label="User Profile">
+      <button
+        type="button"
+        className="np-close"
+        onClick={onClose}
+        aria-label="Close Profile"
+        title="Close Profile"
+      >
+        <X size={16} />
+      </button>
 
-        <div className="noctra-profile-avatar-wrap">
+      {/* Identity */}
+      <div className="np-identity">
+        <div className="np-avatar-ring" style={{ '--np-ring': statusColor }}>
           <RelayAvatar
             name={user.name}
             skinUrl={user.skinUrl}
-            size={76}
-            status={presence?.status || 'offline'}
+            size={80}
+            status={status}
             showStatus
-            className="noctra-profile-avatar"
+            className="np-avatar"
           />
         </div>
 
-        <div className="noctra-profile-names">
-          <h3 className="noctra-profile-display-name">{user.nickname || user.name}</h3>
-          <span className="noctra-profile-username">@{user.name}</span>
-        </div>
+        <h3 className="np-name">{user.nickname || user.name}</h3>
+        <span className="np-handle">@{user.name}</span>
 
-        <div className="noctra-profile-badges-row">
+        <span className="np-status-pill" style={{ '--np-dot': statusColor }}>
+          <span className="np-status-dot" />
+          {statusLabel}
+        </span>
+
+        <div className="np-badges">
           <Badges user={user} size={20} />
         </div>
       </div>
 
-      <div className="noctra-profile-divider" />
-
-      {/* Activity / Game Presence Card */}
-      <div className="noctra-profile-section">
-        <span className="noctra-profile-section-title">ACTIVITY</span>
-        <div className={`noctra-profile-activity-card ${isPlaying ? 'is-playing' : ''}`}>
-          <div className="noctra-activity-icon-wrap">
-            <Gamepad2 size={20} className={isPlaying ? 'text-red' : 'text-muted'} />
-          </div>
-          <div className="noctra-activity-info">
-            <strong className="noctra-activity-heading">{statusLabel}</strong>
-            <span className="noctra-activity-detail">
-              {presence?.text || (isPlaying ? 'Minecraft' : 'No active game')}
-            </span>
-            {isPlaying && presence?.serverAddress && (
-              <span className="noctra-activity-subdetail">{presence.serverAddress}</span>
+      {/* Activity */}
+      <div className="np-block">
+        <span className="np-label">Activity</span>
+        <div className={`np-card np-activity ${isPlaying ? 'is-playing' : ''}`}>
+          <span className="np-activity-icon">
+            <Gamepad2 size={18} />
+          </span>
+          <div className="np-activity-text">
+            <strong>{isPlaying ? (presence?.text || 'In-game') : (isOnline ? 'In Launcher' : 'Not playing')}</strong>
+            {isPlaying && presence?.serverAddress ? (
+              <span className="np-activity-sub">
+                <Server size={11} />
+                {presence.serverAddress}
+              </span>
+            ) : (
+              <span className="np-activity-sub">{isPlaying ? 'Minecraft' : 'No active game'}</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Member Details */}
-      <div className="noctra-profile-section">
-        <span className="noctra-profile-section-title">NOCTRA MEMBER SINCE</span>
-        <div className="noctra-profile-meta-row">
-          <Calendar size={14} className="text-muted" />
-          <span>{formatMemberDate(user.memberSince || user.createdAt)}</span>
-        </div>
-        {user.friendsSince && (
-          <div className="noctra-profile-meta-row" style={{ marginTop: '4px' }}>
-            <Clock size={14} className="text-muted" />
-            <span>Friends since {formatMemberDate(user.friendsSince)}</span>
+      {/* Details */}
+      <div className="np-block">
+        <span className="np-label">Details</span>
+        <div className="np-card np-details">
+          <div className="np-detail-row">
+            <CalendarDays size={15} />
+            <div className="np-detail-copy">
+              <span className="np-detail-key">Member since</span>
+              <span className="np-detail-val">{formatMemberDate(user.memberSince || user.createdAt)}</span>
+            </div>
           </div>
-        )}
+          {user.friendsSince && (
+            <div className="np-detail-row">
+              <UserMinus size={15} />
+              <div className="np-detail-copy">
+                <span className="np-detail-key">Friends since</span>
+                <span className="np-detail-val">{formatMemberDate(user.friendsSince)}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="noctra-profile-divider" />
-
-      {/* Action Buttons */}
+      {/* Actions */}
       {!isGroup && (
-        <div className="noctra-profile-actions-section">
+        <div className="np-actions">
           {confirmClear ? (
-            <div className="noctra-profile-confirm-row">
-              <span>Clear chat?</span>
-              <button
-                type="button"
-                className="btn-confirm-yes"
-                onClick={() => {
-                  setConfirmClear(false);
-                  onClearHistory?.(user.id);
-                }}
-              >
-                Yes, clear
-              </button>
-              <button type="button" className="btn-confirm-no" onClick={() => setConfirmClear(false)}>
-                Cancel
-              </button>
+            <div className="np-confirm">
+              <span>Clear chat history?</span>
+              <div className="np-confirm-btns">
+                <button
+                  type="button"
+                  className="np-confirm-yes"
+                  onClick={() => {
+                    setConfirmClear(false);
+                    onClearHistory?.(user.id);
+                  }}
+                >
+                  Clear
+                </button>
+                <button type="button" className="np-confirm-no" onClick={() => setConfirmClear(false)}>
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
-            <button
-              type="button"
-              className="noctra-profile-action-btn"
-              onClick={() => setConfirmClear(true)}
-            >
-              <Trash2 size={14} />
+            <button type="button" className="np-action" onClick={() => setConfirmClear(true)}>
+              <Trash2 size={15} />
               <span>Clear chat history</span>
             </button>
           )}
 
           {confirmUnfriend ? (
-            <div className="noctra-profile-confirm-row">
-              <span>Unfriend @{user.name}?</span>
-              <button
-                type="button"
-                className="btn-confirm-yes is-danger"
-                onClick={() => {
-                  setConfirmUnfriend(false);
-                  onUnfriend?.(user.id);
-                }}
-              >
-                Unfriend
-              </button>
-              <button type="button" className="btn-confirm-no" onClick={() => setConfirmUnfriend(false)}>
-                Cancel
-              </button>
+            <div className="np-confirm">
+              <span>Remove @{user.name}?</span>
+              <div className="np-confirm-btns">
+                <button
+                  type="button"
+                  className="np-confirm-yes is-danger"
+                  onClick={() => {
+                    setConfirmUnfriend(false);
+                    onUnfriend?.(user.id);
+                  }}
+                >
+                  Unfriend
+                </button>
+                <button type="button" className="np-confirm-no" onClick={() => setConfirmUnfriend(false)}>
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
-            <button
-              type="button"
-              className="noctra-profile-action-btn"
-              onClick={() => setConfirmUnfriend(true)}
-            >
-              <UserMinus size={14} />
+            <button type="button" className="np-action" onClick={() => setConfirmUnfriend(true)}>
+              <UserMinus size={15} />
               <span>Remove friend</span>
             </button>
           )}
 
           {confirmBlock ? (
-            <div className="noctra-profile-confirm-row">
+            <div className="np-confirm">
               <span>Block @{user.name}?</span>
-              <button
-                type="button"
-                className="btn-confirm-yes is-danger"
-                onClick={() => {
-                  setConfirmBlock(false);
-                  onBlock?.(user.id);
-                }}
-              >
-                Block
-              </button>
-              <button type="button" className="btn-confirm-no" onClick={() => setConfirmBlock(false)}>
-                Cancel
-              </button>
+              <div className="np-confirm-btns">
+                <button
+                  type="button"
+                  className="np-confirm-yes is-danger"
+                  onClick={() => {
+                    setConfirmBlock(false);
+                    onBlock?.(user.id);
+                  }}
+                >
+                  Block
+                </button>
+                <button type="button" className="np-confirm-no" onClick={() => setConfirmBlock(false)}>
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
-            <button
-              type="button"
-              className="noctra-profile-action-btn is-danger"
-              onClick={() => setConfirmBlock(true)}
-            >
-              <Ban size={14} />
+            <button type="button" className="np-action is-danger" onClick={() => setConfirmBlock(true)}>
+              <Ban size={15} />
               <span>Block user</span>
             </button>
           )}

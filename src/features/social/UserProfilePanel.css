@@ -1,19 +1,21 @@
-.noctra-user-profile-panel {
+.np-panel {
   width: 280px;
   flex: none;
   background: var(--page-elevated, #111013);
   border-left: 1px solid rgba(255, 255, 255, 0.07);
   display: flex;
   flex-direction: column;
+  gap: 18px;
+  padding: 18px 16px 20px;
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
-  animation: noctraProfileSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: npSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes noctraProfileSlideIn {
+@keyframes npSlideIn {
   from {
-    transform: translateX(30px);
+    transform: translateX(24px);
     opacity: 0;
   }
   to {
@@ -22,229 +24,285 @@
   }
 }
 
-.noctra-profile-header {
-  position: relative;
-  padding: 24px 16px 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
-}
-
-.noctra-profile-close-btn {
+/* Close */
+.np-close {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--fg-muted, #cfcfcf);
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--fg-muted, #9aa0a6);
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
+  z-index: 2;
 }
 
-.noctra-profile-close-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+.np-close:hover {
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  transform: scale(1.08);
 }
 
-.noctra-profile-avatar-wrap {
-  position: relative;
-  width: fit-content;
-}
-
-.noctra-profile-avatar {
-  border: 3px solid var(--page-elevated, #111013);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-.noctra-profile-names {
+/* Identity */
+.np-identity {
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
+  padding-top: 8px;
 }
 
-.noctra-profile-display-name {
-  margin: 0;
-  font-size: 16px;
+.np-avatar-ring {
+  padding: 3px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--np-ring, #80848e);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.25), 0 0 16px -4px var(--np-ring, transparent);
+}
+
+.np-avatar {
+  display: block;
+  border: 3px solid var(--page-elevated, #111013);
+}
+
+.np-name {
+  margin: 12px 0 0;
+  font-size: 17px;
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
 }
 
-.noctra-profile-username {
-  font-size: 12px;
+.np-handle {
+  font-size: 12.5px;
   color: var(--fg-muted, #80848e);
   margin-top: 2px;
 }
 
-.noctra-profile-badges-row {
-  margin-top: 4px;
+.np-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #e6e6e6;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.noctra-profile-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.06);
-  margin: 14px 16px;
+.np-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--np-dot, #80848e);
+  box-shadow: 0 0 8px -1px var(--np-dot, transparent);
 }
 
-.noctra-profile-section {
-  padding: 0 16px;
+.np-badges {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  min-height: 0;
+}
+
+.np-badges:empty {
+  display: none;
+}
+
+/* Blocks */
+.np-block {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.noctra-profile-section-title {
-  font-size: 10px;
+.np-label {
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--fg-muted, #80848e);
   text-transform: uppercase;
 }
 
-.noctra-profile-activity-card {
-  padding: 10px 12px;
-  border-radius: 8px;
+.np-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+/* Activity */
+.np-activity {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 11px;
 }
 
-.noctra-profile-activity-card.is-playing {
-  background: rgba(242, 63, 67, 0.06);
-  border-color: rgba(242, 63, 67, 0.2);
-}
-
-.noctra-activity-icon-wrap {
-  padding: 4px;
+.np-activity-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   display: grid;
   place-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg-muted, #9aa0a6);
 }
 
-.noctra-activity-info {
+.np-activity.is-playing {
+  background: rgba(242, 63, 67, 0.07);
+  border-color: rgba(242, 63, 67, 0.22);
+}
+
+.np-activity.is-playing .np-activity-icon {
+  background: rgba(242, 63, 67, 0.15);
+  color: #f23f43;
+}
+
+.np-activity-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  gap: 2px;
 }
 
-.noctra-activity-heading {
-  font-size: 11px;
-  font-weight: 700;
+.np-activity-text strong {
+  font-size: 13px;
+  font-weight: 600;
   color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.noctra-activity-detail {
-  font-size: 12px;
-  color: #e2e2e2;
-  font-weight: 500;
-  margin-top: 1px;
+.np-activity-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--fg-muted, #80848e);
   word-break: break-word;
 }
 
-.noctra-activity-subdetail {
-  font-size: 11px;
-  color: var(--fg-muted, #80848e);
-  font-family: var(--font-mono, monospace);
-  margin-top: 2px;
+/* Details */
+.np-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.noctra-profile-meta-row {
+.np-detail-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #d1d1d1;
+  gap: 11px;
+  color: var(--fg-muted, #9aa0a6);
 }
 
-.noctra-profile-actions-section {
-  padding: 0 16px 20px 16px;
+.np-detail-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.np-detail-key {
+  font-size: 10.5px;
+  color: var(--fg-muted, #80848e);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.np-detail-val {
+  font-size: 12.5px;
+  color: #e6e6e6;
+  font-weight: 500;
+}
+
+/* Actions */
+.np-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: auto;
 }
 
-.noctra-profile-action-btn {
+.np-action {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: #ddd;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.noctra-profile-action-btn:hover {
+.np-action:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
-.noctra-profile-action-btn.is-danger {
+.np-action.is-danger {
   color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
+  background: rgba(239, 68, 68, 0.07);
   border-color: rgba(239, 68, 68, 0.15);
 }
 
-.noctra-profile-action-btn.is-danger:hover {
-  background: rgba(239, 68, 68, 0.16);
+.np-action.is-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
   color: #ff6b6b;
 }
 
-.noctra-profile-confirm-row {
+.np-confirm {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #fff;
-  padding: 6px 8px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 9px;
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: #fff;
 }
 
-.btn-confirm-yes,
-.btn-confirm-no {
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 10.5px;
+.np-confirm-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.np-confirm-yes,
+.np-confirm-no {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
   border: none;
 }
 
-.btn-confirm-yes {
+.np-confirm-yes {
   background: var(--brand, #5865f2);
   color: #fff;
 }
 
-.btn-confirm-yes.is-danger {
+.np-confirm-yes.is-danger {
   background: #ef4444;
 }
 
-.btn-confirm-no {
+.np-confirm-no {
   background: rgba(255, 255, 255, 0.1);
   color: #ddd;
-}
-
-.text-red {
-  color: #f23f43;
-}
-
-.text-muted {
-  color: var(--fg-muted, #80848e);
 }

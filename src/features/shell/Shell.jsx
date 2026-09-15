@@ -268,7 +268,10 @@ export default function Shell({
     <div className="app-shell">
       <AppNavbar
         currentTab={navTab}
-        onSelectTab={(tab) => setCurrentTab(tab)}
+        onSelectTab={(tab) => {
+          if (tab === 'relay' && currentTab !== 'relay') social?.setActiveChatFriend?.(null);
+          setCurrentTab(tab);
+        }}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAccountSwitcher={() => setAccountSwitcherOpen(true)}
         isAccountOpen={!hasValidAccount || accountSwitcherOpen}

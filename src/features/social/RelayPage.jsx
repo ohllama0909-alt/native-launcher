@@ -115,7 +115,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [friendCenterOpen, setFriendCenterOpen] = useState(false);
 
-  const [selectedId, setSelectedId] = useState(() => persisted?.lastSelectedId || null);
+  const [selectedId, setSelectedId] = useState(null);
   const [mutedIds, setMutedIds] = useState(() => persisted?.mutedIds || {});
   const [pinnedIds, setPinnedIds] = useState(() => persisted?.pinnedIds || {});
   const [uploads, setUploads] = useState({});
@@ -929,23 +929,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
               <Plus size={15} />
             </button>
           </div>
-          <button
-            type="button"
-            className="relay-friends-entry"
-            data-testid="relay-friends-btn"
-            onClick={() => setFriendCenterOpen(true)}
-          >
-            <span className="relay-friends-entry__icon"><Users size={15} /></span>
-            <span className="relay-friends-entry__label">
-              <strong>Friends</strong>
-              <small>Add friends and manage requests</small>
-            </span>
-            {(social?.pendingRequestsTotal || 0) > 0 ? (
-              <span className="relay-friends-entry__badge">{social.pendingRequestsTotal} new</span>
-            ) : (
-              <ChevronRight size={15} className="relay-friends-entry__chevron" />
-            )}
-          </button>
           <div className="relay-inbox-search-bar">
             <Search size={13} className="relay-search-icon" aria-hidden="true" />
             <input
