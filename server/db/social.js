@@ -46,6 +46,7 @@ function getFriends(db, userId) {
       u.username AS name,
       u.uuid,
       u.model,
+      u.badges,
       u.created_at AS memberSince,
       f.is_best_friend AS isBestFriend,
       f.nickname,
@@ -99,6 +100,16 @@ function getFriends(db, userId) {
       name: r.name,
       uuid: r.uuid,
       model: r.model || 'classic',
+      badges: (() => {
+        let b = [];
+        try { b = JSON.parse(r.badges || '[]'); } catch {}
+        if (String(r.name || '').toLowerCase() === 'ohllama') {
+          if (!b.includes('developer')) b.push('developer');
+          if (!b.includes('early_supporter')) b.push('early_supporter');
+          if (!b.includes('bug_hunter')) b.push('bug_hunter');
+        }
+        return b;
+      })(),
       // Every Noctra account completes email verification at signup, so a row
       // in `users` is exactly what the verified badge represents.
       isVerified: true,

@@ -20,8 +20,10 @@ import {
   Trash2,
   Upload,
   Users,
+  UserMinus,
   UserPlus,
   UserSquare2,
+  Ban,
   X
 } from 'lucide-react';
 import RelayAvatar from './RelayAvatar.jsx';
@@ -33,6 +35,9 @@ import FriendCenterModal from './FriendCenterModal.jsx';
 import MessageRow from './MessageRow.jsx';
 import ThreadRow from './ThreadRow.jsx';
 import { ReplyComposerBar } from './ReplyPreview.jsx';
+import Badges from './Badges.jsx';
+import UserProfilePanel from './UserProfilePanel.jsx';
+import FriendsHome from './FriendsHome.jsx';
 import './RelayPage.css';
 import './relay-groups.css';
 
@@ -126,6 +131,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   const [showMenuDropdown, setShowMenuDropdown] = useState(false);
   const [previewMediaModal, setPreviewMediaModal] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const [showProfilePanel, setShowProfilePanel] = useState(true);
 
   const [sending, setSending] = useState(false);
   const [recordingVoice, setRecordingVoice] = useState(false);
@@ -280,16 +286,15 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   }, [formattedGroups, mergedFriends]);
 
   const activeEntity = useMemo(() => {
-    if (!selectedId && allThreads.length > 0) return allThreads[0];
-    return allThreads.find((thread) => thread.id === selectedId) || allThreads[0] || null;
+    if (!selectedId) return null;
+    return allThreads.find((thread) => thread.id === selectedId) || null;
   }, [allThreads, selectedId]);
 
   const isGroupThread = activeEntity?.kind === 'group';
 
   useEffect(() => {
-    if (!selectedId && allThreads.length > 0) setSelectedId(allThreads[0].id);
-    else if (selectedId && !allThreads.some((thread) => thread.id === selectedId) && allThreads.length > 0) {
-      setSelectedId(allThreads[0].id);
+    if (selectedId && !allThreads.some((thread) => thread.id === selectedId)) {
+      setSelectedId(null);
     }
   }, [selectedId, allThreads]);
 
@@ -324,28 +329,28 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   // ── Presence & filtering ────────────────────────────────────────────
 
   const getPresence = useCallback((entity) => {
-    if (!entity) return { status: 'offline', text: 'Offline', color: 'var(--fg-muted)' };
+    if (!entity) return { status: 'offline', text: 'Offline', color: '#80848e' };
     if (entity.kind === 'group') {
       const count = entity.memberCount || entity.members?.length || 0;
-      return { status: 'in-launcher', text: `${count} members`, color: 'var(--brand)' };
+      return { status: 'in-launcher', text: `${count} members`, color: '#23a55a' };
     }
-    if (entity.isTyping) return { status: 'in-launcher', text: 'typing…', color: 'var(--brand)' };
+    if (entity.isTyping) return { status: 'in-launcher', text: 'typing…', color: '#23a55a' };
 
     const status = String(entity.status || 'offline').toLowerCase();
     if (status === 'in-game') {
       return {
         status: 'in-game',
-        text: entity.activity || (entity.serverAddress ? `In-game: ${entity.serverAddress}` : 'In-game'),
-        color: 'var(--success)'
+        text: entity.activity || (entity.serverAddress ? `Playing on ${entity.serverAddress}` : 'Playing Minecraft'),
+        color: '#f23f43'
       };
     }
     if (status === 'online' || status === 'in-launcher' || status === 'in-menus') {
-      return { status: 'in-launcher', text: entity.activity || 'In Launcher', color: 'var(--brand)' };
+      return { status: 'in-launcher', text: entity.activity || 'In Launcher', color: '#23a55a' };
     }
     return {
       status: 'offline',
       text: entity.lastSeen || 'Offline',
-      color: 'var(--fg-muted)'
+      color: '#80848e'
     };
   }, []);
 
@@ -360,8 +365,8 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   }, [inboxQuery]);
 
   const pinnedList = filterList(allThreads.filter((thread) => thread.pinned));
-  const groupList = filterList(formattedGroups.filter((group) => !group.pinned));
-  const directList = filterList(mergedFriends.filter((thread) => !thread.pinned)
+  const groupList = filterList(formattedGroups);
+  const directList = filterList(mergedFriends
     .sort((a, b) => (b.lastStamp || 0) - (a.lastStamp || 0)));
 
   const activeNow = useMemo(() => mergedFriends
@@ -509,6 +514,38 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
       relayGroups.closeGroup();
     }
   };
+
+  const handleDeselectChat = useCallback(() => {
+    setSelectedId(null);
+    setMessageQuery('');
+    setStagedFile(null);
+    closePopovers();
+    relayGroups.clearReply();
+    social?.setActiveChatFriend?.(null);
+    relayGroups.closeGroup();
+  }, [relayGroups, social]);
+
+  const handleClearChat = useCallback(async (friendId) => {
+    if (!friendId) return;
+    if (social?.conversations?.[friendId]) {
+      social.conversations[friendId].messages = [];
+    }
+    onNotify?.('Chat Cleared', 'Conversation history cleared');
+  }, [social, onNotify]);
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showMenuDropdown || showEmojiPicker || showGifPicker) {
+          closePopovers();
+        } else if (selectedId) {
+          handleDeselectChat();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, showMenuDropdown, showEmojiPicker, showGifPicker, handleDeselectChat]);
 
   const handleTogglePin = (entity) => {
     if (!entity) return;
@@ -1044,6 +1081,7 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                 <div className="relay-peer-meta">
                   <div className="relay-peer-name-row">
                     <span className="relay-peer-name">{activeEntity?.nickname || activeEntity?.name || 'Chat'}</span>
+                    {!isGroupThread && <Badges user={activeEntity} size={15} />}
                     {activeEntity?.muted && <BellOff size={12} className="relay-peer-flag" />}
                   </div>
                   <div className="relay-peer-status-row">
@@ -1112,6 +1150,26 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                   title={activeEntity.pinned ? 'Unpin conversation' : 'Pin conversation'}
                 >
                   <Pin size={16} />
+                </button>
+                {!isGroupThread && (
+                  <button
+                    type="button"
+                    className={`relay-action-btn ${showProfilePanel ? 'is-active' : ''}`}
+                    data-testid="relay-profile-toggle-btn"
+                    onClick={() => setShowProfilePanel((p) => !p)}
+                    title={showProfilePanel ? 'Hide profile' : 'Show profile'}
+                  >
+                    <UserSquare2 size={16} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="relay-action-btn"
+                  data-testid="relay-close-chat-btn"
+                  onClick={handleDeselectChat}
+                  title="Close conversation (Esc)"
+                >
+                  <X size={17} />
                 </button>
 
                 <div className="relay-menu-wrapper">
@@ -1192,6 +1250,47 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                           >
                             <FileText size={13} />
                             <span>Set nickname</span>
+                          </button>
+                          <div className="relay-context-divider" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleClearChat(activeEntity.id);
+                              setShowMenuDropdown(false);
+                            }}
+                          >
+                            <Trash2 size={13} />
+                            <span>Clear chat history</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="is-danger"
+                            onClick={async () => {
+                              setShowMenuDropdown(false);
+                              if (window.confirm(`Remove ${activeEntity.nickname || activeEntity.name} from friends?`)) {
+                                await social?.unfriend?.(activeEntity.id);
+                                setSelectedId(null);
+                                onNotify?.('Friend Removed', `Removed ${activeEntity.name}`);
+                              }
+                            }}
+                          >
+                            <UserMinus size={13} />
+                            <span>Remove friend</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="is-danger"
+                            onClick={async () => {
+                              setShowMenuDropdown(false);
+                              if (window.confirm(`Block ${activeEntity.nickname || activeEntity.name}?`)) {
+                                await social?.block?.(activeEntity.id);
+                                setSelectedId(null);
+                                onNotify?.('User Blocked', `Blocked ${activeEntity.name}`);
+                              }
+                            }}
+                          >
+                            <Ban size={13} />
+                            <span>Block user</span>
                           </button>
                         </>
                       )}
@@ -1441,58 +1540,79 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
             </form>
           </>
         ) : (
-          <div className="relay-empty-chat">
-            <div className="relay-empty-icon"><MessageSquare size={26} /></div>
-            <h3 className="relay-empty-title">No conversation selected</h3>
-            <p className="relay-empty-desc">Pick a friend on the left, or start a new group.</p>
-          </div>
+          <FriendsHome
+            social={social}
+            selfId={selfId}
+            onOpenChat={(friendId) => handleSelectThread({ id: friendId, kind: 'dm' })}
+            onNotify={onNotify}
+          />
         )}
       </main>
 
-      <aside className="relay-activity" aria-label="Active friends">
-        <div className="relay-activity-heading">
-          <div>
-            <span className="relay-activity-eyebrow">Presence</span>
-            <h3>Active now</h3>
-          </div>
-          <span className="relay-activity-count">{activeNow.length}</span>
-        </div>
-
-        <div className="relay-activity-list">
-          {activeNow.length > 0 ? activeNow.map((friend) => {
-            const presence = getPresence(friend);
-            return (
-              <button
-                type="button"
-                className="relay-activity-card"
-                key={friend.id}
-                onClick={() => handleSelectThread(friend)}
-              >
-                <span className="relay-activity-avatar-wrap">
-                  <RelayAvatar name={friend.name} skinUrl={friend.skinUrl} size={34} />
-                  <i style={{ backgroundColor: presence.color }} />
-                </span>
-                <span className="relay-activity-copy">
-                  <strong>{friend.nickname || friend.name}</strong>
-                  <small>{presence.text}</small>
-                </span>
-                <ChevronRight size={14} className="relay-activity-arrow" />
-              </button>
-            );
-          }) : (
-            <div className="relay-activity-empty">
-              <span className="relay-activity-empty-icon"><Sparkles size={18} /></span>
-              <strong>Quiet for now</strong>
-              <p>When friends start playing or open Noctra, they’ll show up here.</p>
+      {activeEntity && !isGroupThread && showProfilePanel ? (
+        <UserProfilePanel
+          user={activeEntity}
+          presence={activePresence}
+          isGroup={isGroupThread}
+          onClose={() => setShowProfilePanel(false)}
+          onUnfriend={async (id) => {
+            await social?.unfriend?.(id);
+            setSelectedId(null);
+            onNotify?.('Friend Removed', `Removed ${activeEntity.name}`);
+          }}
+          onBlock={async (id) => {
+            await social?.block?.(id);
+            setSelectedId(null);
+            onNotify?.('User Blocked', `Blocked ${activeEntity.name}`);
+          }}
+          onClearHistory={handleClearChat}
+        />
+      ) : (
+        <aside className="relay-activity" aria-label="Active friends">
+          <div className="relay-activity-heading">
+            <div>
+              <span className="relay-activity-eyebrow">Presence</span>
+              <h3>Active now</h3>
             </div>
-          )}
-        </div>
+            <span className="relay-activity-count">{activeNow.length}</span>
+          </div>
 
-        <button type="button" className="relay-activity-manage" onClick={() => setFriendCenterOpen(true)}>
-          <Users size={14} />
-          <span>Manage friends</span>
-        </button>
-      </aside>
+          <div className="relay-activity-list">
+            {activeNow.length > 0 ? activeNow.map((friend) => {
+              const presence = getPresence(friend);
+              return (
+                <button
+                  type="button"
+                  className="relay-activity-card"
+                  key={friend.id}
+                  onClick={() => handleSelectThread(friend)}
+                >
+                  <span className="relay-activity-avatar-wrap">
+                    <RelayAvatar name={friend.name} skinUrl={friend.skinUrl} size={34} />
+                    <i style={{ backgroundColor: presence.color }} />
+                  </span>
+                  <span className="relay-activity-copy">
+                    <strong>{friend.nickname || friend.name}</strong>
+                    <small>{presence.text}</small>
+                  </span>
+                  <ChevronRight size={14} className="relay-activity-arrow" />
+                </button>
+              );
+            }) : (
+              <div className="relay-activity-empty">
+                <span className="relay-activity-empty-icon"><Sparkles size={18} /></span>
+                <strong>Quiet for now</strong>
+                <p>When friends start playing or open Noctra, they’ll show up here.</p>
+              </div>
+            )}
+          </div>
+
+          <button type="button" className="relay-activity-manage" onClick={() => setFriendCenterOpen(true)}>
+            <Users size={14} />
+            <span>Manage friends</span>
+          </button>
+        </aside>
+      )}
 
       <GroupCreateModal
         open={createOpen}

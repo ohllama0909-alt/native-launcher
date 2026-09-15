@@ -109,10 +109,10 @@ export default function RelayAvatar({
 
   const resolvedSkin = skinUrl && !hasError ? skinUrl : fallbackSkin;
   const statusColor = status === 'in-game'
-    ? 'var(--success, #55db72)'
-    : status === 'in-launcher' || status === 'online'
-      ? 'var(--brand, #b05acb)'
-      : 'var(--fg-muted, #6a6470)';
+    ? '#f23f43'
+    : (status === 'in-launcher' || status === 'online' || status === 'in-menus')
+      ? '#23a55a'
+      : '#80848e';
 
   return (
     <div
@@ -152,12 +152,12 @@ export default function RelayAvatar({
             position: 'absolute',
             right: 0,
             bottom: 0,
-            width: Math.max(8, Math.round(pixels * 0.25)),
-            height: Math.max(8, Math.round(pixels * 0.25)),
+            width: Math.max(9, Math.round(pixels * 0.28)),
+            height: Math.max(9, Math.round(pixels * 0.28)),
             borderRadius: '50%',
             backgroundColor: statusColor,
             border: '2px solid var(--page-elevated, #111013)',
-            boxShadow: status === 'in-game' && 'var(--shadow-brand, 0 0 6px rgba(85, 219, 114, 0.7))',
+            boxShadow: status === 'in-game' ? '0 0 6px rgba(242, 63, 67, 0.7)' : (status === 'in-launcher' || status === 'online' ? '0 0 6px rgba(35, 165, 90, 0.5)' : 'none'),
             zIndex: 2
           }}
         />

@@ -1,0 +1,411 @@
+.noctra-embedded-friends {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  background: var(--page, #060305);
+  overflow: hidden;
+}
+
+.noctra-friends-tab-bar {
+  height: 48px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  flex: none;
+  background: var(--page-elevated, #111013);
+}
+
+.noctra-friends-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+.noctra-tab-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 4px;
+}
+
+.noctra-friend-tab {
+  background: none;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: var(--fg-muted, #80848e);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.noctra-friend-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ddd;
+}
+
+.noctra-friend-tab.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.noctra-friend-tab b {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.noctra-pending-badge {
+  background: #f23f43;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-style: normal;
+}
+
+.noctra-friend-tab-btn {
+  margin-left: 6px;
+  background: #23a55a;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease;
+}
+
+.noctra-friend-tab-btn:hover {
+  background: #1f9450;
+}
+
+.noctra-friends-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 30px;
+  display: flex;
+  flex-direction: column;
+}
+
+.noctra-friends-notice {
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.noctra-friends-notice.success {
+  background: rgba(35, 165, 90, 0.15);
+  border: 1px solid rgba(35, 165, 90, 0.3);
+  color: #23a55a;
+}
+
+.noctra-friends-notice.error {
+  background: rgba(242, 63, 67, 0.15);
+  border: 1px solid rgba(242, 63, 67, 0.3);
+  color: #f23f43;
+}
+
+.noctra-friends-notice button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.noctra-add-friend-panel h3 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.noctra-add-friend-panel p {
+  margin: 0 0 16px 0;
+  font-size: 12.5px;
+  color: var(--fg-muted, #80848e);
+}
+
+.noctra-add-input-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  gap: 10px;
+  max-width: 620px;
+}
+
+.noctra-add-input-wrap input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+}
+
+.noctra-btn-send-req {
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: #5865f2;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.noctra-btn-send-req:hover:not(:disabled) {
+  background: #4752c4;
+}
+
+.noctra-btn-send-req:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.noctra-friends-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-bottom: 20px;
+  max-width: 500px;
+}
+
+.noctra-friends-search-box input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 13px;
+}
+
+.noctra-friends-search-box button {
+  background: none;
+  border: none;
+  color: var(--fg-muted, #80848e);
+  cursor: pointer;
+}
+
+.noctra-list-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted, #80848e);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.noctra-friend-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.noctra-friend-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.noctra-friend-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.noctra-friend-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.noctra-friend-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.noctra-friend-handle {
+  font-size: 12px;
+  color: var(--fg-muted, #80848e);
+}
+
+.noctra-friend-activity {
+  font-size: 12px;
+  color: var(--fg-muted, #80848e);
+  margin-top: 2px;
+}
+
+.noctra-friend-activity.is-playing {
+  color: #f23f43;
+  font-weight: 500;
+}
+
+.noctra-friend-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.noctra-friend-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: #ccc;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.noctra-friend-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.noctra-friend-icon-btn.is-danger:hover {
+  background: rgba(242, 63, 67, 0.2);
+  color: #f23f43;
+}
+
+.noctra-empty-friends {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  gap: 12px;
+}
+
+.noctra-empty-friends p {
+  color: var(--fg-muted, #80848e);
+  font-size: 13.5px;
+}
+
+.noctra-request-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.noctra-req-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.noctra-req-info strong {
+  font-size: 14px;
+  color: #fff;
+}
+
+.noctra-req-info span {
+  font-size: 12px;
+  color: var(--fg-muted, #80848e);
+}
+
+.noctra-req-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-req-accept,
+.btn-req-decline {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-req-accept {
+  background: rgba(35, 165, 90, 0.2);
+  color: #23a55a;
+}
+
+.btn-req-accept:hover {
+  background: #23a55a;
+  color: #fff;
+}
+
+.btn-req-decline {
+  background: rgba(242, 63, 67, 0.2);
+  color: #f23f43;
+}
+
+.btn-req-decline:hover {
+  background: #f23f43;
+  color: #fff;
+}
+
+.btn-req-cancel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-req-cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.btn-unblock {
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-unblock:hover {
+  background: rgba(255, 255, 255, 0.16);
+}

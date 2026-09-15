@@ -1,0 +1,256 @@
+.noctra-user-profile-panel {
+  width: 280px;
+  flex: none;
+  background: var(--page-elevated, #111013);
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  animation: noctraProfileSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes noctraProfileSlideIn {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.noctra-profile-banner {
+  height: 84px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+  position: relative;
+  flex: none;
+}
+
+.noctra-profile-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.noctra-profile-close-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.08);
+}
+
+.noctra-profile-avatar-wrap {
+  position: relative;
+  margin-top: -38px;
+  margin-left: 16px;
+  margin-bottom: 8px;
+  width: fit-content;
+}
+
+.noctra-profile-avatar {
+  border: 4px solid var(--page-elevated, #111013);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.noctra-profile-header-info {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.noctra-profile-names {
+  display: flex;
+  flex-direction: column;
+}
+
+.noctra-profile-display-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.noctra-profile-username {
+  font-size: 12px;
+  color: var(--fg-muted, #80848e);
+  margin-top: 2px;
+}
+
+.noctra-profile-badges-row {
+  margin-top: 4px;
+}
+
+.noctra-profile-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 14px 16px;
+}
+
+.noctra-profile-section {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.noctra-profile-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted, #80848e);
+  text-transform: uppercase;
+}
+
+.noctra-profile-activity-card {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.noctra-profile-activity-card.is-playing {
+  background: rgba(242, 63, 67, 0.06);
+  border-color: rgba(242, 63, 67, 0.2);
+}
+
+.noctra-activity-icon-wrap {
+  padding: 4px;
+  display: grid;
+  place-items: center;
+}
+
+.noctra-activity-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.noctra-activity-heading {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.noctra-activity-detail {
+  font-size: 12px;
+  color: #e2e2e2;
+  font-weight: 500;
+  margin-top: 1px;
+  word-break: break-word;
+}
+
+.noctra-activity-subdetail {
+  font-size: 11px;
+  color: var(--fg-muted, #80848e);
+  font-family: var(--font-mono, monospace);
+  margin-top: 2px;
+}
+
+.noctra-profile-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #d1d1d1;
+}
+
+.noctra-profile-actions-section {
+  padding: 0 16px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.noctra-profile-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #ddd;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.noctra-profile-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.noctra-profile-action-btn.is-danger {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.15);
+}
+
+.noctra-profile-action-btn.is-danger:hover {
+  background: rgba(239, 68, 68, 0.16);
+  color: #ff6b6b;
+}
+
+.noctra-profile-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #fff;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+}
+
+.btn-confirm-yes,
+.btn-confirm-no {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-confirm-yes {
+  background: var(--brand, #5865f2);
+  color: #fff;
+}
+
+.btn-confirm-yes.is-danger {
+  background: #ef4444;
+}
+
+.btn-confirm-no {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ddd;
+}
+
+.text-red {
+  color: #f23f43;
+}
+
+.text-muted {
+  color: var(--fg-muted, #80848e);
+}

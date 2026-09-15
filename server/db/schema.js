@@ -202,6 +202,7 @@ function initSchema(db) {
   safeAddColumn('groups', 'description TEXT DEFAULT NULL');
   safeAddColumn('groups', 'icon_url TEXT DEFAULT NULL');
   safeAddColumn('groups', 'updated_at INTEGER DEFAULT 0');
+  safeAddColumn('users', "badges TEXT DEFAULT '[]'");
 
   // Query performance indexes (run after all columns exist)
   db.exec(`
