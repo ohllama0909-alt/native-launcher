@@ -120,6 +120,8 @@ export default function BrowseView({
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sort, setSort] = useState('relevance');
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef(null);
   const [page, setPage] = useState(1);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categoryQuery, setCategoryQuery] = useState('');
@@ -178,6 +180,7 @@ export default function BrowseView({
   const loaderFacet = LOADER_FACETS.has(targetLoader.toLowerCase())
     ? targetLoader.toLowerCase()
     : null;
+  const currentSort = SORTS.find((entry) => entry.id === sort) || SORTS[0];
 
   /* ---------------------------------------------------------- debounce */
 
@@ -193,7 +196,28 @@ export default function BrowseView({
   useEffect(() => {
     setSelectedCategories([]);
     setCategoryQuery('');
+    setSortOpen(false);
   }, [contentType]);
+
+  useEffect(() => {
+    if (!sortOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (sortRef.current && !sortRef.current.contains(event.target)) {
+        setSortOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setSortOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [sortOpen]);
 
   /* ------------------------------------------------------ category tags */
 
@@ -827,16 +851,41 @@ export default function BrowseView({
           )}
         </label>
 
-        <label className="browse-sort-select">
-          <NativeIcon name="sort" size={15} />
-          <span>Sort by</span>
-          <select value={sort} onChange={(event) => setSort(event.target.value)}>
-            {SORTS.map((entry) => (
-              <option key={entry.id} value={entry.id}>{t(entry.key)}</option>
-            ))}
-          </select>
-          <NativeIcon name="chevron-down" size={13} />
-        </label>
+        <div className={`browse-sort-select ${sortOpen ? 'is-open' : ''}`} ref={sortRef}>
+          <button
+            type="button"
+            className="browse-sort-btn"
+            onClick={() => setSortOpen((open) => !open)}
+            aria-haspopup="listbox"
+            aria-expanded={sortOpen}
+          >
+            <NativeIcon name="sort" size={15} />
+            <span className="browse-sort-label">Sort by</span>
+            <span className="browse-sort-value">{t(currentSort.key)}</span>
+            <NativeIcon name="chevron-down" size={13} className={`browse-sort-chevron ${sortOpen ? 'open' : ''}`} />
+          </button>
+
+          {sortOpen && (
+            <div className="browse-sort-popover" role="listbox" aria-label="Sort options">
+              {SORTS.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  role="option"
+                  aria-selected={sort === entry.id}
+                  className={`browse-sort-popover-item ${sort === entry.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setSort(entry.id);
+                    setSortOpen(false);
+                  }}
+                >
+                  <span>{t(entry.key)}</span>
+                  {sort === entry.id && <NativeIcon name="check" size={13} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {selectedCategories.length > 0 && (
