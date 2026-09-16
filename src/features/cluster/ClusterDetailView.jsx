@@ -19,6 +19,7 @@ export default function ClusterDetailView({
   launcherState,
   onUpdateCluster,
   social,
+  account,
   initialTab = 'overview'
 }) {
   const loader = cluster.mc_loader || cluster.loader || 'Vanilla';
@@ -302,6 +303,7 @@ export default function ClusterDetailView({
                   query={query}
                   sortAlphabetically={filtered}
                   social={social}
+                  account={account}
                   onNotify={showNotice}
                 />
               )}

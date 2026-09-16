@@ -444,6 +444,7 @@ export default function Shell({
             onUpdateCluster={instancesManager.saveOverrides}
             onNavigateBrowse={handleNavigateBrowse}
             social={social}
+            account={account}
           />
         )}
       </div>

@@ -13,6 +13,8 @@ import {
   UsersRound,
   X
 } from 'lucide-react';
+import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
+import Badges from '../social/Badges.jsx';
 import './ScreenshotManager.css';
 
 const formatSize = (bytes = 0) => {
@@ -93,8 +95,9 @@ export async function shareScreenshot({ cluster, shot, social, recipients, capti
   return { sent: results.length - failed, failed, total: results.length };
 }
 
-export function ShareScreenshotDialog({ cluster, shot, social, onClose, onShared }) {
+export function ShareScreenshotDialog({ cluster, shot, social, account, onClose, onShared }) {
   const dialogRef = useRef(null);
+  const [activeAccount, setActiveAccount] = useState(account || null);
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [query, setQuery] = useState('');
@@ -106,6 +109,27 @@ export function ShareScreenshotDialog({ cluster, shot, social, onClose, onShared
   useEscapeClose(onClose, busy);
 
   useEffect(() => { dialogRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    if (account) {
+      setActiveAccount(account);
+      return;
+    }
+    let cancelled = false;
+    Promise.resolve(window.native?.accounts?.list?.())
+      .then((res) => {
+        if (cancelled) return;
+        const active = res?.accounts?.find((a) => a.id === res?.activeId) || res?.accounts?.[0];
+        if (active) setActiveAccount(active);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [account]);
+
+  const currentUser = activeAccount || {
+    name: social?.selfId || 'You',
+    id: social?.selfId
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +185,17 @@ export function ShareScreenshotDialog({ cluster, shot, social, onClose, onShared
           <button onClick={onClose} disabled={busy} aria-label="Close share dialog"><X size={17}/></button>
         </header>
 
+        <div className="sm-share-sender">
+          <PlayerAvatar account={currentUser} size={32} />
+          <div className="sm-share-sender-info">
+            <span className="sm-share-sender-label">Sharing as</span>
+            <div className="sm-share-sender-name-row">
+              <strong className="sm-share-sender-name">{currentUser.name || currentUser.username || 'You'}</strong>
+              <Badges user={currentUser} size={15} />
+            </div>
+          </div>
+        </div>
+
         <div className="sm-share-shot">
           <div><ScreenshotThumbnail instanceId={cluster.id} shot={shot}/></div>
           <span><strong>{shot.name}</strong><small>{formatSize(shot.size)} · {formatDate(shot.modified)}</small></span>
@@ -205,7 +240,7 @@ export function ShareScreenshotDialog({ cluster, shot, social, onClose, onShared
   );
 }
 
-export default function ScreenshotManager({ cluster, query = '', sortAlphabetically = false, social, onNotify }) {
+export default function ScreenshotManager({ cluster, query = '', sortAlphabetically = false, social, account, onNotify }) {
   const previewRef = useRef(null);
   const [shots, setShots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -322,7 +357,7 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
         </div>
       )}
 
-      {shareShot && <ShareScreenshotDialog cluster={cluster} shot={shareShot} social={social} onClose={() => setShareShot(null)} onShared={(count) => { setShareShot(null); setPreview(null); onNotify?.('Screenshot shared', `Sent ${shareShot.name} to ${count} recipient${count === 1 ? '' : 's'}.`); }}/>} 
+      {shareShot && <ShareScreenshotDialog cluster={cluster} shot={shareShot} social={social} account={account} onClose={() => setShareShot(null)} onShared={(count) => { setShareShot(null); setPreview(null); onNotify?.('Screenshot shared', `Sent ${shareShot.name} to ${count} recipient${count === 1 ? '' : 's'}.`); }}/>} 
     </div>
   );
 }

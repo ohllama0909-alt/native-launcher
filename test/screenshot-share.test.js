@@ -57,3 +57,56 @@ const social = {
   assert.equal(output.calls.groups[0].payload.mediaUrl, 'https://cdn.test/shot.png');
   assert.equal(output.calls.groups[0].payload.content, 'Look at this build');
 });
+
+test('ShareScreenshotDialog renders current user avatar, name, and badges', () => {
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'noctra-share-ui-'));
+  const entry = path.join(workDir, 'entry.jsx');
+  const bundle = path.join(workDir, 'bundle.cjs');
+  fs.writeFileSync(entry, `
+globalThis.window = {
+  native: {
+    relay: { getGroups: async () => ({ ok: true, groups: [] }) },
+    accounts: { list: async () => ({ accounts: [], activeId: null }) },
+    instance: { screenshotData: async () => 'data:image/png;base64,AAAA' }
+  },
+  addEventListener() {},
+  removeEventListener() {}
+};
+globalThis.document = { addEventListener() {}, removeEventListener() {} };
+const React = require('react');
+const { renderToString } = require('react-dom/server');
+const { ShareScreenshotDialog } = require(${JSON.stringify(path.join(ROOT, 'src/features/cluster/ScreenshotManager.jsx'))});
+
+const html = renderToString(React.createElement(ShareScreenshotDialog, {
+  cluster: { id: 'inst-1', name: 'Survival' },
+  shot: { name: 'epic_castle.png', size: 102400, modified: Date.now() },
+  social: { friends: [] },
+  account: { name: 'OhLlama', badges: ['developer'] },
+  onClose() {},
+  onShared() {}
+}));
+
+process.stdout.write(html);
+`);
+
+  require('esbuild').buildSync({
+    entryPoints: [entry],
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    jsx: 'automatic',
+    loader: { '.css': 'empty', '.png': 'dataurl' },
+    outfile: bundle,
+    logLevel: 'error',
+    nodePaths: [path.join(ROOT, 'node_modules')]
+  });
+
+  const output = execFileSync(process.execPath, [bundle], { encoding: 'utf8' });
+  fs.rmSync(workDir, { recursive: true, force: true });
+
+  assert.ok(output.includes('sm-share-sender'));
+  assert.ok(output.includes('Sharing as'));
+  assert.ok(output.includes('OhLlama'));
+  assert.ok(output.includes('noctra-badges-strip'));
+});
+
