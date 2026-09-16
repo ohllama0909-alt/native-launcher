@@ -8,7 +8,6 @@ import {
   FileText,
   LogOut,
   MessageSquare,
-  Mic,
   MoreHorizontal,
   Paperclip,
   Pin,
@@ -136,7 +135,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
   const [showProfilePanel, setShowProfilePanel] = useState(true);
 
   const [sending, setSending] = useState(false);
-  const [recordingVoice, setRecordingVoice] = useState(false);
 
   const messageStreamRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -218,6 +216,9 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
         uuid: friend.uuid,
         skinUrl: friend.skinUrl || null,
         model: friend.model || 'classic',
+        badges: friend.badges || [],
+        isVerified: Boolean(friend.isVerified),
+        memberSince: friend.memberSince || null,
         status,
         pinned,
         muted,
@@ -820,60 +821,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
       isMedia: true,
       ...reply
     });
-  };
-
-  const handleVoiceNote = async () => {
-    if (!activeEntity) return;
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      onNotify?.('Microphone unavailable', 'No recording device is available on this system.');
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks = [];
-      const startedAt = Date.now();
-
-      recorder.ondataavailable = (event) => {
-        if (event.data?.size) chunks.push(event.data);
-      };
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-        const dataUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-
-        const upload = await social?.uploadMedia?.(dataUrl, `voice-${startedAt}.webm`);
-        if (!upload?.ok || !upload.url) {
-          onNotify?.('Voice note failed', 'Could not upload the recording.');
-          setRecordingVoice(false);
-          return;
-        }
-
-        await dispatchMessage(activeEntity, `0:${String(seconds).padStart(2, '0')}`, {
-          mediaUrl: upload.url,
-          mediaName: `voice-${startedAt}.webm`,
-          mediaKind: 'audio',
-          isMedia: true
-        });
-        setRecordingVoice(false);
-      };
-
-      setRecordingVoice(true);
-      recorder.start();
-      setTimeout(() => {
-        if (recorder.state !== 'inactive') recorder.stop();
-      }, 7000);
-    } catch {
-      setRecordingVoice(false);
-      onNotify?.('Microphone blocked', 'Allow microphone access to send voice notes.');
-    }
   };
 
   const scrollToMessage = useCallback((targetId) => {
@@ -1489,16 +1436,6 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
                     title="Emoji"
                   >
                     <Smile size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`relay-composer-btn ${recordingVoice ? 'is-recording' : ''}`}
-                    data-testid="relay-voice-btn"
-                    onClick={handleVoiceNote}
-                    disabled={recordingVoice}
-                    title={recordingVoice ? 'Recording…' : 'Voice note'}
-                  >
-                    <Mic size={17} />
                   </button>
                   <button
                     type="button"

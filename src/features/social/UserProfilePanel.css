@@ -108,6 +108,32 @@
   display: none;
 }
 
+.np-profile-badges {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 9px 8px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.np-profile-badges > span {
+  color: var(--fg-muted, #9aa0a6);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.np-profile-badges .noctra-badges-strip {
+  padding: 3px 7px;
+  background: rgba(160, 81, 162, 0.09);
+  border-color: rgba(190, 120, 220, 0.14);
+}
+
 .np-handle {
   font-size: 13px;
   color: var(--fg-muted, #9aa0a6);

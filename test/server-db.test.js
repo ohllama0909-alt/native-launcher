@@ -101,3 +101,27 @@ test('server/db: verifies foreign key cascades and relational integrity', () => 
   assert.equal(conn.prepare('SELECT count(*) as c FROM messages WHERE sender_id = ? OR receiver_id = ?').get(u1.id, u1.id).c, 0);
   assert.equal(conn.prepare('SELECT count(*) as c FROM friend_requests WHERE sender_id = ? OR receiver_id = ?').get(u1.id, u1.id).c, 0);
 });
+
+test('server/db: premium Minecraft identities are unique, readable, and removable', () => {
+  const first = db.createUser({ email: 'link1@test.com', username: 'LinkTester1', password: 'password123' });
+  const second = db.createUser({ email: 'link2@test.com', username: 'LinkTester2', password: 'password123' });
+  const profile = {
+    uuid: '069a79f444e94726a5befca90e38aaf5',
+    name: 'Notch'
+  };
+
+  const linked = db.linkMinecraftAccount(first.id, profile);
+  assert.equal(linked.uuid, profile.uuid);
+  assert.equal(linked.name, profile.name);
+  assert.ok(linked.linkedAt > 0);
+  assert.deepEqual(db.getMinecraftLink(first.id), linked);
+
+  assert.throws(
+    () => db.linkMinecraftAccount(second.id, profile),
+    /already connected to another Noctra account/
+  );
+
+  db.unlinkMinecraftAccount(first.id);
+  assert.equal(db.getMinecraftLink(first.id), null);
+  assert.equal(db.linkMinecraftAccount(second.id, profile).name, profile.name);
+});

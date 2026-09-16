@@ -61,6 +61,8 @@ export function getUserBadges(user) {
     badgesSet.add('bug_hunter');
   }
 
+  if (user?.isVerified) badgesSet.add('verified');
+
   // Handle explicit badges from user data (array or JSON string)
   let rawBadges = user?.badges;
   if (typeof rawBadges === 'string') {

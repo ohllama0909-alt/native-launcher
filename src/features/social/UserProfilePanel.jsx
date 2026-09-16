@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Ban, CalendarDays, Gamepad2, Server, Trash2, UserMinus, X } from 'lucide-react';
 import RelayAvatar from './RelayAvatar.jsx';
-import Badges from './Badges.jsx';
+import Badges, { getUserBadges } from './Badges.jsx';
 import './UserProfilePanel.css';
 
 const formatMemberDate = (stamp) => {
@@ -31,6 +31,7 @@ export default function UserProfilePanel({
   const isOnline = status === 'in-launcher' || status === 'online';
   const statusColor = presence?.color || (isPlaying ? '#f23f43' : isOnline ? '#23a55a' : '#80848e');
   const bio = user.bio || user.about || user.status || '';
+  const badgeCount = getUserBadges(user).length;
 
   return (
     <aside className="np-panel" role="complementary" aria-label="User Profile">
@@ -64,37 +65,44 @@ export default function UserProfilePanel({
         <div className="np-identity">
           <div className="np-name-row">
             <h3 className="np-name">{user.nickname || user.name}</h3>
-            <span className="np-name-badges">
-              <Badges user={user} size={18} />
-            </span>
           </div>
           <span className="np-handle">@{user.name}</span>
+
+          {badgeCount > 0 && (
+            <div className="np-profile-badges">
+              <span>Badges</span>
+              <Badges user={user} size={22} />
+            </div>
+          )}
 
           {bio ? <p className="np-bio">{bio}</p> : null}
         </div>
 
         <div className="np-divider" />
 
-        {/* Activity */}
-        <div className="np-block">
-          <span className="np-label">Activity</span>
-          <div className={`np-card np-activity ${isPlaying ? 'is-playing' : ''}`}>
+        {/* Launcher presence already appears in the thread header. Only show a
+            second card when there is real game activity to describe. */}
+        {isPlaying && (
+          <div className="np-block">
+            <span className="np-label">Playing</span>
+            <div className="np-card np-activity is-playing">
             <span className="np-activity-icon">
               <Gamepad2 size={18} />
             </span>
             <div className="np-activity-text">
-              <strong>{isPlaying ? (presence?.text || 'In-game') : (isOnline ? 'In Launcher' : 'Not playing')}</strong>
-              {isPlaying && presence?.serverAddress ? (
+              <strong>{presence?.text || 'Minecraft'}</strong>
+              {presence?.serverAddress ? (
                 <span className="np-activity-sub">
                   <Server size={11} />
                   {presence.serverAddress}
                 </span>
               ) : (
-                <span className="np-activity-sub">{isPlaying ? 'Minecraft' : 'No active game'}</span>
+                <span className="np-activity-sub">Minecraft</span>
               )}
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Details */}
         <div className="np-block">

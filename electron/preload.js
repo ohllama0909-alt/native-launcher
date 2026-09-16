@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('native', {
     noctraResendCode:     (payload) => ipcRenderer.invoke('accounts:noctraResendCode', payload),
     noctraVerifyRegister: (payload) => ipcRenderer.invoke('accounts:noctraVerifyRegister', payload),
     noctraLogin:          (payload) => ipcRenderer.invoke('accounts:noctraLogin', payload),
+    getPremiumLink:       (id)      => ipcRenderer.invoke('accounts:getPremiumLink', id),
+    linkPremium:          (payload) => ipcRenderer.invoke('accounts:linkPremium', payload),
+    unlinkPremium:        (id)      => ipcRenderer.invoke('accounts:unlinkPremium', id),
     setActive:            (id)      => ipcRenderer.invoke('accounts:setActive', id),
     remove:               (id)      => ipcRenderer.invoke('accounts:remove', id),
     getAvatar:            (uuid)    => ipcRenderer.invoke('accounts:getAvatar', uuid)

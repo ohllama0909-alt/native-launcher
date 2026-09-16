@@ -264,6 +264,34 @@ async function getMinecraftProfile(accountId, options = {}) {
   return null;
 }
 
+async function noctraAccountFetch(noctraAccount, endpoint, { method = 'GET', body } = {}) {
+  const token = noctraAccount?.token || noctraAccount?.sessionToken;
+  if (!token) return { ok: false, error: 'Log in to this Noctra account again before connecting Minecraft.' };
+
+  const request = async (root) => {
+    const response = await fetch(`${root}${endpoint}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return response.json();
+  };
+
+  const remoteRoot = String(process.env.NATIVE_WARDROBE_API || 'https://api.nativelaunch.xyz').replace(/\/+$/, '');
+  try {
+    return await request(remoteRoot);
+  } catch {
+    try {
+      return await request('http://127.0.0.1:3418');
+    } catch {
+      return { ok: false, error: 'Could not connect to the Noctra account service.' };
+    }
+  }
+}
+
 function init(dependencies, ipcMain) {
   deps = dependencies;
 
@@ -432,6 +460,55 @@ function generateOfflinePlayerUuid(username) {
     } catch (err) {
       return { ok: false, error: String(err?.message ?? err) };
     }
+  });
+
+  ipcMain.handle('accounts:getPremiumLink', async (_event, noctraAccountId) => {
+    const data = readAccounts();
+    const noctraAccount = data.accounts.find((account) => account.id === noctraAccountId && account.type === 'noctra');
+    if (!noctraAccount) return { ok: false, error: 'Noctra account not found.' };
+    return noctraAccountFetch(noctraAccount, '/v1/account/minecraft');
+  });
+
+  ipcMain.handle('accounts:linkPremium', async (_event, payload = {}) => {
+    const data = readAccounts();
+    const noctraAccount = data.accounts.find(
+      (account) => account.id === payload.noctraAccountId && account.type === 'noctra'
+    );
+    if (!noctraAccount) return { ok: false, error: 'Noctra account not found.' };
+
+    let microsoftAccountId = payload.microsoftAccountId;
+    if (!microsoftAccountId) {
+      try {
+        const profile = await loginMicrosoft();
+        microsoftAccountId = profile.id;
+        const updated = readAccounts();
+        updated.activeId = noctraAccount.id;
+        saveAccounts(updated);
+      } catch (error) {
+        return { ok: false, error: String(error?.message || error) };
+      }
+    }
+
+    const microsoftAccount = readAccounts().accounts.find(
+      (account) => account.id === microsoftAccountId && account.type === 'microsoft'
+    );
+    if (!microsoftAccount) return { ok: false, error: 'Microsoft account not found.' };
+
+    const minecraftAccessToken = await getMinecraftAccessToken(microsoftAccount.id, { forceRefresh: true });
+    if (!minecraftAccessToken) {
+      return { ok: false, error: 'Microsoft sign-in expired. Sign in again to prove Minecraft ownership.' };
+    }
+    return noctraAccountFetch(noctraAccount, '/v1/account/minecraft', {
+      method: 'POST',
+      body: { minecraftAccessToken }
+    });
+  });
+
+  ipcMain.handle('accounts:unlinkPremium', async (_event, noctraAccountId) => {
+    const data = readAccounts();
+    const noctraAccount = data.accounts.find((account) => account.id === noctraAccountId && account.type === 'noctra');
+    if (!noctraAccount) return { ok: false, error: 'Noctra account not found.' };
+    return noctraAccountFetch(noctraAccount, '/v1/account/minecraft', { method: 'DELETE' });
   });
 
   ipcMain.handle('accounts:getAvatar', async (_event, uuid) => {

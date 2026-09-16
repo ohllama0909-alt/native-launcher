@@ -105,12 +105,50 @@ function createSession(db, userId) {
 function getUserBySession(db, token) {
   if (!token) return null;
   const stmt = db.prepare(`
-    SELECT u.id, u.email, u.username, u.uuid, u.model, u.badges, u.is_admin, u.created_at
+    SELECT u.id, u.email, u.username, u.uuid, u.model, u.badges, u.is_admin, u.created_at,
+           u.minecraft_uuid, u.minecraft_username, u.minecraft_linked_at
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.token = ? AND s.expires_at > ?
   `);
   return stmt.get(token, Date.now()) || null;
+}
+
+function getMinecraftLink(db, userId) {
+  const row = db.prepare(`
+    SELECT minecraft_uuid AS uuid, minecraft_username AS name, minecraft_linked_at AS linkedAt
+    FROM users WHERE id = ?
+  `).get(userId);
+  if (!row?.uuid) return null;
+  return { uuid: row.uuid, name: row.name, linkedAt: row.linkedAt };
+}
+
+function linkMinecraftAccount(db, userId, { uuid, name }) {
+  const cleanUuid = String(uuid || '').replace(/-/g, '').toLowerCase();
+  const cleanName = String(name || '').trim();
+  if (!/^[a-f0-9]{32}$/.test(cleanUuid) || !/^[A-Za-z0-9_]{3,16}$/.test(cleanName)) {
+    throw new Error('Microsoft returned an invalid Minecraft profile.');
+  }
+
+  const owner = db.prepare('SELECT id FROM users WHERE minecraft_uuid = ? AND id != ?').get(cleanUuid, userId);
+  if (owner) throw new Error('That premium Minecraft account is already connected to another Noctra account.');
+
+  const linkedAt = Date.now();
+  db.prepare(`
+    UPDATE users
+    SET minecraft_uuid = ?, minecraft_username = ?, minecraft_linked_at = ?
+    WHERE id = ?
+  `).run(cleanUuid, cleanName, linkedAt, userId);
+  return { uuid: cleanUuid, name: cleanName, linkedAt };
+}
+
+function unlinkMinecraftAccount(db, userId) {
+  db.prepare(`
+    UPDATE users
+    SET minecraft_uuid = NULL, minecraft_username = NULL, minecraft_linked_at = NULL
+    WHERE id = ?
+  `).run(userId);
+  return { ok: true };
 }
 
 function deleteSession(db, token) {
@@ -131,5 +169,8 @@ module.exports = {
   createUser,
   createSession,
   getUserBySession,
+  getMinecraftLink,
+  linkMinecraftAccount,
+  unlinkMinecraftAccount,
   deleteSession
 };

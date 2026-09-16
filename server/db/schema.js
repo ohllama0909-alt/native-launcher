@@ -204,6 +204,9 @@ function initSchema(db) {
   safeAddColumn('groups', 'updated_at INTEGER DEFAULT 0');
   safeAddColumn('users', "badges TEXT DEFAULT '[]'");
   safeAddColumn('users', 'is_admin INTEGER NOT NULL DEFAULT 0');
+  safeAddColumn('users', 'minecraft_uuid TEXT DEFAULT NULL');
+  safeAddColumn('users', 'minecraft_username TEXT DEFAULT NULL');
+  safeAddColumn('users', 'minecraft_linked_at INTEGER DEFAULT NULL');
 
   // The project owner must always retain access to the server-protected
   // control room, including on databases created by older releases.
@@ -216,6 +219,8 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_users_admin ON users(is_admin);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_minecraft_uuid
+      ON users(minecraft_uuid) WHERE minecraft_uuid IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_friends_user ON friends(user_id);

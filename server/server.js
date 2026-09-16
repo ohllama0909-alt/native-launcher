@@ -518,6 +518,58 @@ async function handler(req, res) {
       });
     }
 
+    // ── Premium Minecraft link (Noctra session + Microsoft proof) ────────
+    if (url.pathname === '/v1/account/minecraft') {
+      const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+      const authUser = db.getUserBySession(token);
+      if (!authUser) {
+        return send(res, 401, { ok: false, error: 'Noctra account session required.' });
+      }
+
+      if (req.method === 'GET') {
+        return send(res, 200, { ok: true, profile: db.getMinecraftLink(authUser.id) }, { 'Cache-Control': 'no-store' });
+      }
+
+      if (req.method === 'DELETE') {
+        db.unlinkMinecraftAccount(authUser.id);
+        return send(res, 200, { ok: true, profile: null }, { 'Cache-Control': 'no-store' });
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJson(req);
+        const minecraftToken = String(body.minecraftAccessToken || '').trim();
+        if (minecraftToken.length < 40 || minecraftToken.length > 4096) {
+          return send(res, 400, { ok: false, error: 'A valid Microsoft Minecraft session is required.' });
+        }
+
+        let profileResponse;
+        try {
+          profileResponse = await fetch('https://api.minecraftservices.com/minecraft/profile', {
+            headers: { Authorization: `Bearer ${minecraftToken}`, Accept: 'application/json' },
+            signal: AbortSignal.timeout(12_000)
+          });
+        } catch {
+          return send(res, 502, { ok: false, error: 'Minecraft could not verify this account right now. Try again.' });
+        }
+        if (!profileResponse.ok) {
+          return send(res, 401, { ok: false, error: 'This Microsoft session does not own Minecraft or has expired.' });
+        }
+
+        const minecraftProfile = await profileResponse.json();
+        try {
+          const profile = db.linkMinecraftAccount(authUser.id, {
+            uuid: minecraftProfile.id,
+            name: minecraftProfile.name
+          });
+          return send(res, 200, { ok: true, profile }, { 'Cache-Control': 'no-store' });
+        } catch (error) {
+          return send(res, 409, { ok: false, error: error.message });
+        }
+      }
+
+      return send(res, 405, { ok: false, error: 'Method not allowed.' });
+    }
+
     // ── Admin APIs (session + database role required) ─────────────────────
     if (url.pathname.startsWith('/v1/admin/')) {
       const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();

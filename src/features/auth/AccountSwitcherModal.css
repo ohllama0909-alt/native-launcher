@@ -477,7 +477,8 @@
   text-transform: uppercase;
 }
 
-.account-login-item-remove {
+.account-login-item-remove,
+.account-login-item-link {
   flex: none;
   width: 24px;
   height: 24px;
@@ -493,12 +494,79 @@
 }
 
 .account-login-item:hover .account-login-item-remove,
-.account-login-item-remove:focus-visible { opacity: 1; }
+.account-login-item-remove:focus-visible,
+.account-login-item:hover .account-login-item-link,
+.account-login-item-link:focus-visible { opacity: 1; }
 
 .account-login-item-remove:hover {
   color: var(--danger, rgba(225, 75, 75, 1));
   background: rgba(225, 75, 75, 0.12);
 }
+
+.account-login-item-link:hover {
+  color: var(--brand-soft);
+  background: rgba(160, 81, 162, 0.16);
+}
+
+/* ---------- Premium Minecraft connection ---------- */
+
+.premium-link-view {
+  width: min(354px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  animation: account-fade-in 0.22s var(--ease-out);
+}
+
+.premium-link-header { display: flex; align-items: flex-start; gap: 12px; }
+.premium-link-mark {
+  width: 46px; height: 46px; flex: none; display: grid; place-items: center;
+  border: 1px solid rgba(193, 129, 255, .28); border-radius: 13px;
+  color: var(--brand-soft); background: linear-gradient(145deg, rgba(160,81,162,.22), rgba(85,45,130,.08));
+  box-shadow: 0 10px 28px rgba(86, 31, 119, .18);
+}
+.premium-link-header > div > span,
+.premium-link-options-label { color: var(--brand-soft); font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.premium-link-header h2 { margin: 3px 0 3px; color: #fff; font-size: 21px; letter-spacing: -.025em; }
+.premium-link-header p { margin: 0; color: rgba(220,220,225,.55); font-size: 11.5px; line-height: 1.4; }
+
+.premium-link-route {
+  display: flex; align-items: center; gap: 8px; padding: 11px;
+  border: 1px solid rgba(255,255,255,.08); border-radius: 13px; background: rgba(255,255,255,.025);
+}
+.premium-link-route > svg { flex: none; color: rgba(225,225,230,.3); }
+.premium-link-route > div { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; color: var(--brand); }
+.premium-link-route > div.is-linked { color: var(--success); }
+.premium-link-route span { min-width: 0; display: flex; flex-direction: column; }
+.premium-link-route small { color: rgba(220,220,225,.42); font-size: 8.5px; text-transform: uppercase; letter-spacing: .06em; }
+.premium-link-route strong { overflow: hidden; color: var(--text-primary); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+
+.premium-link-options { display: flex; flex-direction: column; gap: 7px; }
+.premium-link-account,
+.premium-link-new {
+  width: 100%; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+  border: 1px solid rgba(255,255,255,.09); border-radius: 10px; color: var(--text-primary);
+  background: rgba(255,255,255,.035); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.premium-link-account:hover,
+.premium-link-new:hover { border-color: rgba(183,123,240,.5); background: rgba(160,81,162,.11); }
+.premium-link-account:disabled,
+.premium-link-new:disabled { opacity: .6; cursor: wait; }
+.premium-link-account > span:nth-child(2) { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; }
+.premium-link-account strong { font-size: 12.5px; }
+.premium-link-account small { color: rgba(220,220,225,.46); font-size: 9.5px; }
+.premium-link-account > span:last-child { color: var(--brand-soft); font-size: 10px; font-weight: 700; }
+.premium-link-new { justify-content: center; font-size: 11.5px; font-weight: 650; }
+
+.premium-link-connected { padding: 12px; border: 1px solid rgba(52,211,112,.22); border-radius: 12px; background: rgba(35,165,90,.08); }
+.premium-link-connected > div { display: flex; gap: 9px; align-items: center; color: var(--success); }
+.premium-link-connected > div span { display: flex; flex-direction: column; }
+.premium-link-connected strong { color: var(--text-primary); font-size: 12.5px; }
+.premium-link-connected small { color: rgba(205,245,220,.55); font-size: 10px; }
+.premium-link-connected button { margin-top: 11px; display: flex; align-items: center; gap: 6px; border: 0; background: none; color: rgba(235,235,240,.55); font-size: 10px; cursor: pointer; }
+.premium-link-connected button:hover { color: var(--danger); }
+.premium-link-loading { min-height: 74px; display: flex; align-items: center; justify-content: center; gap: 8px; color: rgba(230,230,235,.55); font-size: 11px; }
+.premium-link-privacy { margin: 0; color: rgba(210,210,218,.34); font-size: 9.5px; line-height: 1.45; text-align: center; }
 
 /* ---------- Dedicated Noctra Auth Form (Login / Register / Verify) ---------- */
 
