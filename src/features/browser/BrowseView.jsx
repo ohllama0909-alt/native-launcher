@@ -768,8 +768,8 @@ export default function BrowseView({
         <div className="browse-title-group">
           {onBack && (
             <button type="button" className="browse-back-link" onClick={onBack}>
-              <NativeIcon name="arrow-left" size={15} />
-              <span>{fixedContentType ? 'Back to installed content' : t('common.back')}</span>
+              <NativeIcon name="arrow-left" size={14} />
+              <span>{fixedContentType ? 'Back to installed content' : 'Back to install page'}</span>
             </button>
           )}
           <h1 className="browse-title">{pageTitle || t('nav.browse')}</h1>
@@ -828,7 +828,6 @@ export default function BrowseView({
               className={`browse-type-tab ${contentType === type.id ? 'active' : ''}`}
               onClick={() => setContentType(type.id)}
             >
-              <NativeIcon name={type.icon} size={15} />
               <span>{t(type.labelKey)}</span>
             </button>
           ))}
@@ -920,7 +919,6 @@ export default function BrowseView({
       <div className="browse-body-row">
         <aside className="browse-categories">
           <div className="browse-filter-heading">
-            <span className="browse-filter-icon"><NativeIcon name="filter" size={14} /></span>
             <div>
               <h2 className="browse-categories-heading">Filters</h2>
               <p>{t('browse.categories')}</p>

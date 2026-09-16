@@ -3,7 +3,6 @@ import developerBadge from '../../assets/badges/developer.png';
 import earlySupporterBadge from '../../assets/badges/early-supporter.png';
 import bugHunterBadge from '../../assets/badges/bug-hunter.png';
 import staffBadge from '../../assets/badges/staff.png';
-import verifiedBadge from '../../assets/badges/verified.png';
 import './Badges.css';
 
 const badgeIcon = (src) => <img src={src} alt="" aria-hidden="true" draggable="false"/>;
@@ -36,13 +35,6 @@ export const BADGE_DEFS = {
     description: 'Official Noctra Client Staff Team',
     gradient: 'linear-gradient(135deg, #5865f2 0%, #eb459e 100%)',
     icon: badgeIcon(staffBadge)
-  },
-  verified: {
-    id: 'verified',
-    name: 'Verified',
-    description: 'Verified player identity',
-    gradient: 'linear-gradient(135deg, #23a55a 0%, #5865f2 100%)',
-    icon: badgeIcon(verifiedBadge)
   }
 };
 
@@ -60,8 +52,6 @@ export function getUserBadges(user) {
     badgesSet.add('early_supporter');
     badgesSet.add('bug_hunter');
   }
-
-  if (user?.isVerified) badgesSet.add('verified');
 
   // Handle explicit badges from user data (array or JSON string)
   let rawBadges = user?.badges;

@@ -1775,41 +1775,68 @@
 .relay-lightbox-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  display: grid;
-  place-items: center;
-  padding: 40px;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
   background: rgba(4, 2, 4, 0.88);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   animation: relay-fade 160ms var(--relay-ease);
+  overflow: hidden;
 }
 
-.relay-lightbox-content { position: relative; display: grid; gap: 12px; justify-items: center; }
+.relay-lightbox-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  max-width: 90vw;
+  max-height: 90vh;
+  margin: auto;
+}
 
 .relay-lightbox-img {
-  max-width: min(1100px, 86vw);
-  max-height: 76vh;
+  max-width: 90vw;
+  max-height: calc(88vh - 54px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
   border-radius: var(--radius-md);
   border: 1px solid var(--hairline-strong);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
 }
 
 .relay-lightbox-close {
   position: absolute;
-  top: -34px;
-  right: 0;
-  width: 28px;
-  height: 28px;
+  top: 18px;
+  right: 18px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   color: var(--fg-secondary);
-  background: var(--component-bg);
-  border: 1px solid var(--hairline-strong);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   cursor: pointer;
-  transition: color var(--relay-fast) var(--relay-ease);
+  z-index: 20;
+  transition: all var(--relay-fast) var(--relay-ease);
 }
 
-.relay-lightbox-close:hover { color: #fff; }
+.relay-lightbox-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
 
 .relay-lightbox-toolbar { display: flex; gap: 8px; }
 
@@ -1820,16 +1847,20 @@
   height: 32px;
   padding: 0 14px;
   border-radius: var(--radius-sm);
-  background: var(--component-bg);
-  border: 1px solid var(--hairline-strong);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--fg-secondary);
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
-  transition: color var(--relay-fast) var(--relay-ease), border-color var(--relay-fast) var(--relay-ease);
+  transition: all var(--relay-fast) var(--relay-ease);
 }
 
-.relay-lightbox-btn:hover { color: var(--fg-primary-hover); border-color: var(--brand-border); }
+.relay-lightbox-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+}
 
 /* ── Narrower launcher widths ───────────────────────────── */
 

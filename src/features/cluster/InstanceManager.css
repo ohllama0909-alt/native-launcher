@@ -154,38 +154,42 @@
 .im-version > div {
   position: relative;
   width: 100%;
-  max-width: 150px;
+  max-width: 156px;
 }
 
-.im-version select {
-  appearance: none;
+.im-version-dropdown {
   width: 100%;
+}
+
+.im-version-dropdown .dropdown-trigger {
   height: 32px;
-  padding: 0 28px 0 12px;
+  padding: 0 10px 0 12px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   color: var(--fg-primary);
   font-size: 12px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
-.im-version select:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.05);
+.im-version-dropdown .dropdown-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.im-version-chevron,
-.im-version svg {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--fg-muted);
+.im-version-dropdown.is-open .dropdown-trigger {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-subtle);
+}
+
+.im-version-dropdown .dropdown-menu {
+  background: rgba(18, 18, 22, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
+  min-width: 160px;
 }
 
 /* Sidebar Navigation */
@@ -439,32 +443,34 @@
   width: 42px;
   height: 42px;
   flex-shrink: 0;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border: 1px dotted rgba(255, 255, 255, 0.35);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--fg-secondary);
+  background: transparent;
+  color: #ffffff;
   transition: all 0.15s ease;
 }
 
 .instance-manager button.im-add:hover {
-  filter: brightness(1.08);
+  filter: none;
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.05);
   transform: translateY(-1px);
 }
 
 .instance-manager button.im-add {
   padding: 0;
-  border-style: solid;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  background: var(--brand-gradient);
-  box-shadow: 0 8px 20px -9px var(--brand-glow);
+  border: 1px dotted rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  background: transparent;
+  box-shadow: none;
   line-height: 0;
 }
 
 .im-add svg {
   display: block;
   margin: 0;
-  stroke: currentColor;
+  stroke: #ffffff;
+  color: #ffffff;
 }
 
 .im-heading-icon {
@@ -497,8 +503,13 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 9px;
-  color: var(--brand);
+  color: #ffffff;
   overflow: hidden;
+}
+
+.im-file-icon svg {
+  color: #ffffff;
+  stroke: #ffffff;
 }
 
 .im-file-icon img {

@@ -84,14 +84,26 @@
   height: 44px;
   padding: 0;
   border-radius: 11px;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  background: var(--brand-gradient);
-  box-shadow: 0 8px 20px -9px var(--brand-glow);
+  border: 1px dotted rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  background: transparent;
+  box-shadow: none;
   line-height: 0;
+  transition: all 0.15s ease;
 }
 
-.sm-heading > button.sm-add svg { display: block; margin: 0; }
+.sm-heading > button.sm-add:hover {
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.sm-heading > button.sm-add svg {
+  display: block;
+  margin: 0;
+  stroke: #ffffff;
+  color: #ffffff;
+}
 
 .sm-grid {
   display: grid;

@@ -16,5 +16,5 @@ test('profile panel receives friend badge data and the composer has no voice act
   assert.match(profile, /np-profile-badges/);
   assert.match(profile, /np-card np-activity/, 'activity card is restored for launcher and game status');
   assert.doesNotMatch(profile, /user\.status/, 'raw status is not rendered as bio text');
-  assert.match(badges, /user\?\.isVerified.*verified/);
+  assert.doesNotMatch(badges, /verifiedBadge|id:\s*'verified'/, 'verified badge is removed');
 });

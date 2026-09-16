@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, ChevronDown, FolderOpen, Globe2, Images, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, FolderOpen, Globe2, Images, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import SettingsTab from './SettingsTab.jsx';
 import InstanceContentTab from './InstanceContentTab.jsx';
 import ScreenshotManager from './ScreenshotManager.jsx';
@@ -186,23 +187,21 @@ export default function ClusterDetailView({
           <div className="im-version">
             <span className="im-version-label">VERSION</span>
             <div className="im-version-selector">
-              <select
-                aria-label="Select instance"
+              <Dropdown
+                className="im-version-dropdown"
                 value={cluster.id}
-                onChange={event => {
-                  if (confirmDiscard()) onSelectCluster?.(event.target.value);
-                }}
-              >
-                {(instances.length ? instances : [cluster]).map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.mc_version || item.version}
-                    {instances.filter(i => (i.mc_version || i.version) === (item.mc_version || item.version)).length > 1
+                options={(instances.length ? instances : [cluster]).map(item => ({
+                  value: item.id,
+                  label: `${item.mc_version || item.version}${
+                    instances.filter(i => (i.mc_version || i.version) === (item.mc_version || item.version)).length > 1
                       ? ` · ${item.name}`
-                      : ''}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={13} className="im-version-chevron" />
+                      : ''
+                  }`
+                }))}
+                onChange={val => {
+                  if (confirmDiscard()) onSelectCluster?.(val);
+                }}
+              />
             </div>
           </div>
 

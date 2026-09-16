@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Link2, Minus, ShieldCheck, Square, Unlink, X } from 'lucide-react';
+import { ArrowLeft, Minus, Square, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import BrandIcon from '../../components/ui/BrandIcon.jsx';
@@ -23,124 +23,6 @@ const COMMUNITY = {
 
 const LEGAL = 'https://noctra.client';
 
-function PremiumLinkView({ noctraAccount, accounts, onAddMicrosoft, onSwitchAccount, onBack }) {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState('');
-  const [error, setError] = useState('');
-  const microsoftAccounts = accounts.filter((account) => account.type === 'microsoft');
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    window.native?.accounts?.getPremiumLink?.(noctraAccount.id)
-      .then((result) => {
-        if (cancelled) return;
-        if (!result?.ok) throw new Error(result?.error || 'Could not load account link.');
-        setProfile(result.profile || null);
-      })
-      .catch((reason) => !cancelled && setError(reason?.message || 'Could not load account link.'))
-      .finally(() => !cancelled && setLoading(false));
-    return () => { cancelled = true; };
-  }, [noctraAccount.id]);
-
-  const connect = async (microsoftAccountId) => {
-    setBusyId(microsoftAccountId || 'new');
-    setError('');
-    try {
-      let targetId = microsoftAccountId;
-      if (!targetId) {
-        const login = await onAddMicrosoft?.();
-        if (!login?.ok || !login.profile?.id) throw new Error(login?.error || 'Microsoft sign-in was not completed.');
-        targetId = login.profile.id;
-      }
-      const result = await window.native?.accounts?.linkPremium?.({
-        noctraAccountId: noctraAccount.id,
-        microsoftAccountId: targetId
-      });
-      if (!result?.ok) throw new Error(result?.error || 'Could not connect this account.');
-      setProfile(result.profile);
-      await onSwitchAccount?.(noctraAccount.id);
-    } catch (reason) {
-      setError(reason?.message || 'Could not connect this account.');
-    } finally {
-      setBusyId('');
-    }
-  };
-
-  const disconnect = async () => {
-    setBusyId('unlink');
-    setError('');
-    try {
-      const result = await window.native?.accounts?.unlinkPremium?.(noctraAccount.id);
-      if (!result?.ok) throw new Error(result?.error || 'Could not disconnect this account.');
-      setProfile(null);
-    } catch (reason) {
-      setError(reason?.message || 'Could not disconnect this account.');
-    } finally {
-      setBusyId('');
-    }
-  };
-
-  return (
-    <div className="premium-link-view">
-      <div className="noctra-auth-top">
-        <button type="button" className="noctra-auth-back-btn" onClick={onBack}>
-          <ArrowLeft size={15} />
-          <span>Accounts</span>
-        </button>
-      </div>
-
-      <div className="premium-link-header">
-        <span className="premium-link-mark"><ShieldCheck size={25} /></span>
-        <div>
-          <span>VERIFIED OWNERSHIP</span>
-          <h2>Connect Premium Minecraft</h2>
-          <p>Link a genuine Minecraft license to your Noctra identity.</p>
-        </div>
-      </div>
-
-      <div className="premium-link-route" aria-label="Account connection">
-        <div><Logo height={25} variant="mark" /><span><small>Noctra</small><strong>{noctraAccount.name}</strong></span></div>
-        <ArrowRight size={17} />
-        <div className={profile ? 'is-linked' : ''}>
-          {profile ? <CheckCircle2 size={25} /> : <Link2 size={25} />}
-          <span><small>Premium Minecraft</small><strong>{profile?.name || 'Not connected'}</strong></span>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="premium-link-loading"><NativeIcon name="refresh" size={17} className="is-spinning" /> Checking link…</div>
-      ) : profile ? (
-        <div className="premium-link-connected">
-          <div><CheckCircle2 size={18} /><span><strong>Connection active</strong><small>Ownership was verified directly with Minecraft.</small></span></div>
-          <button type="button" onClick={disconnect} disabled={Boolean(busyId)}>
-            <Unlink size={14} /> {busyId === 'unlink' ? 'Disconnecting…' : 'Disconnect'}
-          </button>
-        </div>
-      ) : (
-        <div className="premium-link-options">
-          <span className="premium-link-options-label">Choose a signed-in premium account</span>
-          {microsoftAccounts.map((account) => (
-            <button key={account.id} type="button" className="premium-link-account" onClick={() => connect(account.id)} disabled={Boolean(busyId)}>
-              <PlayerAvatar account={account} kind="avatar" size={34} />
-              <span><strong>{account.name}</strong><small>Microsoft · Minecraft</small></span>
-              <span>{busyId === account.id ? 'Verifying…' : 'Connect'}</span>
-            </button>
-          ))}
-          <button type="button" className="premium-link-new" onClick={() => connect(null)} disabled={Boolean(busyId)}>
-            <span className="account-login-ms-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-            <span>{busyId === 'new' ? 'Waiting for Microsoft…' : 'Sign in with another Microsoft account'}</span>
-          </button>
-        </div>
-      )}
-
-      {error && <div role="alert" className="account-login-error">{error}</div>}
-      <p className="premium-link-privacy">Noctra stores only the verified Minecraft UUID and username. Microsoft tokens stay on this device.</p>
-    </div>
-  );
-}
-
 export default function AccountSwitcherModal({
   open,
   firstRun = false,
@@ -159,9 +41,8 @@ export default function AccountSwitcherModal({
 }) {
   const { t } = useI18n();
 
-  // Navigation view: main, premium-link, or a Noctra authentication step.
+  // Navigation view: main or a Noctra authentication step.
   const [view, setView] = useState('main');
-  const [linkTargetId, setLinkTargetId] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -502,22 +383,6 @@ export default function AccountSwitcherModal({
                                 </small>
                               </div>
                               {active && <span className="account-login-item-active">Active</span>}
-                              {acc.type === 'noctra' && (
-                                <button
-                                  type="button"
-                                  className="account-login-item-link"
-                                  title="Connect premium Minecraft"
-                                  aria-label={`Connect premium Minecraft to ${acc.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setLinkTargetId(acc.id);
-                                    setView('premium-link');
-                                    setError('');
-                                  }}
-                                >
-                                  <Link2 size={13} />
-                                </button>
-                              )}
                               <button
                                 type="button"
                                 className="account-login-item-remove"
@@ -578,14 +443,6 @@ export default function AccountSwitcherModal({
                   </button>
                 </footer>
               </div>
-            ) : view === 'premium-link' && accounts.find((item) => item.id === linkTargetId) ? (
-              <PremiumLinkView
-                noctraAccount={accounts.find((item) => item.id === linkTargetId)}
-                accounts={accounts}
-                onAddMicrosoft={onAddMicrosoft}
-                onSwitchAccount={onSwitchAccount}
-                onBack={() => { setView('main'); setLinkTargetId(null); }}
-              />
             ) : view === 'noctra-login' ? (
               <div className="noctra-auth-container">
                 <div className="noctra-auth-top">

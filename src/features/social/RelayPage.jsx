@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BellOff,
   Bell,
@@ -1553,27 +1554,30 @@ export default function RelayPage({ account, social, onJoinServer, onNotify, onA
         }}
       />
 
-      {previewMediaModal && (
-        <div className="relay-lightbox-backdrop" onClick={() => setPreviewMediaModal(null)}>
-          <div className="relay-lightbox-content" onClick={(event) => event.stopPropagation()}>
+      {previewMediaModal &&
+        createPortal(
+          <div className="relay-lightbox-backdrop" onClick={() => setPreviewMediaModal(null)}>
             <button
               type="button"
               className="relay-lightbox-close"
               onClick={() => setPreviewMediaModal(null)}
               title="Close (Esc)"
+              aria-label="Close preview"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
-            <img src={previewMediaModal} alt="Preview" className="relay-lightbox-img" />
-            <div className="relay-lightbox-toolbar">
-              <a href={previewMediaModal} download="attachment.png" className="relay-lightbox-btn">
-                <Download size={15} />
-                <span>Download original</span>
-              </a>
+            <div className="relay-lightbox-content" onClick={(event) => event.stopPropagation()}>
+              <img src={previewMediaModal} alt="Preview" className="relay-lightbox-img" />
+              <div className="relay-lightbox-toolbar">
+                <a href={previewMediaModal} download="attachment.png" className="relay-lightbox-btn">
+                  <Download size={15} />
+                  <span>Download original</span>
+                </a>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

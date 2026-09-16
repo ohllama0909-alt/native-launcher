@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { FolderOpen, Package, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import customSkinLoaderIcon from '../../assets/mod-icons/customskinloader.png';
 
 const formatSize = bytes => {
   if (!Number.isFinite(bytes)) return '';
@@ -69,7 +70,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
         .map(file => ({
           id: file.name,
           filename: file.name,
-          title: file.name,
+          title: /customskinloader/i.test(file.name) ? 'CustomSkinLoader' : file.name,
           size: file.size,
           enabled: !file.name.endsWith('.disabled')
         }))
@@ -222,10 +223,15 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
                     alt=""
                     onError={event => { event.currentTarget.style.display = 'none'; }}
                   />
+                ) : /customskinloader/i.test(`${row.id} ${row.title} ${row.filename}`) ? (
+                  <img
+                    src={customSkinLoaderIcon}
+                    alt="CustomSkinLoader"
+                  />
                 ) : type === 'worlds' ? (
                   <WorldArtwork world={row}/>
                 ) : (
-                  <Package size={22}/>
+                  <Package size={22} color="#ffffff" stroke="#ffffff" />
                 )}
               </span>
 
