@@ -30,7 +30,7 @@ export default function UserProfilePanel({
   const isPlaying = status === 'in-game';
   const isOnline = status === 'in-launcher' || status === 'online';
   const statusColor = presence?.color || (isPlaying ? '#f23f43' : isOnline ? '#23a55a' : '#80848e');
-  const bio = user.bio || user.about || user.status || '';
+  const bio = user.bio || user.about || '';
   const badgeCount = getUserBadges(user).length;
 
   return (
@@ -80,29 +80,26 @@ export default function UserProfilePanel({
 
         <div className="np-divider" />
 
-        {/* Launcher presence already appears in the thread header. Only show a
-            second card when there is real game activity to describe. */}
-        {isPlaying && (
-          <div className="np-block">
-            <span className="np-label">Playing</span>
-            <div className="np-card np-activity is-playing">
+        {/* Activity */}
+        <div className="np-block">
+          <span className="np-label">Activity</span>
+          <div className={`np-card np-activity ${isPlaying ? 'is-playing' : ''}`}>
             <span className="np-activity-icon">
               <Gamepad2 size={18} />
             </span>
             <div className="np-activity-text">
-              <strong>{presence?.text || 'Minecraft'}</strong>
-              {presence?.serverAddress ? (
+              <strong>{isPlaying ? (presence?.text || 'In-game') : (isOnline ? 'In Launcher' : 'Not playing')}</strong>
+              {isPlaying && presence?.serverAddress ? (
                 <span className="np-activity-sub">
                   <Server size={11} />
                   {presence.serverAddress}
                 </span>
               ) : (
-                <span className="np-activity-sub">Minecraft</span>
+                <span className="np-activity-sub">{isPlaying ? 'Minecraft' : 'No active game'}</span>
               )}
             </div>
           </div>
-          </div>
-        )}
+        </div>
 
         {/* Details */}
         <div className="np-block">

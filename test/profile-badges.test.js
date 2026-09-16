@@ -14,6 +14,7 @@ test('profile panel receives friend badge data and the composer has no voice act
   assert.match(relay, /isVerified: Boolean\(friend\.isVerified\)/);
   assert.doesNotMatch(relay, /relay-voice-btn|handleVoiceNote|<Mic\b/);
   assert.match(profile, /np-profile-badges/);
-  assert.match(profile, /\{isPlaying && \(/, 'launcher presence is not duplicated in a second activity card');
+  assert.match(profile, /np-card np-activity/, 'activity card is restored for launcher and game status');
+  assert.doesNotMatch(profile, /user\.status/, 'raw status is not rendered as bio text');
   assert.match(badges, /user\?\.isVerified.*verified/);
 });

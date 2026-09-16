@@ -249,12 +249,12 @@
 }
 
 .noctra-logo .native-mark {
-  width: 44px !important;
-  height: 44px !important;
+  width: 25px !important;
+  height: 25px !important;
   border-radius: 0 !important;
   filter: grayscale(1) brightness(3);
   object-fit: contain;
-  transform: scale(0.94);
+  transform: none;
 }
 
 .rail-group {
