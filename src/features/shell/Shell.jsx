@@ -119,6 +119,7 @@ export default function Shell({
 
   useEffect(() => {
     if (currentTab === 'admin' && !isAdmin) setCurrentTab('home');
+    window.native?.discord?.setTab?.(currentTab);
   }, [currentTab, isAdmin]);
 
   const notify = useCallback((title, body) => {

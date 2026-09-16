@@ -15,6 +15,7 @@ const wardrobeMod = require('./wardrobe');
 const socialMod = require('./social');
 const relayMod = require('./relay');
 const adminMod = require('./admin');
+const discordRpcMod = require('./discordRpc');
 
 let win;
 const appIcon = path.join(__dirname, '..', 'src', 'assets', 'noctra-icon.png');
@@ -147,6 +148,7 @@ wardrobeMod.init({ app, auth: authMod }, ipcMain);
 socialMod.init({ app, getWin: () => win }, ipcMain);
 relayMod.init();
 adminMod.init();
+discordRpcMod.init({ app, getSettings: () => settingsMod.get() }, ipcMain);
 
 app.whenReady().then(() => {
   createWindow();
@@ -158,6 +160,10 @@ app.whenReady().then(() => {
       win.once('ready-to-show', () => win.show());
     }
   });
+});
+
+app.on('before-quit', () => {
+  discordRpcMod.destroy();
 });
 
 app.on('window-all-closed', () => {

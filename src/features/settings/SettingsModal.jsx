@@ -109,6 +109,14 @@ export default function SettingsModal({
       }
       return next;
     });
+    if (window.native?.settings) {
+      window.native.settings.load().then((current) => {
+        window.native.settings.save({
+          ...current,
+          behavior: { ...(current?.behavior ?? {}), ...patch }
+        });
+      }).catch(() => {});
+    }
   };
 
   const handleOpenDataDir = () => {

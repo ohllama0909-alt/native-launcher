@@ -10,6 +10,7 @@ const { downloadFile, fetchJson, writeFileAtomic } = require('./download');
 const installRegistry = require('./installRegistry');
 const wardrobeMod = require('./wardrobe');
 const socialMod = require('./social');
+const discordRpcMod = require('./discordRpc');
 
 /**
  * Game launch pipeline (main process).
@@ -28,6 +29,7 @@ const socialMod = require('./social');
 const launcher = new Client();
 let deps = null; // { app, getWin }
 let activeChild = null;
+let activeInstance = null;
 let launchInProgress = false;
 const fabricLoadersCache = new Map();
 let forgePromosCache = null;
@@ -458,11 +460,17 @@ async function launch(payloadOrInstance = {}, maybeAccount = null, maybeOptions 
     // complete, so remember their real names for install detection.
     rememberInstall(instance, opts);
     activeChild = child;
+    activeInstance = instance;
     setState('launching', 'Starting Minecraft…');
     socialMod.setPresence({
       status: 'in-game',
       activity: payload?.quickJoinServer ? 'In-game: Connecting…' : 'In-game: Starting…',
       serverAddress: payload?.quickJoinServer || null
+    });
+    discordRpcMod.setGameActivity({
+      instance,
+      status: 'launching',
+      server: payload?.quickJoinServer || null
     });
     send('launcher:progress', {
       percent: 100,
@@ -481,6 +489,10 @@ async function launch(payloadOrInstance = {}, maybeAccount = null, maybeOptions 
       if (!sawOutput) {
         sawOutput = true;
         setState('running', 'Minecraft is running');
+        discordRpcMod.setGameActivity({
+          instance: activeInstance,
+          status: 'running'
+        });
         // launcher behavior once the game is up
         const win = deps.getWin();
         const action = settingsMod.get().behavior.launcherAction;
@@ -501,13 +513,17 @@ async function launch(payloadOrInstance = {}, maybeAccount = null, maybeOptions 
       childFailed = true;
       clearTimeout(runningFallback);
       activeChild = null;
+      activeInstance = null;
       setState('error', `Minecraft process failed: ${err.message}`);
       socialMod.setPresence({ status: 'in-launcher', activity: 'In Launcher', serverAddress: null });
+      discordRpcMod.clearGameActivity();
     });
     child.on('close', (code) => {
       clearTimeout(runningFallback);
       activeChild = null;
+      activeInstance = null;
       socialMod.setPresence({ status: 'in-launcher', activity: 'In Launcher', serverAddress: null });
+      discordRpcMod.clearGameActivity();
       if (!childFailed) {
         if (code === 0 || code === null) {
           setState('idle', '');
@@ -653,6 +669,12 @@ function init(dependencies, ipcMain) {
         activity: `In-game: ${activityName}`,
         serverAddress
       });
+      discordRpcMod.setGameActivity({
+        instance: activeInstance,
+        status: 'multiplayer',
+        server: activityName,
+        serverAddress
+      });
       return;
     }
 
@@ -662,6 +684,10 @@ function init(dependencies, ipcMain) {
         activity: 'In-game: Singleplayer',
         serverAddress: null
       });
+      discordRpcMod.setGameActivity({
+        instance: activeInstance,
+        status: 'singleplayer'
+      });
       return;
     }
 
@@ -670,6 +696,10 @@ function init(dependencies, ipcMain) {
         status: 'in-menus',
         activity: 'In Menus',
         serverAddress: null
+      });
+      discordRpcMod.setGameActivity({
+        instance: activeInstance,
+        status: 'in-menus'
       });
       return;
     }

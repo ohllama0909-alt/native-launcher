@@ -183,6 +183,12 @@ contextBridge.exposeInMainWorld('native', {
     overview: () => ipcRenderer.invoke('admin:overview'),
     listUsers: (options) => ipcRenderer.invoke('admin:listUsers', options),
     setBadge: (userId, badge, granted) => ipcRenderer.invoke('admin:setBadge', userId, badge, granted)
+  },
+  discord: {
+    setTab: (tab) => ipcRenderer.send('discord:setTab', tab),
+    setGameActivity: (state) => ipcRenderer.invoke('discord:setGameActivity', state),
+    clearGameActivity: () => ipcRenderer.invoke('discord:clearGameActivity'),
+    getStatus: () => ipcRenderer.invoke('discord:getStatus')
   }
 });
 

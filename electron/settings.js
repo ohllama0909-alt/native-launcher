@@ -27,7 +27,8 @@ const DEFAULTS = {
     startPage: 'play',
     launcherAction: 'keep', // keep | minimize | hide
     reopenOnExit: true,
-    confirmInstanceDelete: true
+    confirmInstanceDelete: true,
+    discordRpc: true
   },
   apiKeys: {
     curseforge: ''
@@ -77,6 +78,10 @@ function load() {
 function save(next) {
   cache = deepMerge(DEFAULTS, next);
   fs.writeFileSync(filePath(), JSON.stringify(cache, null, 2));
+  try {
+    const discordRpcMod = require('./discordRpc');
+    discordRpcMod.onSettingsChanged(cache);
+  } catch {}
   return cache;
 }
 
