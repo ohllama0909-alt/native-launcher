@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 
-test('admin control room renders database and badge management surfaces', () => {
+test('admin page renders database and badge management surfaces', () => {
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'noctra-admin-ui-'));
   const entry = path.join(workDir, 'entry.jsx');
   const bundle = path.join(workDir, 'bundle.cjs');
@@ -27,9 +27,9 @@ process.stdout.write(renderToString(React.createElement(AdminView, {})));
 
   const html = execFileSync(process.execPath, [bundle], { encoding: 'utf8' });
   fs.rmSync(workDir, { recursive: true, force: true });
-  assert.match(html, /Control room/);
-  assert.match(html, /ADMIN ONLY/);
+  assert.match(html, /Administration/);
+  assert.match(html, /Admin only/);
   assert.match(html, /Database/);
-  assert.match(html, /Secrets and password data are never exposed/);
-  assert.match(html, /badge management/);
+  assert.match(html, /Passwords, salts, tokens, and verification codes are never returned/);
+  assert.match(html, /Manage Noctra users, badges, and database health/);
 });

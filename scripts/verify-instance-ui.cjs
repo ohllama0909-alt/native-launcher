@@ -89,9 +89,14 @@ app.whenReady().then(async () => {
     assert.equal(await js(`document.querySelectorAll('.im-file-row').length`), 4);
     await click('.im-nav-worlds'); await screenshot('worlds-loading'); await pause(300); await screenshot('worlds');
     assert.equal(await js(`document.querySelectorAll('.im-world-art').length`), 2, 'World rows render colored artwork');
+    const sharedAdd = await js(`(() => { const button = document.querySelector('.im-section-heading .im-add'); const style = getComputedStyle(button); const rect = button.getBoundingClientRect(); const icon = button.querySelector('svg').getBoundingClientRect(); return { backgroundImage: style.backgroundImage, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, iconOffset: Math.abs((icon.top + icon.height / 2) - (rect.top + rect.height / 2)) }; })()`);
+    assert.match(sharedAdd.backgroundImage, /linear-gradient/, 'Content page add buttons use the shared gradient treatment');
+    assert.equal(sharedAdd.paddingTop, sharedAdd.paddingBottom, 'Content page add buttons have balanced vertical padding');
+    assert.equal(sharedAdd.iconOffset < 1, true, `Content page add icon is vertically centered: ${sharedAdd.iconOffset}px`);
     await click('.im-nav-screenshots'); await pause(350);
     assert.equal(await js(`document.querySelectorAll('.sm-card').length`), 2, 'Screenshot manager renders image cards');
     assert.equal(await js(`!!document.querySelector('.sm-heading .sm-add svg')`), true, 'Screenshot manager matches the plus action used by other content pages');
+    assert.match(await js(`getComputedStyle(document.querySelector('.sm-heading .sm-add')).backgroundImage`), /linear-gradient/, 'Screenshot add button retains the shared gradient');
     await screenshot('screenshots');
     await click('.sm-card-actions button'); await pause(250);
     assert.equal(await js(`document.querySelectorAll('.sm-target-list > button').length`), 2, 'Share picker includes friends and groups');
@@ -136,12 +141,15 @@ app.whenReady().then(async () => {
     assert.equal(await js(`!!document.querySelector('.instance-manager')`), false, 'Escape closes manager');
     win.setSize(1200, 675); await pause();
     await js(`Array.from(document.querySelectorAll('.rail-btn')).find(b => (b.getAttribute('aria-label') || '').toLowerCase().includes('admin control')).click()`); await pause(500);
-    assert.equal(await js(`!!document.querySelector('.admin-view') && document.querySelectorAll('.admin-user-row').length === 2`), true, 'Confirmed admins can open the control room and inspect users');
-    assert.equal(await js(`document.querySelector('.admin-db-panel').textContent.includes('group_messages')`), true, 'Database overview renders table counts');
+    assert.equal(await js(`!!document.querySelector('.admin-view') && document.querySelectorAll('.sp-metric').length === 4`), true, 'Confirmed admins can open the shared page-style overview');
+    assert.equal(await js(`document.querySelector('.admin-database-panel').textContent.includes('group_messages')`), true, 'Database overview renders table counts');
+    await screenshot('admin-overview');
+    await click('.admin-tabs .instances-nav-tab:nth-child(2)'); await pause();
+    assert.equal(await js(`document.querySelectorAll('.admin-user-row').length === 2`), true, 'Admin users tab renders user management rows');
     await click('[title="Grant Noctra Staff"]'); await pause();
     assert.equal(adminBadges.includes('staff'), true, 'Badge grant action reaches protected IPC');
     await screenshot('admin');
-    console.log('PASS: screenshot plus action, manager/preview, world artwork, protected admin control room, database overview, badge granting, Browse controls, modal geometry, settings persistence, compact layout and Escape.');
+    console.log('PASS: shared gradient plus actions with aligned spacing, manager/preview, world artwork, redesigned protected admin overview/users, badge granting, Browse controls, modal geometry, settings persistence, compact layout and Escape.');
     app.quit();
   } catch (error) { console.error(error); await screenshot('failure'); app.exit(1); }
 });
