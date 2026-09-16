@@ -443,7 +443,7 @@
   width: 42px;
   height: 42px;
   flex-shrink: 0;
-  border: 1px dotted rgba(255, 255, 255, 0.35);
+  border: 2px dotted rgba(255, 255, 255, 0.85);
   border-radius: 10px;
   background: transparent;
   color: #ffffff;
@@ -452,14 +452,15 @@
 
 .instance-manager button.im-add:hover {
   filter: none;
-  border-color: rgba(255, 255, 255, 0.75);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: #ffffff;
+  border-style: dotted;
+  background: rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
 .instance-manager button.im-add {
   padding: 0;
-  border: 1px dotted rgba(255, 255, 255, 0.35);
+  border: 2px dotted rgba(255, 255, 255, 0.85);
   color: #ffffff;
   background: transparent;
   box-shadow: none;

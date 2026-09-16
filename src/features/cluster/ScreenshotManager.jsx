@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Check,
   FolderOpen,
@@ -308,17 +309,68 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
     setShareShot(shot);
   };
 
+  const modalRoot = typeof document !== 'undefined' && document.body?.appendChild ? document.body : null;
+
+  const previewModal = preview ? (
+    <div className="sm-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreview(null); }}>
+      <section ref={previewRef} className="sm-preview-dialog" role="dialog" aria-modal="true" aria-label={`Preview ${preview.name}`} tabIndex={-1}>
+        <header><span><strong>{preview.name}</strong><small>{formatDate(preview.modified)} · {formatSize(preview.size)}</small></span><button onClick={() => setPreview(null)} aria-label="Close preview"><X size={18}/></button></header>
+        <div className="sm-preview-image"><ScreenshotThumbnail instanceId={cluster.id} shot={preview} eager/></div>
+        <footer><button onClick={() => reveal(preview)}><FolderOpen size={15}/> Show in folder</button><button onClick={() => requestShare(preview)}><Share2 size={15}/> Share</button><button className="is-danger" onClick={() => remove(preview)}><Trash2 size={15}/> Delete</button></footer>
+      </section>
+    </div>
+  ) : null;
+
+  const shareModal = shareShot ? (
+    <ShareScreenshotDialog
+      cluster={cluster}
+      shot={shareShot}
+      social={social}
+      account={account}
+      onClose={() => setShareShot(null)}
+      onShared={(count) => {
+        setShareShot(null);
+        setPreview(null);
+        onNotify?.('Screenshot shared', `Sent ${shareShot.name} to ${count} recipient${count === 1 ? '' : 's'}.`);
+      }}
+    />
+  ) : null;
+
   return (
-    <div className="sm-manager">
+    <div className="im-content sm-manager">
       <div className="im-count" aria-live="polite">
-        {loading ? 'Scanning screenshots…' : `${shots.length} screenshot${shots.length === 1 ? '' : 's'} · ${sortAlphabetically ? 'A–Z' : 'newest first'}`}
+        {loading ? 'Scanning screenshots…' : `${shots.length} screenshot${shots.length === 1 ? '' : 's'}${shots.length > 0 ? ` · ${sortAlphabetically ? 'A–Z' : 'Newest first'}` : ''}`}
       </div>
 
-      <div className="sm-panel">
-        <header className="sm-heading">
-          <button className="im-add sm-add" onClick={openFolder} title="Open screenshots folder" aria-label="Open screenshots folder"><Plus size={20}/></button>
-          <div><h2>Screenshot manager</h2><p>Preview, organize, and share your Minecraft moments through Relay.</p></div>
-          <button onClick={load} disabled={loading} title="Refresh screenshots"><RefreshCw size={15} className={loading ? 'is-spinning' : ''}/></button>
+      <div className="im-panel sm-panel">
+        <header className="im-section-heading sm-heading">
+          <button
+            className="im-add"
+            onClick={openFolder}
+            title="Open screenshots folder"
+            aria-label="Open screenshots folder"
+          >
+            <Plus size={20}/>
+          </button>
+          <div className="im-heading-text">
+            <h2>Screenshots</h2>
+            <p>Preview, organize, and share your Minecraft captures through Relay.</p>
+          </div>
+          <div className="im-heading-actions">
+            <button
+              className="im-heading-refresh"
+              onClick={load}
+              disabled={loading}
+              title="Refresh screenshots"
+              aria-label="Refresh screenshots"
+            >
+              <RefreshCw size={14} className={loading ? 'is-spinning' : ''}/>
+            </button>
+            <small className="im-heading-badge">
+              Stored locally<br/>
+              .minecraft/screenshots
+            </small>
+          </div>
         </header>
 
         {error && <div className="im-error" role="alert"><span>{error}</span><button onClick={load}><RefreshCw size={13}/> Retry</button></div>}
@@ -347,17 +399,8 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
         )}
       </div>
 
-      {preview && (
-        <div className="sm-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreview(null); }}>
-          <section ref={previewRef} className="sm-preview-dialog" role="dialog" aria-modal="true" aria-label={`Preview ${preview.name}`} tabIndex={-1}>
-            <header><span><strong>{preview.name}</strong><small>{formatDate(preview.modified)} · {formatSize(preview.size)}</small></span><button onClick={() => setPreview(null)} aria-label="Close preview"><X size={18}/></button></header>
-            <div className="sm-preview-image"><ScreenshotThumbnail instanceId={cluster.id} shot={preview} eager/></div>
-            <footer><button onClick={() => reveal(preview)}><FolderOpen size={15}/> Show in folder</button><button onClick={() => requestShare(preview)}><Share2 size={15}/> Share</button><button className="is-danger" onClick={() => remove(preview)}><Trash2 size={15}/> Delete</button></footer>
-          </section>
-        </div>
-      )}
-
-      {shareShot && <ShareScreenshotDialog cluster={cluster} shot={shareShot} social={social} account={account} onClose={() => setShareShot(null)} onShared={(count) => { setShareShot(null); setPreview(null); onNotify?.('Screenshot shared', `Sent ${shareShot.name} to ${count} recipient${count === 1 ? '' : 's'}.`); }}/>} 
+      {previewModal && (modalRoot ? createPortal(previewModal, modalRoot) : previewModal)}
+      {shareModal && (modalRoot ? createPortal(shareModal, modalRoot) : shareModal)}
     </div>
   );
 }
