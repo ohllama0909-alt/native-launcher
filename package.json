@@ -2,7 +2,7 @@
   "name": "noctra-client",
   "productName": "Noctra Client",
   "desktopName": "Noctra Client",
-  "version": "3.9.93",
+  "version": "3.9.94",
   "description": "Noctra Client — a Minecraft launcher",
   "homepage": "https://github.com/ohllama0909-alt/noctra-client",
   "author": {
@@ -68,7 +68,7 @@
         }
       ],
       "artifactName": "Noctra-Client-Portable-${version}-${arch}.${ext}",
-      "icon": "src/assets/noctra-icon.ico"
+      "icon": "buildResources/icons"
     },
     "nsis": {
       "oneClick": false,
@@ -93,7 +93,7 @@
           ]
         }
       ],
-      "icon": "src/assets/noctra-icon.png",
+      "icon": "buildResources/icons",
       "artifactName": "Noctra-Client-${version}-${arch}.${ext}",
       "category": "public.app-category.games",
       "identity": null
@@ -113,7 +113,7 @@
           ]
         }
       ],
-      "icon": "src/assets/noctra-icon.png",
+      "icon": "buildResources/icons",
       "artifactName": "Noctra-Client-${version}-${arch}.${ext}",
       "category": "Game",
       "syncDesktopName": true,

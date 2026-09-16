@@ -330,10 +330,13 @@
   font-weight: 600;
 }
 
-.admin-badge-toggle svg { width: 13px; height: 13px; filter: grayscale(1); }
+.admin-badge-toggle svg,
+.admin-badge-toggle img { width: 16px; height: 16px; object-fit: contain; filter: grayscale(1); }
+.admin-badge-toggle img { image-rendering: pixelated; }
 .admin-badge-toggle:hover:not(:disabled) { opacity: 1; border-color: var(--component-border-hover); color: var(--fg-primary); }
 .admin-badge-toggle.is-active { opacity: 1; border-color: var(--brand-border); color: var(--fg-primary); background: var(--brand-subtle); }
-.admin-badge-toggle.is-active svg { filter: none; }
+.admin-badge-toggle.is-active svg,
+.admin-badge-toggle.is-active img { filter: none; }
 
 .admin-loading {
   min-height: 190px;
