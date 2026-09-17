@@ -344,6 +344,7 @@ export default function Shell({
         networkStatus={networkStatus}
         onOpenUpdater={openUpdater}
         onOpenTutorial={openTutorial}
+        isTutorialOpen={tourOpen}
         friendsBadge={isNoctra ? social.badgeTotal : 0}
         liveUserCount={social.liveUserCount}
         isAdmin={isAdmin}

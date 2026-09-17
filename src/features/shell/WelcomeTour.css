@@ -8,15 +8,17 @@
 
 .welcome-tour-spotlight {
   position: fixed;
+  box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--brand) 82%, white);
   border-radius: calc(var(--radius-md) + 4px);
   box-shadow:
-    0 0 0 4px var(--brand-subtle),
-    0 0 28px 4px var(--brand-glow),
+    0 0 0 3px var(--brand-subtle),
+    0 0 24px 3px var(--brand-glow),
     0 0 0 9999px rgba(2, 3, 5, 0.78);
   pointer-events: none;
   transition: left 220ms var(--ease-out), top 220ms var(--ease-out),
-    width 220ms var(--ease-out), height 220ms var(--ease-out);
+    width 220ms var(--ease-out), height 220ms var(--ease-out),
+    border-radius 220ms var(--ease-out);
 }
 
 .welcome-tour-card {

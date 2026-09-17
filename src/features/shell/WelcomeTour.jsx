@@ -59,6 +59,7 @@ const TOUR_STEPS = [
   },
   {
     target: '[data-tour="tutorial"]',
+    preferredSide: 'bottom',
     eyebrow: 'Any time',
     title: 'Replay this quick tour',
     body: 'Use the Quick tour button in the title bar whenever you want a refresher. You are ready to play.'
@@ -68,30 +69,45 @@ const TOUR_STEPS = [
 const CARD_WIDTH = 340;
 const CARD_HEIGHT = 236;
 const EDGE_GAP = 14;
-const TARGET_GAP = 18;
+const TARGET_GAP = 14;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
-function positionCard(rect, viewport) {
+function positionCard(rect, viewport, preferredSide) {
   const centeredTop = clamp(rect.top + rect.height / 2 - CARD_HEIGHT / 2, EDGE_GAP, viewport.height - CARD_HEIGHT - EDGE_GAP);
+  const centeredLeft = clamp(rect.left + rect.width / 2 - CARD_WIDTH / 2, EDGE_GAP, viewport.width - CARD_WIDTH - EDGE_GAP);
 
-  if (rect.right + TARGET_GAP + CARD_WIDTH <= viewport.width - EDGE_GAP) {
-    return { left: rect.right + TARGET_GAP, top: centeredTop, side: 'right' };
+  const canFitBottom = rect.bottom + TARGET_GAP + CARD_HEIGHT <= viewport.height - EDGE_GAP;
+  const canFitRight = rect.right + TARGET_GAP + CARD_WIDTH <= viewport.width - EDGE_GAP;
+  const canFitLeft = rect.left - TARGET_GAP - CARD_WIDTH >= EDGE_GAP;
+  const canFitTop = rect.top - TARGET_GAP - CARD_HEIGHT >= EDGE_GAP;
+
+  if (preferredSide === 'bottom' && canFitBottom) {
+    return { left: centeredLeft, top: rect.bottom + TARGET_GAP, side: 'bottom' };
   }
-
-  if (rect.left - TARGET_GAP - CARD_WIDTH >= EDGE_GAP) {
+  if (preferredSide === 'left' && canFitLeft) {
     return { left: rect.left - TARGET_GAP - CARD_WIDTH, top: centeredTop, side: 'left' };
   }
-
-  const left = clamp(rect.left + rect.width / 2 - CARD_WIDTH / 2, EDGE_GAP, viewport.width - CARD_WIDTH - EDGE_GAP);
-  if (rect.bottom + TARGET_GAP + CARD_HEIGHT <= viewport.height - EDGE_GAP) {
-    return { left, top: rect.bottom + TARGET_GAP, side: 'bottom' };
+  if (preferredSide === 'right' && canFitRight) {
+    return { left: rect.right + TARGET_GAP, top: centeredTop, side: 'right' };
+  }
+  if (preferredSide === 'top' && canFitTop) {
+    return { left: centeredLeft, top: rect.top - TARGET_GAP - CARD_HEIGHT, side: 'top' };
   }
 
+  if (canFitRight) {
+    return { left: rect.right + TARGET_GAP, top: centeredTop, side: 'right' };
+  }
+  if (canFitBottom) {
+    return { left: centeredLeft, top: rect.bottom + TARGET_GAP, side: 'bottom' };
+  }
+  if (canFitLeft) {
+    return { left: rect.left - TARGET_GAP - CARD_WIDTH, top: centeredTop, side: 'left' };
+  }
   return {
-    left,
+    left: centeredLeft,
     top: clamp(rect.top - TARGET_GAP - CARD_HEIGHT, EDGE_GAP, viewport.height - CARD_HEIGHT - EDGE_GAP),
     side: 'top'
   };
@@ -113,15 +129,46 @@ export default function WelcomeTour({ open, onClose }) {
     }
 
     const rect = target.getBoundingClientRect();
+    const computed = window.getComputedStyle(target);
+    const rawRadius = parseFloat(computed.borderRadius) || 0;
+
+    const isPill =
+      step.target === '[data-tour="tutorial"]' ||
+      target.classList.contains('quick-tutorial-btn') ||
+      rawRadius >= Math.min(rect.width, rect.height) / 2 - 2 ||
+      computed.borderRadius.includes('9999') ||
+      computed.borderRadius.includes('100%');
+
+    let padX = 5;
+    let padY = 5;
+
+    if (isPill) {
+      padX = 6;
+      padY = rect.top <= 8 ? Math.max(2.5, Math.min(3.5, rect.top - 2)) : 4;
+    }
+
+    const top = Math.max(2, Math.round((rect.top - padY) * 2) / 2);
+    const verticalPad = rect.top - top;
+    const height = Math.round((rect.height + verticalPad * 2) * 2) / 2;
+
+    const left = Math.max(2, Math.round((rect.left - padX) * 2) / 2);
+    const horizontalPad = rect.left - left;
+    const width = Math.round((rect.width + horizontalPad * 2) * 2) / 2;
+
+    const borderRadius = isPill
+      ? 9999
+      : Math.min(Math.round((rawRadius || 10) + 4), height / 2);
+
     const targetRect = {
-      left: Math.max(6, rect.left - 5),
-      top: Math.max(6, rect.top - 5),
-      width: rect.width + 10,
-      height: rect.height + 10,
-      right: rect.right + 5,
-      bottom: rect.bottom + 5
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      borderRadius
     };
-    const card = positionCard(targetRect, { width: window.innerWidth, height: window.innerHeight });
+    const card = positionCard(targetRect, { width: window.innerWidth, height: window.innerHeight }, step.preferredSide);
     setLayout({ target: targetRect, card });
   }, [open, step]);
 
@@ -158,6 +205,16 @@ export default function WelcomeTour({ open, onClose }) {
     if (!open) setStepIndex(0);
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !step) return undefined;
+    const target = document.querySelector(step.target);
+    if (!target) return undefined;
+    target.setAttribute('data-tour-target-active', 'true');
+    return () => {
+      target.removeAttribute('data-tour-target-active');
+    };
+  }, [open, stepIndex, step]);
+
   if (!open || !layout) return null;
 
   const progress = ((stepIndex + 1) / TOUR_STEPS.length) * 100;
@@ -170,7 +227,8 @@ export default function WelcomeTour({ open, onClose }) {
           left: layout.target.left,
           top: layout.target.top,
           width: layout.target.width,
-          height: layout.target.height
+          height: layout.target.height,
+          borderRadius: `${layout.target.borderRadius}px`
         }}
       />
 

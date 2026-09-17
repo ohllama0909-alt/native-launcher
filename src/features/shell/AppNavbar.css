@@ -60,11 +60,22 @@
     color 150ms var(--ease), transform 150ms var(--ease-out);
 }
 
-.quick-tutorial-btn:hover {
+.quick-tutorial-btn:hover,
+.quick-tutorial-btn[data-tour-target-active="true"],
+.quick-tutorial-btn.is-active {
   border-color: var(--brand-border);
   background: var(--brand-subtle);
   color: var(--fg-primary-hover);
+}
+
+.quick-tutorial-btn:hover {
   transform: translateY(-1px);
+}
+
+.quick-tutorial-btn[data-tour-target-active="true"],
+.quick-tutorial-btn.is-active {
+  transform: none;
+  box-shadow: 0 0 12px var(--brand-subtle);
 }
 
 .quick-tutorial-btn:active {

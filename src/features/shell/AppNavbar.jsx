@@ -111,6 +111,7 @@ export default function AppNavbar({
   networkStatus = null,
   onOpenUpdater,
   onOpenTutorial,
+  isTutorialOpen = false,
   friendsBadge = 0,
   liveUserCount = null,
   isAdmin = false
@@ -170,7 +171,7 @@ export default function AppNavbar({
         <div className="titlebar-actions">
           <button
             type="button"
-            className="quick-tutorial-btn"
+            className={`quick-tutorial-btn${isTutorialOpen ? ' is-active' : ''}`}
             onClick={onOpenTutorial}
             aria-label="Open quick tutorial"
             title="Open quick tutorial"
