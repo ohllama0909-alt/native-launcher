@@ -20,6 +20,7 @@ import InstanceContentTab from './InstanceContentTab.jsx';
 import ScreenshotManager from './ScreenshotManager.jsx';
 import BrowseView from '../browser/BrowseView.jsx';
 import { formatPlaytime } from '../instances/playtimeStats.js';
+import { getClusterArt } from '../../data/versionsData.js';
 import './ClusterDetailView.css';
 import './InstanceManager.css';
 
@@ -207,12 +208,13 @@ export default function ClusterDetailView({
         <aside className="im-sidebar">
           {/* Identity Block */}
           <div className="im-identity-block">
-            <div className="im-identity-icon-wrap">
-              {cluster.icon ? (
-                <img src={cluster.icon} alt="" className="im-identity-icon" />
-              ) : (
-                <Package size={22} className="im-identity-fallback-icon" />
-              )}
+            <div className="im-identity-banner-wrap">
+              <img
+                src={getClusterArt(cluster)}
+                alt={cluster.name}
+                className="im-identity-banner"
+              />
+              <div className="im-identity-banner-overlay" />
             </div>
 
             <div className="im-identity-meta">

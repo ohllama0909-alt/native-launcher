@@ -193,9 +193,17 @@
   background: var(--component-bg-hover);
 }
 
+.browse-target-item:hover .browse-target-item-title {
+  color: #ffffff;
+}
+
 .browse-target-item.is-selected {
   background: var(--brand-subtle);
   border-left: 2px solid var(--brand);
+}
+
+.browse-target-item.is-selected .browse-target-item-title {
+  color: #ffffff;
 }
 
 .browse-target-item-title {
@@ -250,14 +258,24 @@
 }
 
 .browse-type-tab:hover {
-  color: var(--fg-primary);
+  color: #ffffff;
   background: var(--ghost-overlay-hover);
+}
+
+.browse-type-tab:hover svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 .browse-type-tab.is-active {
   background: var(--component-bg);
-  color: var(--color-text-heading);
+  color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.browse-type-tab.is-active svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 /* Vanilla Warning Banner */
@@ -456,7 +474,7 @@
 }
 
 .browse-filter-chip:hover {
-  color: var(--fg-primary);
+  color: #ffffff;
   background: var(--component-bg-hover);
   border-color: var(--component-border-hover);
 }
@@ -464,7 +482,13 @@
 .browse-filter-chip.is-selected {
   border-color: var(--brand);
   background: var(--brand-subtle);
-  color: var(--fg-primary);
+  color: #ffffff;
+}
+
+.browse-filter-chip:hover svg,
+.browse-filter-chip.is-selected svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 /* Environment Segmented */
@@ -490,12 +514,12 @@
 }
 
 .browse-segmented-btn:hover {
-  color: var(--fg-primary);
+  color: #ffffff;
 }
 
 .browse-segmented-btn.is-selected {
   background: var(--component-bg);
-  color: var(--color-text-heading);
+  color: #ffffff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
@@ -599,12 +623,12 @@
 }
 
 .browse-category-item:hover {
-  color: var(--fg-primary);
+  color: #ffffff;
   background: var(--ghost-overlay-hover);
 }
 
 .browse-category-item.is-selected {
-  color: var(--color-text-heading);
+  color: #ffffff;
   background: var(--brand-subtle);
 }
 
@@ -763,13 +787,24 @@
 }
 
 .browse-sort-item:hover {
-  color: var(--fg-primary);
+  color: #ffffff;
   background: var(--component-bg-hover);
 }
 
+.browse-sort-item:hover svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
+}
+
 .browse-sort-item.is-selected {
-  color: var(--brand);
+  color: #ffffff;
+  background: var(--brand-subtle);
   font-weight: 600;
+}
+
+.browse-sort-item.is-selected svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 /* Results Scroll Area */
@@ -1282,8 +1317,13 @@
 }
 
 .browse-detail-back-btn:hover {
-  color: var(--fg-primary);
+  color: #ffffff;
   border-color: var(--component-border-hover);
+}
+
+.browse-detail-back-btn:hover svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 .browse-detail-tabs {
@@ -1308,12 +1348,12 @@
 }
 
 .browse-detail-tab-btn:hover {
-  color: var(--fg-primary);
+  color: #ffffff;
 }
 
 .browse-detail-tab-btn.is-active {
   background: var(--component-bg);
-  color: var(--color-text-heading);
+  color: #ffffff;
 }
 
 /* Hero */

@@ -116,3 +116,26 @@ process.stdout.write(browseHtml + '---SPLIT---' + settingsHtml);
 
   fs.rmSync(workDir, { recursive: true, force: true });
 });
+
+test('Instance manager renders big curved version banner, white active/hover icons and texts, and restored close geometry', () => {
+  const cdCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/ClusterDetailView.jsx'), 'utf8');
+  assert.ok(cdCode.includes('im-identity-banner-wrap'), 'Instance manager renders big version banner container');
+  assert.ok(cdCode.includes('getClusterArt(cluster)'), 'Instance manager passes cluster to getClusterArt');
+
+  const imCss = fs.readFileSync(path.join(ROOT, 'src/features/cluster/InstanceManager.css'), 'utf8');
+  assert.ok(imCss.includes('.im-identity-banner-wrap'), 'Banner wrap is styled in InstanceManager.css');
+  assert.ok(imCss.includes('top: 13px;'), 'Close button is vertically centered in toolbar without overlap');
+  assert.ok(imCss.includes('padding: 0 68px 0 24px;'), 'Toolbar reserves right gutter for close button');
+  assert.ok(imCss.includes('.im-nav.active svg') && imCss.includes('stroke: #ffffff;'), 'Active nav icons are white');
+  assert.ok(imCss.includes('.im-nav.active .im-nav-text') && imCss.includes('color: #ffffff;'), 'Active nav text is white');
+  assert.ok(imCss.includes('.im-add,') && imCss.includes('linear-gradient'), 'Section heading add button uses linear gradient');
+
+  const smCss = fs.readFileSync(path.join(ROOT, 'src/features/cluster/ScreenshotManager.css'), 'utf8');
+  assert.ok(smCss.includes('padding: 20px 24px 32px;'), 'Screenshot panel matches modal content padding');
+  assert.ok(smCss.includes('background: transparent;'), 'Screenshot panel uses transparent background without box-in-box');
+
+  const ddCss = fs.readFileSync(path.join(ROOT, 'src/components/ui/Dropdown.css'), 'utf8');
+  assert.ok(ddCss.includes('.dropdown-option.active') && ddCss.includes('color: #ffffff;'), 'Dropdown active option text is white');
+  assert.ok(ddCss.includes('.dropdown-option:hover:not(:disabled)') && ddCss.includes('color: #ffffff;'), 'Dropdown hover option text is white');
+});
+

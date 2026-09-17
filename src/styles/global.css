@@ -280,7 +280,16 @@ select {
 
 /* ---- 5. Accent-aware colours for the older screens ---- */
 
-:root .instances-chip.active,
+:root .instances-chip.active {
+  color: #ffffff;
+}
+
+:root .instances-chip.active svg,
+:root .instances-chip:hover svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
+}
+
 :root .instance-chip.brand,
 :root .instances-empty-icon,
 :root .instance-add-card:hover {
@@ -288,9 +297,20 @@ select {
 }
 
 :root .instances-popover-item.active,
+:root .instances-popover-item:hover,
 :root .browse-sort-popover-item.active,
-:root .dropdown-option.active {
+:root .browse-sort-popover-item:hover,
+:root .dropdown-option.active,
+:root .dropdown-option:hover {
   color: #ffffff;
+}
+
+:root .instances-popover-item.active svg,
+:root .instances-popover-item:hover svg,
+:root .browse-sort-popover-item.active svg,
+:root .browse-sort-popover-item:hover svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 :root .instances-popover-item.danger {

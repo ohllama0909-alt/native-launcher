@@ -352,8 +352,13 @@
 .rail-btn:hover {
   background: var(--surface-tint);
   border-color: var(--hairline);
-  color: var(--fg-primary-hover);
+  color: #ffffff;
   transform: translateX(1px);
+}
+
+.rail-btn:hover > svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 .rail-btn:active {
@@ -369,10 +374,13 @@
   background: var(--brand-subtle);
   border-color: var(--brand-border);
   box-shadow: 0 6px 18px -12px var(--brand-glow), inset 0 0 16px rgba(255, 255, 255, 0.018);
-  color: #fff;
+  color: #ffffff;
 }
 
-.rail-btn.is-active > svg { color: #fff; stroke: #fff; }
+.rail-btn.is-active > svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
+}
 
 /* Accent bar pinned to the rail edge marks the active destination. */
 .rail-btn.is-active::before {

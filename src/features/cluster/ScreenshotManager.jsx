@@ -345,7 +345,7 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
       <div className="im-panel sm-panel">
         <header className="im-section-heading sm-heading">
           <button
-            className="im-add"
+            className="im-add sm-add"
             onClick={openFolder}
             title="Open screenshots folder"
             aria-label="Open screenshots folder"

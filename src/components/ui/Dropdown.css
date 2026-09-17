@@ -128,7 +128,16 @@
 
 .dropdown-option:hover:not(:disabled) {
   background: var(--ghost-overlay-hover);
-  color: var(--fg-primary);
+  color: #ffffff;
+}
+
+.dropdown-option:hover:not(:disabled) .dropdown-option-label {
+  color: #ffffff;
+}
+
+.dropdown-option:hover:not(:disabled) svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 .dropdown-option.active {
@@ -137,8 +146,13 @@
   font-weight: 600;
 }
 
-.dropdown-option.active svg {
+.dropdown-option.active .dropdown-option-label {
   color: #ffffff;
+}
+
+.dropdown-option.active svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
 .dropdown-option:disabled {
