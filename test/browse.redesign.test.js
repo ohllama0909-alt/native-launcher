@@ -139,7 +139,7 @@ test('Instance manager renders big curved version banner, white active/hover ico
   assert.ok(ddCss.includes('.dropdown-option:hover:not(:disabled)') && ddCss.includes('color: #ffffff;'), 'Dropdown hover option text is white');
 });
 
-test('Browse default banner, screenshot title layout, and white plus icons', () => {
+test('Browse default banner, matching instance content headers, and white plus icons', () => {
   const cardCode = fs.readFileSync(path.join(ROOT, 'src/features/browser/components/ProjectCard.jsx'), 'utf8');
   assert.ok(cardCode.includes('defaultBanner'), 'ProjectCard imports default banner');
   assert.ok(cardCode.includes('Tricky_Trials.jpg'), 'ProjectCard uses Tricky_Trials default banner');
@@ -149,11 +149,18 @@ test('Browse default banner, screenshot title layout, and white plus icons', () 
   assert.ok(detailCode.includes('Tricky_Trials.jpg'), 'ProjectDetail uses Tricky_Trials default banner');
 
   const smCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/ScreenshotManager.jsx'), 'utf8');
-  assert.ok(smCode.includes('instances-title sm-title') || smCode.includes('sm-title'), 'Screenshot manager uses sm-title');
-  assert.ok(smCode.indexOf('sm-title-group') < smCode.indexOf('im-heading-actions'), 'Screenshot title is on the left before actions');
+  assert.ok(smCode.includes('im-upload-banner sm-upload-banner'), 'Screenshot manager uses the same banner layout as other content pages');
+  assert.ok(smCode.includes('im-upload-banner-title">Screenshots'), 'Screenshot banner carries the page title');
+
+  const contentCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/InstanceContentTab.jsx'), 'utf8');
+  assert.ok(!contentCode.includes('+ {title}'), 'Content page titles do not include a leading plus sign');
+
+  const navbarCode = fs.readFileSync(path.join(ROOT, 'src/features/shell/AppNavbar.jsx'), 'utf8');
+  const navbarCss = fs.readFileSync(path.join(ROOT, 'src/features/shell/AppNavbar.css'), 'utf8');
+  assert.ok(navbarCode.includes('<Logo height={11} variant="mark"'), 'Title-bar logo matches the compact build text');
+  assert.ok(navbarCss.includes('filter: grayscale(1)') && navbarCss.includes('opacity: 0.72'), 'Title-bar logo uses a muted grayscale treatment');
 
   const globalCss = fs.readFileSync(path.join(ROOT, 'src/styles/global.css'), 'utf8');
   assert.ok(globalCss.includes('svg.lucide-plus') && globalCss.includes('stroke: #ffffff !important;'), 'Plus icons across all pages are pure white');
 });
-
 

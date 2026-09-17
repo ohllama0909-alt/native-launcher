@@ -233,9 +233,23 @@
   font-weight: 700;
 }
 
+.noctra-wordmark > .noctra-logo,
+.noctra-wordmark > .native-logo {
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  place-items: initial;
+  margin: 0;
+  border-radius: 0;
+  transform: none;
+}
+
 .noctra-wordmark .noctra-mark,
 .noctra-wordmark .native-mark {
-  filter: grayscale(1) brightness(0.55);
+  width: 11px !important;
+  height: 11px !important;
+  filter: grayscale(1) brightness(0.72);
+  opacity: 0.72;
   border-radius: 0 !important;
 }
 
@@ -286,7 +300,7 @@
   -webkit-app-region: drag;
 }
 
-.noctra-logo {
+.noctra-rail-logo {
   position: relative;
   width: 44px;
   height: 44px;
@@ -299,19 +313,19 @@
   transition: background 0.15s var(--ease), transform 0.15s var(--ease-out);
 }
 
-.noctra-logo:hover {
+.noctra-rail-logo:hover {
   background: var(--surface-tint);
   transform: translateY(-1px);
 }
 
-.noctra-logo .noctra-logo,
-.noctra-logo .native-logo {
+.noctra-rail-logo .noctra-logo,
+.noctra-rail-logo .native-logo {
   display: grid;
   place-items: center;
 }
 
-.noctra-logo .noctra-mark,
-.noctra-logo .native-mark {
+.noctra-rail-logo .noctra-mark,
+.noctra-rail-logo .native-mark {
   width: 25px !important;
   height: 25px !important;
   border-radius: 0 !important;
@@ -405,7 +419,7 @@
 
 /* Tooltips: the rail sits on the window edge, so labels open to the right. */
 .rail-btn::after,
-.noctra-logo::after {
+.noctra-rail-logo::after {
   content: attr(data-tooltip);
   position: absolute;
   left: calc(100% + 12px);
@@ -427,7 +441,7 @@
 
 .rail-btn:hover::after,
 .rail-btn:focus-visible::after,
-.noctra-logo:hover::after {
+.noctra-rail-logo:hover::after {
   opacity: 1;
   transform: translate(0, -50%);
 }
@@ -517,7 +531,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rail-btn,
-  .noctra-logo,
+  .noctra-rail-logo,
   .noctra-update-pill,
   .quick-tutorial-btn {
     transition: none;

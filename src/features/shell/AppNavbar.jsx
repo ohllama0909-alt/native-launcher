@@ -125,7 +125,7 @@ export default function AppNavbar({
     <>
       <header className="noctra-titlebar">
         <div className="noctra-build">
-          <span className="noctra-wordmark"><Logo height={13} variant="mark" /> Noctra Client</span>
+          <span className="noctra-wordmark"><Logo height={11} variant="mark" /> Noctra Client</span>
           <i />
           <span>Build <b>{buildVersion}</b></span>
           {Number.isFinite(liveUserCount) && (
@@ -191,7 +191,7 @@ export default function AppNavbar({
       <aside className="noctra-rail" aria-label={t('nav.primary')}>
         <button
           type="button"
-          className="noctra-logo"
+          className="noctra-rail-logo"
           onClick={() => onSelectTab('home')}
           aria-label="Noctra Client"
           data-tooltip="Noctra Client"

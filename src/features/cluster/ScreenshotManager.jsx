@@ -343,30 +343,31 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
       </div>
 
       <div className="im-panel sm-panel">
-        <header className="im-section-heading sm-heading">
-          <div className="im-heading-text sm-title-group">
-            <h1 className="instances-title sm-title">Screenshots</h1>
-            <p>Preview and share your captures.</p>
-          </div>
-          <div className="im-heading-actions">
-            <button
-              className="im-add sm-add"
-              onClick={openFolder}
-              title="Open screenshots folder"
-              aria-label="Open screenshots folder"
-            >
-              <Plus size={18}/>
-            </button>
-            <button
-              className="im-heading-refresh"
-              onClick={load}
-              disabled={loading}
-              title="Refresh screenshots"
-              aria-label="Refresh screenshots"
-            >
-              <RefreshCw size={14} className={loading ? 'is-spinning' : ''}/>
-            </button>
-          </div>
+        <header className="im-upload-banner sm-upload-banner">
+          <button
+            type="button"
+            className="sm-upload-banner-main"
+            onClick={openFolder}
+            title="Open screenshots folder"
+            aria-label="Open screenshots folder"
+          >
+            <span className="im-upload-banner-icon">
+              <Plus size={20}/>
+            </span>
+            <span className="im-upload-banner-info">
+              <span className="im-upload-banner-title">Screenshots</span>
+              <span className="im-upload-banner-subtitle">Preview and share your captures.</span>
+            </span>
+          </button>
+          <button
+            className="im-heading-refresh"
+            onClick={load}
+            disabled={loading}
+            title="Refresh screenshots"
+            aria-label="Refresh screenshots"
+          >
+            <RefreshCw size={14} className={loading ? 'is-spinning' : ''}/>
+          </button>
         </header>
 
         {error && <div className="im-error" role="alert"><span>{error}</span><button onClick={load}><RefreshCw size={13}/> Retry</button></div>}

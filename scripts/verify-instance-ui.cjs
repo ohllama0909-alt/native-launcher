@@ -54,6 +54,11 @@ app.whenReady().then(async () => {
   const screenshot = async name => { await pause(); fs.writeFileSync(path.join(__dirname, `../screenshot-instance-${name}.png`), (await win.webContents.capturePage()).toPNG()); };
   try {
     await win.loadFile(path.join(__dirname, '../dist/index.html')); await pause(1500);
+    const titleLogo = await js(`(() => { const el = document.querySelector('.noctra-wordmark .noctra-mark'); const rect = el?.getBoundingClientRect(); const style = el && getComputedStyle(el); return el ? { width: rect.width, height: rect.height, filter: style.filter, opacity: style.opacity } : null; })()`);
+    assert.equal(titleLogo?.width, 11, 'Title-bar logo matches the compact text size');
+    assert.equal(titleLogo?.height, 11, 'Title-bar logo stays square at text size');
+    assert.match(titleLogo?.filter || '', /grayscale/, 'Title-bar logo is grayed');
+    assert.equal(titleLogo?.opacity, '0.72', 'Title-bar logo uses the muted treatment');
     await js(`Array.from(document.querySelectorAll('.rail-btn')).find(b => (b.getAttribute('aria-label') || '').toLowerCase().includes('instances')).click()`); await pause();
     const launchActionVisual = await js(`(() => {
       const button = document.querySelector('.instance-card .launch-action');
@@ -89,14 +94,11 @@ app.whenReady().then(async () => {
     assert.equal(await js(`document.querySelectorAll('.im-file-row').length`), 4);
     await click('.im-nav-worlds'); await screenshot('worlds-loading'); await pause(300); await screenshot('worlds');
     assert.equal(await js(`document.querySelectorAll('.im-world-art').length`), 2, 'World rows render colored artwork');
-    const sharedAdd = await js(`(() => { const button = document.querySelector('.im-section-heading .im-add'); const style = getComputedStyle(button); const rect = button.getBoundingClientRect(); const icon = button.querySelector('svg').getBoundingClientRect(); return { backgroundImage: style.backgroundImage, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, iconOffset: Math.abs((icon.top + icon.height / 2) - (rect.top + rect.height / 2)) }; })()`);
-    assert.match(sharedAdd.backgroundImage, /linear-gradient/, 'Content page add buttons use the shared gradient treatment');
-    assert.equal(sharedAdd.paddingTop, sharedAdd.paddingBottom, 'Content page add buttons have balanced vertical padding');
-    assert.equal(sharedAdd.iconOffset < 1, true, `Content page add icon is vertically centered: ${sharedAdd.iconOffset}px`);
+    assert.equal(await js(`document.querySelector('.im-upload-banner-title').textContent.trim()`), 'Worlds', 'Content page title has no decorative plus prefix');
     await click('.im-nav-screenshots'); await pause(350);
     assert.equal(await js(`document.querySelectorAll('.sm-card').length`), 2, 'Screenshot manager renders image cards');
-    assert.equal(await js(`!!document.querySelector('.sm-heading .sm-add svg')`), true, 'Screenshot manager matches the plus action used by other content pages');
-    assert.match(await js(`getComputedStyle(document.querySelector('.sm-heading .sm-add')).backgroundImage`), /linear-gradient/, 'Screenshot add button retains the shared gradient');
+    assert.equal(await js(`!!document.querySelector('.sm-upload-banner .im-upload-banner-icon svg')`), true, 'Screenshot manager uses the same banner icon layout as other content pages');
+    assert.equal(await js(`document.querySelector('.sm-upload-banner .im-upload-banner-title').textContent.trim()`), 'Screenshots', 'Screenshot page title matches the shared content banner');
     await screenshot('screenshots');
     await click('.sm-card-actions button'); await pause(250);
     assert.equal(await js(`document.querySelectorAll('.sm-target-list > button').length`), 2, 'Share picker includes friends and groups');
@@ -149,7 +151,7 @@ app.whenReady().then(async () => {
     await click('[title="Grant Noctra Staff"]'); await pause();
     assert.equal(adminBadges.includes('staff'), true, 'Badge grant action reaches protected IPC');
     await screenshot('admin');
-    console.log('PASS: shared gradient plus actions with aligned spacing, manager/preview, world artwork, redesigned protected admin overview/users, badge granting, Browse controls, modal geometry, settings persistence, compact layout and Escape.');
+    console.log('PASS: compact gray title-bar logo, matching instance content headers without plus-prefixed titles, manager/preview, world artwork, protected admin pages, Browse controls, modal geometry, settings persistence, compact layout and Escape.');
     app.quit();
   } catch (error) { console.error(error); await screenshot('failure'); app.exit(1); }
 });

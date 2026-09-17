@@ -196,7 +196,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
           </div>
           <div className="im-upload-banner-info">
             <h3 className="im-upload-banner-title">
-              + {title}
+              {title}
             </h3>
             <p className="im-upload-banner-subtitle">
               {localOnly

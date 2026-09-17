@@ -114,7 +114,7 @@ test('quick tour button spotlight highlighting has symmetric padding and pill ra
  */
 test('screenshot manager description is short and Stored locally badge is removed', () => {
   const smCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/ScreenshotManager.jsx'), 'utf8');
-  assert.ok(smCode.includes('<p>Preview and share your captures.</p>'), 'screenshot description is concise');
+  assert.ok(smCode.includes('>Preview and share your captures.</span>'), 'screenshot description is concise');
   assert.ok(!smCode.includes('Stored locally'), 'screenshot manager does not have Stored locally badge');
 
   const icCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/InstanceContentTab.jsx'), 'utf8');
@@ -139,5 +139,4 @@ test('instance setting browse page suppresses installed toast and filter input m
   assert.ok(bvCss.includes('.browse-category-search'), 'BrowseView.css styles category search');
   assert.ok(bvCss.includes('rgba(255, 255, 255, 0.035)'), 'browse search styling is shared with filter input');
 });
-
 

@@ -17,49 +17,35 @@
   flex-direction: column;
 }
 
-.sm-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 0 16px;
-  border-bottom: 1px solid var(--hairline);
-  margin-bottom: 16px;
+.sm-upload-banner {
+  cursor: default;
 }
 
-.sm-heading .im-heading-text,
-.sm-heading .sm-title-group {
+.sm-upload-banner-main {
   min-width: 0;
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.sm-heading h1,
-.sm-heading h2,
-.sm-heading .sm-title {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.25;
-  margin: 0;
-  color: #ffffff;
-  letter-spacing: -0.02em;
-}
-
-.sm-heading p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--fg-muted);
-  line-height: 1.4;
-}
-
-.sm-heading .im-heading-actions {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  margin-left: auto;
-  flex-shrink: 0;
+  gap: 14px;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sm-upload-banner-main .im-upload-banner-info {
+  align-items: flex-start;
+}
+
+.sm-upload-banner-main:hover .im-upload-banner-icon,
+.sm-upload-banner-main:focus-visible .im-upload-banner-icon {
+  transform: scale(1.08);
+}
+
+.sm-upload-banner-main:focus-visible {
+  outline: 2px solid var(--brand-border);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .im-heading-refresh {
