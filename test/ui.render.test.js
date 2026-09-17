@@ -121,3 +121,23 @@ test('screenshot manager description is short and Stored locally badge is remove
   assert.ok(!icCode.includes('Stored locally'), 'instance content tab does not have Stored locally badge');
 });
 
+/**
+ * Verifies instance settings browse page suppresses installed toast and
+ * category filter uses matching input box styling.
+ */
+test('instance setting browse page suppresses installed toast and filter input matches browse-search', () => {
+  const cdvCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/ClusterDetailView.jsx'), 'utf8');
+  assert.ok(cdvCode.includes('hideInstallToast={true}'), 'ClusterDetailView passes hideInstallToast');
+  assert.ok(cdvCode.includes('/installed/i.test'), 'ClusterDetailView suppresses installed toasts');
+
+  const bvCode = fs.readFileSync(path.join(ROOT, 'src/features/browser/BrowseView.jsx'), 'utf8');
+  assert.ok(bvCode.includes('hideInstallToast = false'), 'BrowseView supports hideInstallToast prop');
+  assert.ok(bvCode.includes('browse-category-search'), 'BrowseView renders category search filter');
+  assert.ok(bvCode.includes('browse-search-clear'), 'BrowseView uses browse-search-clear for category search');
+
+  const bvCss = fs.readFileSync(path.join(ROOT, 'src/features/browser/BrowseView.css'), 'utf8');
+  assert.ok(bvCss.includes('.browse-category-search'), 'BrowseView.css styles category search');
+  assert.ok(bvCss.includes('rgba(255, 255, 255, 0.035)'), 'browse search styling is shared with filter input');
+});
+
+

@@ -91,6 +91,7 @@ export default function BrowseView({
   onAddInstance,
   onOpenCluster,
   onNotify,
+  hideInstallToast = false,
   initialResults = []
 }) {
   const { t, formatNumber } = useI18n();
@@ -365,9 +366,11 @@ export default function BrowseView({
       const created = await window.native.modpacks.install(id);
       if (created) {
         onAddInstance?.(created);
-        const title = t('browse.modpackInstalled');
-        const body = t('browse.readyToPlay', { name: project.title });
-        onNotify?.(title, body);
+        if (!hideInstallToast) {
+          const title = t('browse.modpackInstalled');
+          const body = t('browse.readyToPlay', { name: project.title });
+          onNotify?.(title, body);
+        }
       }
     } catch (err) {
       onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
@@ -498,11 +501,13 @@ export default function BrowseView({
       });
 
       await refreshInstalled();
-      const notifTitle = t('browse.installed');
-      const notifBody = extras.length > 0
-        ? `${project.title} and ${extras.length} ${extras.length === 1 ? 'dependency' : 'dependencies'} added to ${target.name}`
-        : t('browse.addedTo', { name: project.title, instance: target.name });
-      onNotify?.(notifTitle, notifBody);
+      if (!hideInstallToast) {
+        const notifTitle = t('browse.installed');
+        const notifBody = extras.length > 0
+          ? `${project.title} and ${extras.length} ${extras.length === 1 ? 'dependency' : 'dependencies'} added to ${target.name}`
+          : t('browse.addedTo', { name: project.title, instance: target.name });
+        onNotify?.(notifTitle, notifBody);
+      }
     } catch (err) {
       onNotify?.(t('browse.installFailed'), err?.message || t('browse.couldNotInstall', { name: project.title }));
     } finally {
@@ -936,17 +941,18 @@ export default function BrowseView({
             {selectedCategories.length > 0 && <b>{selectedCategories.length}</b>}
           </div>
 
-          {categories.length > 6 && (
+          {categories.length > 3 && (
             <label className="browse-category-search">
-              <NativeIcon name="search" size={14} />
+              <NativeIcon name="search" size={15} />
               <input
+                type="text"
                 value={categoryQuery}
                 onChange={(event) => setCategoryQuery(event.target.value)}
                 placeholder="Find a category"
               />
               {categoryQuery && (
-                <button type="button" onClick={() => setCategoryQuery('')} aria-label="Clear category search">
-                  <NativeIcon name="close" size={12} />
+                <button type="button" className="browse-search-clear" onClick={() => setCategoryQuery('')} aria-label="Clear category search">
+                  <NativeIcon name="close" size={13} />
                 </button>
               )}
             </label>

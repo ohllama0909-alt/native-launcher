@@ -291,35 +291,65 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 40px;
+  height: 38px;
   width: 320px;
   max-width: 100%;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 9px;
-  padding: 0 14px;
+  padding: 0 13px;
   color: var(--fg-muted);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
-.im-search:focus-within {
-  border-color: var(--brand-border);
+.im-search:hover {
+  border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.05);
 }
 
+.im-search:focus-within {
+  border-color: var(--brand);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px var(--brand-subtle);
+  color: #fff;
+}
+
 .im-search input {
+  flex: 1;
   width: 100%;
   min-width: 0;
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--fg-primary-hover);
+  color: #ffffff;
+  font-family: var(--font-sans);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .im-search input::placeholder {
-  color: var(--fg-muted);
+  color: rgba(255, 255, 255, 0.35);
   font-size: 13px;
+}
+
+.im-search .browse-search-clear {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+}
+
+.im-search .browse-search-clear:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
 }
 
 .im-toolbar-actions {
@@ -1160,8 +1190,6 @@
 .im-nav.active { color: #fff; box-shadow: inset 3px 0 var(--brand); }
 .im-nav.active svg { color: #fff !important; stroke: #fff; }
 .im-main { padding: 25px 30px 20px; }
-.im-search { background: var(--page-sunken); border-color: var(--component-border); }
-.im-search:focus-within { box-shadow: 0 0 0 3px var(--brand-subtle); }
 
 .im-settings-scroll {
   padding: 18px;

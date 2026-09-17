@@ -242,20 +242,34 @@ export default function ClusterDetailView({
                 selectedCluster={cluster}
                 onSelectCluster={() => {}}
                 onBack={() => setBrowser(null)}
-                onNotify={(title, body) => showNotice(title, body)}
+                hideInstallToast={true}
+                onNotify={(title, body) => {
+                  if (/installed/i.test(title || '') || /added to/i.test(body || '')) return;
+                  showNotice(title, body);
+                }}
               />
             </div>
           ) : (
             <>
               <div className="im-toolbar">
                 <label className="im-search">
-                  <Search size={16}/>
+                  <Search size={15}/>
                   <input
                     aria-label="Search instance content"
                     placeholder={searchPlaceholder}
                     value={query}
                     onChange={event => setQuery(event.target.value)}
                   />
+                  {query && (
+                    <button
+                      type="button"
+                      className="browse-search-clear"
+                      onClick={() => setQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </label>
                 <div className="im-toolbar-actions">
                   {browseType && (
