@@ -354,7 +354,7 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
           </button>
           <div className="im-heading-text">
             <h2>Screenshots</h2>
-            <p>Preview, organize, and share your Minecraft captures through Relay.</p>
+            <p>Preview and share your captures.</p>
           </div>
           <div className="im-heading-actions">
             <button
@@ -366,10 +366,6 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
             >
               <RefreshCw size={14} className={loading ? 'is-spinning' : ''}/>
             </button>
-            <small className="im-heading-badge">
-              Stored locally<br/>
-              .minecraft/screenshots
-            </small>
           </div>
         </header>
 

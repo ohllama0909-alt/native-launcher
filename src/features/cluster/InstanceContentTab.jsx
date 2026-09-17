@@ -185,10 +185,6 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
                 : `Drag & drop files here, or browse to add ${noun}.`}
             </p>
           </div>
-          <small className="im-heading-badge">
-            Stored locally<br/>
-            {cluster.mc_version || cluster.version} · {cluster.mc_loader || cluster.loader}
-          </small>
         </header>
 
         {error && (

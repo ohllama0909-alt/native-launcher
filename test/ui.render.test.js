@@ -107,3 +107,17 @@ test('quick tour button spotlight highlighting has symmetric padding and pill ra
   const navbarCss = fs.readFileSync(path.join(ROOT, 'src/features/shell/AppNavbar.css'), 'utf8');
   assert.ok(navbarCss.includes('.quick-tutorial-btn[data-tour-target-active="true"]'), 'button styles tour active highlight state');
 });
+
+/**
+ * Verifies screenshot manager has concise description and instance settings pages
+ * do not render the "Stored locally" badge.
+ */
+test('screenshot manager description is short and Stored locally badge is removed', () => {
+  const smCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/ScreenshotManager.jsx'), 'utf8');
+  assert.ok(smCode.includes('<p>Preview and share your captures.</p>'), 'screenshot description is concise');
+  assert.ok(!smCode.includes('Stored locally'), 'screenshot manager does not have Stored locally badge');
+
+  const icCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/InstanceContentTab.jsx'), 'utf8');
+  assert.ok(!icCode.includes('Stored locally'), 'instance content tab does not have Stored locally badge');
+});
+
