@@ -139,3 +139,21 @@ test('Instance manager renders big curved version banner, white active/hover ico
   assert.ok(ddCss.includes('.dropdown-option:hover:not(:disabled)') && ddCss.includes('color: #ffffff;'), 'Dropdown hover option text is white');
 });
 
+test('Browse default banner, screenshot title layout, and white plus icons', () => {
+  const cardCode = fs.readFileSync(path.join(ROOT, 'src/features/browser/components/ProjectCard.jsx'), 'utf8');
+  assert.ok(cardCode.includes('defaultBanner'), 'ProjectCard imports default banner');
+  assert.ok(cardCode.includes('Tricky_Trials.jpg'), 'ProjectCard uses Tricky_Trials default banner');
+
+  const detailCode = fs.readFileSync(path.join(ROOT, 'src/features/browser/components/ProjectDetail.jsx'), 'utf8');
+  assert.ok(detailCode.includes('defaultBanner'), 'ProjectDetail imports default banner');
+  assert.ok(detailCode.includes('Tricky_Trials.jpg'), 'ProjectDetail uses Tricky_Trials default banner');
+
+  const smCode = fs.readFileSync(path.join(ROOT, 'src/features/cluster/ScreenshotManager.jsx'), 'utf8');
+  assert.ok(smCode.includes('instances-title sm-title') || smCode.includes('sm-title'), 'Screenshot manager uses sm-title');
+  assert.ok(smCode.indexOf('sm-title-group') < smCode.indexOf('im-heading-actions'), 'Screenshot title is on the left before actions');
+
+  const globalCss = fs.readFileSync(path.join(ROOT, 'src/styles/global.css'), 'utf8');
+  assert.ok(globalCss.includes('svg.lucide-plus') && globalCss.includes('stroke: #ffffff !important;'), 'Plus icons across all pages are pure white');
+});
+
+

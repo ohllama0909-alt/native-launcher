@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowDownToLine, Check, Download, Heart, Loader2, Package, Trash2 } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nProvider.jsx';
+import defaultBanner from '../../../assets/backgrounds/Tricky_Trials.jpg';
 
 function formatDownloads(count) {
   const value = Number(count) || 0;
@@ -27,7 +28,7 @@ export default function ProjectCard({
     project.featured_gallery ||
     project.gallery?.[0]?.url ||
     (Array.isArray(project.featured_gallery_images) && project.featured_gallery_images[0]) ||
-    null;
+    defaultBanner;
 
   const categories = (project.display_categories || project.categories || []).slice(0, 3);
   const isModOnVanilla = (contentType?.id === 'mod' || !contentType) && isVanillaInstance;
@@ -58,19 +59,17 @@ export default function ProjectCard({
     >
       {/* Banner / Card Header */}
       <div className="browse-card-banner-wrap">
-        {bannerUrl ? (
-          <img
-            src={bannerUrl}
-            alt=""
-            className="browse-card-banner"
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        ) : (
-          <div className="browse-card-banner-fallback" />
-        )}
+        <img
+          src={bannerUrl}
+          alt=""
+          className="browse-card-banner"
+          loading="lazy"
+          onError={(e) => {
+            if (e.currentTarget.src !== defaultBanner) {
+              e.currentTarget.src = defaultBanner;
+            }
+          }}
+        />
         <div className="browse-card-banner-scrim" />
 
         {/* Project Icon */}

@@ -344,19 +344,19 @@ export default function ScreenshotManager({ cluster, query = '', sortAlphabetica
 
       <div className="im-panel sm-panel">
         <header className="im-section-heading sm-heading">
-          <button
-            className="im-add sm-add"
-            onClick={openFolder}
-            title="Open screenshots folder"
-            aria-label="Open screenshots folder"
-          >
-            <Plus size={20}/>
-          </button>
-          <div className="im-heading-text">
-            <h2>Screenshots</h2>
+          <div className="im-heading-text sm-title-group">
+            <h1 className="instances-title sm-title">Screenshots</h1>
             <p>Preview and share your captures.</p>
           </div>
           <div className="im-heading-actions">
+            <button
+              className="im-add sm-add"
+              onClick={openFolder}
+              title="Open screenshots folder"
+              aria-label="Open screenshots folder"
+            >
+              <Plus size={18}/>
+            </button>
             <button
               className="im-heading-refresh"
               onClick={load}

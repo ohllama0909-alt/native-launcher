@@ -355,3 +355,27 @@ select {
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
 }
+
+/* Universal White Plus Icons Across All Pages */
+:root svg.lucide-plus,
+:root svg.lucide-user-plus,
+:root svg.lucide-user-round-plus,
+:root .lucide-plus,
+:root .lucide-user-plus,
+:root .lucide-user-round-plus,
+:root .native-icon-plus,
+:root .native-icon-plus path,
+:root .icon-plus,
+:root .icon-plus svg,
+:root .im-upload-banner-icon,
+:root .im-upload-banner-icon svg,
+:root .im-add svg,
+:root .sm-add svg,
+:root .instances-brand-btn svg,
+:root .locker-upload-plus,
+:root .locker-upload-plus svg,
+:root [data-action="add"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+

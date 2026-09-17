@@ -21,6 +21,7 @@ import { marked } from 'marked';
 import useProjectDetail from '../hooks/useProjectDetail.js';
 import VersionPicker from './VersionPicker.jsx';
 import { useI18n } from '../../../i18n/I18nProvider.jsx';
+import defaultBanner from '../../../assets/backgrounds/Tricky_Trials.jpg';
 
 function formatDownloads(count) {
   const value = Number(count) || 0;
@@ -56,7 +57,7 @@ export default function ProjectDetail({
     record.featured_gallery ||
     record.gallery?.[0]?.url ||
     project.featured_gallery ||
-    null;
+    defaultBanner;
 
   const renderedMarkdown = useMemo(() => {
     const raw = record.body || record.description || '';
@@ -114,11 +115,16 @@ export default function ProjectDetail({
 
       {/* Hero Header Banner */}
       <div className="browse-detail-hero">
-        {bannerUrl ? (
-          <img src={bannerUrl} alt="" className="browse-detail-hero-banner" />
-        ) : (
-          <div className="browse-detail-hero-fallback" />
-        )}
+        <img
+          src={bannerUrl || defaultBanner}
+          alt=""
+          className="browse-detail-hero-banner"
+          onError={(e) => {
+            if (e.currentTarget.src !== defaultBanner) {
+              e.currentTarget.src = defaultBanner;
+            }
+          }}
+        />
         <div className="browse-detail-hero-scrim" />
 
         <div className="browse-detail-hero-content">
