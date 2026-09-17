@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ArrowUp, Blocks, Download, Home, Layers3, Lock, MessageSquare, Minus, PackageOpen, Radio, RefreshCw, Settings, ShieldCheck, User, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Blocks, CircleHelp, Download, Home, Layers3, Lock, MessageSquare, Minus, PackageOpen, Radio, RefreshCw, Settings, ShieldCheck, User, WifiOff, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo.jsx';
 import NativeIcon from '../../components/ui/NativeIcon.jsx';
 import PlayerAvatar from '../../components/ui/PlayerAvatar.jsx';
@@ -7,17 +7,22 @@ import { useI18n } from '../../i18n/I18nProvider.jsx';
 import packageInfo from '../../../package.json';
 import './AppNavbar.css';
 
-/** Primary destinations, in the order they appear in the rail. */
-export const NAV_ITEMS = [
+/** Launcher workflow first, personal tools second. */
+export const CORE_NAV_ITEMS = [
   { id: 'home', labelKey: 'nav.home', icon: Home },
-  { id: 'skins', labelKey: 'nav.locker', icon: User },
-  { id: 'relay', labelKey: 'nav.relay', icon: MessageSquare },
   { id: 'instances', labelKey: 'nav.instances', icon: Layers3 },
   { id: 'versions', labelKey: 'nav.versions', icon: Blocks },
   { id: 'modpacks', labelKey: 'browse.modpacks', icon: PackageOpen }
 ];
 
-function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = null, tone = null, children, className = '', locked = false, lockTooltip = '' }) {
+export const PERSONAL_NAV_ITEMS = [
+  { id: 'skins', labelKey: 'nav.locker', icon: User },
+  { id: 'relay', labelKey: 'nav.relay', icon: MessageSquare }
+];
+
+export const NAV_ITEMS = [...CORE_NAV_ITEMS, ...PERSONAL_NAV_ITEMS];
+
+function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = null, tone = null, children, className = '', locked = false, lockTooltip = '', tourId = null }) {
   return (
     <button
       type="button"
@@ -26,6 +31,7 @@ function RailButton({ icon: Icon, active, onClick, label, badge = 0, status = nu
       aria-label={label}
       aria-current={active ? 'page' : undefined}
       data-tooltip={lockTooltip || label}
+      data-tour={tourId || undefined}
     >
       {children || (Icon ? <Icon size={21} strokeWidth={1.9} aria-hidden="true" /> : null)}
       {badge > 0 && <em className="rail-badge">{badge > 99 ? '99+' : badge}</em>}
@@ -104,6 +110,7 @@ export default function AppNavbar({
   updateStatus = null,
   networkStatus = null,
   onOpenUpdater,
+  onOpenTutorial,
   friendsBadge = 0,
   liveUserCount = null,
   isAdmin = false
@@ -160,10 +167,23 @@ export default function AppNavbar({
             </>
           )}
         </div>
-        <div className="window-controls-group">
-          <button className="window-ctrl-btn" onClick={onMinimize} aria-label={t('window.minimize')}><Minus size={14} /></button>
-          <button className="window-ctrl-btn" onClick={onMaximize} aria-label={t(isMaximized ? 'window.restore' : 'window.maximize')}><NativeIcon name={isMaximized ? 'restore' : 'maximize'} size={12} /></button>
-          <button className="window-ctrl-btn close" onClick={onClose} aria-label={t('common.close')}><X size={15} /></button>
+        <div className="titlebar-actions">
+          <button
+            type="button"
+            className="quick-tutorial-btn"
+            onClick={onOpenTutorial}
+            aria-label="Open quick tutorial"
+            title="Open quick tutorial"
+            data-tour="tutorial"
+          >
+            <CircleHelp size={13} />
+            <span>Quick tour</span>
+          </button>
+          <div className="window-controls-group">
+            <button className="window-ctrl-btn" onClick={onMinimize} aria-label={t('window.minimize')}><Minus size={14} /></button>
+            <button className="window-ctrl-btn" onClick={onMaximize} aria-label={t(isMaximized ? 'window.restore' : 'window.maximize')}><NativeIcon name={isMaximized ? 'restore' : 'maximize'} size={12} /></button>
+            <button className="window-ctrl-btn close" onClick={onClose} aria-label={t('common.close')}><X size={15} /></button>
+          </div>
         </div>
       </header>
 
@@ -174,12 +194,30 @@ export default function AppNavbar({
           onClick={() => onSelectTab('home')}
           aria-label="Noctra Client"
           data-tooltip="Noctra Client"
+          data-tour="brand"
         >
           <Logo height={30} variant="mark" />
         </button>
 
-        <nav className="rail-group" aria-label={t('nav.primary')}>
-          {NAV_ITEMS.map(({ id, labelKey, icon }) => {
+        <nav className="rail-group rail-core-group" aria-label="Launcher">
+          {CORE_NAV_ITEMS.map(({ id, labelKey, icon }) => {
+            return (
+              <RailButton
+                key={id}
+                icon={icon}
+                active={currentTab === id || (id === 'instances' && currentTab === 'browse')}
+                onClick={() => onSelectTab(id)}
+                label={t(labelKey)}
+                tourId={id}
+              />
+            );
+          })}
+        </nav>
+
+        <span className="rail-divider" aria-hidden="true" />
+
+        <nav className="rail-group rail-personal-group" aria-label="Personal tools">
+          {PERSONAL_NAV_ITEMS.map(({ id, labelKey, icon }) => {
             const isRestricted = (id === 'skins' || id === 'relay') && !isNoctra;
             return (
               <RailButton
@@ -193,12 +231,11 @@ export default function AppNavbar({
                 tone={id === 'relay' && isNoctra && friendsBadge > 0 ? 'alert' : null}
                 locked={isRestricted}
                 lockTooltip={isRestricted ? `${t(labelKey)} · Noctra Account Required` : null}
+                tourId={id}
               />
             );
           })}
         </nav>
-
-        <span className="rail-divider" aria-hidden="true" />
 
         {isAdmin && (
           <div className="rail-group" aria-label="Administration">
@@ -217,6 +254,7 @@ export default function AppNavbar({
             onClick={onOpenAccountSwitcher}
             label={account?.name ? `${account.name} (${t('account.accounts')})` : t('account.accounts')}
             status={account?.isMicrosoft ? 'gold' : null}
+            tourId="account"
           >
             {account?.name ? (
               <PlayerAvatar account={account} size={24} radius={6} />
@@ -224,7 +262,7 @@ export default function AppNavbar({
               <User size={21} strokeWidth={1.9} aria-hidden="true" />
             )}
           </RailButton>
-          <RailButton icon={Settings} onClick={onOpenSettings} label={t('common.settings')} status={settingsStatus} />
+          <RailButton icon={Settings} onClick={onOpenSettings} label={t('common.settings')} status={settingsStatus} tourId="settings" />
         </div>
       </aside>
     </>

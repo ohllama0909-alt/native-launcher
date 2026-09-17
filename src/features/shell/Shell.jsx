@@ -20,8 +20,11 @@ import useInstances from '../instances/useInstances.js';
 import usePlaytimeTracker from '../instances/usePlaytimeTracker.js';
 import NoctraAccountGate from '../../components/ui/NoctraAccountGate.jsx';
 import AdminView from '../admin/AdminView.jsx';
+import WelcomeTour from './WelcomeTour.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import './Shell.css';
+
+const WELCOME_TOUR_KEY = 'noctra.welcome-tour.v1';
 
 const playRelayChime = () => {
   try {
@@ -77,6 +80,7 @@ export default function Shell({
   const [browseIntent, setBrowseIntent] = useState(null);
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
   const [relayActiveThreadId, setRelayActiveThreadId] = useState(null);
@@ -104,6 +108,33 @@ export default function Shell({
   const launcher = useLauncher();
   usePlaytimeTracker(instancesManager.recordSession, { launcherState: launcher });
   const social = useSocial(isNoctra ? account : null);
+
+  useEffect(() => {
+    if (!hasValidAccount || accountSwitcherOpen || settingsOpen || notificationsOpen || createInstanceOpen || instanceManagerOpen) return undefined;
+    let completed = false;
+    try {
+      completed = localStorage.getItem(WELCOME_TOUR_KEY) === 'complete';
+    } catch {}
+    if (completed) return undefined;
+    const timer = window.setTimeout(() => setTourOpen(true), 850);
+    return () => window.clearTimeout(timer);
+  }, [accountSwitcherOpen, createInstanceOpen, hasValidAccount, instanceManagerOpen, notificationsOpen, settingsOpen]);
+
+  const openTutorial = useCallback(() => {
+    setSettingsOpen(false);
+    setNotificationsOpen(false);
+    setAccountSwitcherOpen(false);
+    setCreateInstanceOpen(false);
+    setInstanceManagerOpen(false);
+    setTourOpen(true);
+  }, []);
+
+  const closeTutorial = useCallback(() => {
+    setTourOpen(false);
+    try {
+      localStorage.setItem(WELCOME_TOUR_KEY, 'complete');
+    } catch {}
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -312,6 +343,7 @@ export default function Shell({
         updateStatus={updateStatus}
         networkStatus={networkStatus}
         onOpenUpdater={openUpdater}
+        onOpenTutorial={openTutorial}
         friendsBadge={isNoctra ? social.badgeTotal : 0}
         liveUserCount={social.liveUserCount}
         isAdmin={isAdmin}
@@ -519,6 +551,8 @@ export default function Shell({
           onSave={(friendId, nickname) => social.updateFriend(friendId, { nickname })}
         />
       )}
+
+      <WelcomeTour open={tourOpen} onClose={closeTutorial} />
     </div>
   );
 }

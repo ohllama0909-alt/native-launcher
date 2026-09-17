@@ -1,0 +1,196 @@
+.welcome-tour {
+  position: fixed;
+  z-index: 3000;
+  inset: 0;
+  pointer-events: auto;
+  font-family: var(--font-sans);
+}
+
+.welcome-tour-spotlight {
+  position: fixed;
+  border: 1px solid color-mix(in srgb, var(--brand) 82%, white);
+  border-radius: calc(var(--radius-md) + 4px);
+  box-shadow:
+    0 0 0 4px var(--brand-subtle),
+    0 0 28px 4px var(--brand-glow),
+    0 0 0 9999px rgba(2, 3, 5, 0.78);
+  pointer-events: none;
+  transition: left 220ms var(--ease-out), top 220ms var(--ease-out),
+    width 220ms var(--ease-out), height 220ms var(--ease-out);
+}
+
+.welcome-tour-card {
+  position: fixed;
+  width: 340px;
+  min-height: 220px;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 25px 24px 20px;
+  border: 1px solid var(--component-border-hover);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--component-bg) 94%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.12);
+  backdrop-filter: blur(20px) saturate(1.12);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(255, 255, 255, 0.025);
+  color: var(--fg-primary);
+  animation: welcome-tour-card-in 180ms var(--ease-out);
+}
+
+.welcome-tour-progress {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--ghost-overlay);
+}
+
+.welcome-tour-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
+  box-shadow: 0 0 10px var(--brand-glow);
+  transition: width 220ms var(--ease-out);
+}
+
+.welcome-tour-close {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.welcome-tour-close:hover {
+  color: var(--fg-primary-hover);
+  background: var(--ghost-overlay-hover);
+}
+
+.welcome-tour-step {
+  display: block;
+  margin: 0 34px 8px 0;
+  color: var(--brand-2);
+  font-size: 9.5px;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.welcome-tour-card h2 {
+  margin: 0 32px 8px 0;
+  color: var(--fg-primary-hover);
+  font-family: "Poppins", var(--font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.welcome-tour-card > p {
+  min-height: 52px;
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  line-height: 1.52;
+}
+
+.welcome-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.welcome-tour-actions > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.welcome-tour-skip,
+.welcome-tour-back,
+.welcome-tour-next {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  font: 650 11.5px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background 150ms var(--ease), border-color 150ms var(--ease),
+    color 150ms var(--ease), transform 150ms var(--ease-out);
+}
+
+.welcome-tour-skip {
+  padding: 0 4px;
+  color: var(--fg-muted);
+}
+
+.welcome-tour-skip:hover {
+  color: var(--fg-primary);
+}
+
+.welcome-tour-back {
+  width: 34px;
+  border: 1px solid var(--component-border);
+  background: var(--page-sunken);
+  color: var(--fg-secondary);
+}
+
+.welcome-tour-back:hover:not(:disabled) {
+  border-color: var(--component-border-hover);
+  background: var(--component-bg-hover);
+  color: var(--fg-primary);
+}
+
+.welcome-tour-back:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.welcome-tour-next {
+  min-width: 92px;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--brand);
+  color: var(--fg-on-brand);
+  box-shadow: 0 8px 18px -10px var(--brand-glow);
+}
+
+.welcome-tour-next:hover {
+  background: var(--brand-hover);
+  transform: translateY(-1px);
+}
+
+.welcome-tour button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand) 70%, white);
+  outline-offset: 2px;
+}
+
+@keyframes welcome-tour-card-in {
+  from { opacity: 0; transform: translateY(7px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 620px) {
+  .welcome-tour-card {
+    width: min(340px, calc(100vw - 28px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-tour-spotlight,
+  .welcome-tour-progress span,
+  .welcome-tour-card,
+  .welcome-tour-next {
+    animation: none;
+    transition: none;
+  }
+}
+
