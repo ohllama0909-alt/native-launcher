@@ -1012,15 +1012,23 @@ async function prepareFabricInstance(instance, account, onState = () => {}) {
 
   // CSL reads LocalSkin first; the API entry keeps the outfit in sync when the
   // player joins from another machine.
-  writeFileAtomic(path.join(cslDir, 'ExtraList', 'NativeWardrobe.json'), JSON.stringify({
+  const noctraCsl = path.join(cslDir, 'ExtraList', 'NoctraWardrobe.json');
+  const legacyCsl = path.join(cslDir, 'ExtraList', 'NativeWardrobe.json');
+  const cslPayload = JSON.stringify({
     name: 'Noctra Client Wardrobe',
     type: 'CustomSkinAPI',
     root: `${apiRoot()}/csl/`
-  }, null, 2));
+  }, null, 2);
+  writeFileAtomic(noctraCsl, cslPayload);
+  writeFileAtomic(legacyCsl, cslPayload);
 
-  const trackerPath = path.join(cslDir, '.native-loader.json');
+  const trackerPath = path.join(cslDir, '.noctra-loader.json');
+  const legacyTrackerPath = path.join(cslDir, '.native-loader.json');
   let tracker = {};
-  try { tracker = JSON.parse(fs.readFileSync(trackerPath, 'utf8')); } catch {}
+  try {
+    const activeTracker = fs.existsSync(trackerPath) ? trackerPath : (fs.existsSync(legacyTrackerPath) ? legacyTrackerPath : trackerPath);
+    tracker = JSON.parse(fs.readFileSync(activeTracker, 'utf8'));
+  } catch {}
 
   const mcVersion = String(instance.version || instance.mc_version || '');
   const loaderName = String(instance.loader || instance.mc_loader || 'Fabric').toLowerCase();
@@ -1092,6 +1100,7 @@ async function prepareFabricInstance(instance, account, onState = () => {}) {
       if (oldPath !== target && fs.existsSync(oldPath)) fs.rmSync(oldPath, { force: true });
     }
     writeFileAtomic(trackerPath, JSON.stringify({ filename: path.basename(target), version: versions[0].version_number, mcVersion, loader: modLoader }, null, 2));
+    if (fs.existsSync(legacyTrackerPath)) fs.rmSync(legacyTrackerPath, { force: true });
     return { installed: true, filename: path.basename(target), model: metadata.model };
   } catch (error) {
     // A wardrobe integration failure must never stop the game itself. Reuse a

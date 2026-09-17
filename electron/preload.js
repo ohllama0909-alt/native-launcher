@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Set by main.js via webPreferences.additionalArguments.
 const versionArg = process.argv.find((arg) => arg.startsWith('--app-version='));
 
-contextBridge.exposeInMainWorld('native', {
+const api = {
   version: versionArg ? versionArg.slice('--app-version='.length) : null,
   minimize: () => ipcRenderer.send('window:minimize'),
   maximize: () => ipcRenderer.send('window:maximize'),
@@ -25,7 +25,8 @@ contextBridge.exposeInMainWorld('native', {
   accounts: {
     list:                 ()        => ipcRenderer.invoke('accounts:list'),
     addOffline:           (name)    => ipcRenderer.invoke('accounts:addOffline', name),
-    addNative:            (payload) => ipcRenderer.invoke('accounts:addNative', payload),
+    addNoctra:            (payload) => ipcRenderer.invoke('accounts:addNoctra', payload),
+    addNative:            (payload) => ipcRenderer.invoke('accounts:addNoctra', payload),
     addMicrosoft:         ()        => ipcRenderer.invoke('accounts:addMicrosoft'),
     noctraSendCode:       (payload) => ipcRenderer.invoke('accounts:noctraSendCode', payload),
     noctraResendCode:     (payload) => ipcRenderer.invoke('accounts:noctraResendCode', payload),
@@ -190,7 +191,10 @@ contextBridge.exposeInMainWorld('native', {
     clearGameActivity: () => ipcRenderer.invoke('discord:clearGameActivity'),
     getStatus: () => ipcRenderer.invoke('discord:getStatus')
   }
-});
+};
+
+contextBridge.exposeInMainWorld('noctra', api);
+contextBridge.exposeInMainWorld('native', api);
 
 function subscribe(channel, callback) {
   const listener = (_event, payload) => callback(payload);

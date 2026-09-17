@@ -1,11 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, FolderOpen, Globe2, Images, Layers, Package, Search, Settings2, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  FolderOpen,
+  Globe2,
+  Images,
+  Layers,
+  Package,
+  Search,
+  Settings2,
+  SlidersHorizontal,
+  Sparkles,
+  X
+} from 'lucide-react';
 import Dropdown from '../../components/ui/Dropdown.jsx';
 import SettingsTab from './SettingsTab.jsx';
 import InstanceContentTab from './InstanceContentTab.jsx';
 import ScreenshotManager from './ScreenshotManager.jsx';
 import BrowseView from '../browser/BrowseView.jsx';
+import { formatPlaytime } from '../instances/playtimeStats.js';
 import './ClusterDetailView.css';
 import './InstanceManager.css';
 
@@ -25,7 +39,7 @@ export default function ClusterDetailView({
   const loader = cluster.mc_loader || cluster.loader || 'Vanilla';
   const vanilla = loader.toLowerCase() === 'vanilla';
 
-  // Default tab: 'mods' for modded instances, 'worlds' for vanilla (no loader tab!)
+  // Default tab: 'mods' for modded instances, 'worlds' for vanilla
   const [tab, setTab] = useState(() => {
     if (initialTab === 'overview') {
       if (!vanilla) return 'mods';
@@ -73,7 +87,9 @@ export default function ClusterDetailView({
     dialog.current?.focus();
 
     const handleKey = (event) => {
-      const nested = dialog.current?.querySelector('.dep-prompt-backdrop, .content-modal-backdrop, .sm-dialog-backdrop');
+      const nested = dialog.current?.querySelector(
+        '.dep-prompt-backdrop, .content-modal-backdrop, .sm-dialog-backdrop, .browse-lightbox-backdrop, .browse-confirm-backdrop'
+      );
       if (event.key === 'Escape' && !nested) {
         event.preventDefault();
         event.stopPropagation();
@@ -82,7 +98,7 @@ export default function ClusterDetailView({
       if (event.key !== 'Tab') return;
       const focusable = [...(nested || dialog.current).querySelectorAll(
         'button, input, select, textarea, [tabindex="0"], a[href]'
-      )].filter(el => !el.matches(':disabled') && el.getClientRects().length);
+      )].filter((el) => !el.matches(':disabled') && el.getClientRects().length);
       const first = focusable[0];
       const last = focusable.at(-1);
       if (!first) {
@@ -106,7 +122,7 @@ export default function ClusterDetailView({
     };
   }, []);
 
-  // Main navigation tabs (Loader tab removed per user request)
+  // Main navigation tabs
   const contentTabs = [
     ...(!vanilla ? [
       ['mods', 'Mods', Package],
@@ -161,10 +177,13 @@ export default function ClusterDetailView({
           ? 'Find a shader…'
           : 'Find a resource pack…';
 
+  const playtimeSeconds = cluster.totalPlaytime || cluster.playtime || 0;
+  const playtimeLabel = formatPlaytime(playtimeSeconds);
+
   return createPortal(
     <div
       className="instance-manager-backdrop"
-      onMouseDown={event => {
+      onMouseDown={(event) => {
         if (event.target === event.currentTarget) closeRef.current();
       }}
     >
@@ -181,57 +200,94 @@ export default function ClusterDetailView({
           aria-label="Close instance settings"
           onClick={() => closeRef.current()}
         >
-          <X size={18}/>
+          <X size={16} />
         </button>
 
+        {/* Tactical Glass Sidebar */}
         <aside className="im-sidebar">
-          <div className="im-version">
-            <span className="im-version-label">VERSION</span>
-            <div className="im-version-selector">
-              <Dropdown
-                className="im-version-dropdown"
-                value={cluster.id}
-                options={(instances.length ? instances : [cluster]).map(item => ({
-                  value: item.id,
-                  label: `${item.mc_version || item.version}${
-                    instances.filter(i => (i.mc_version || i.version) === (item.mc_version || item.version)).length > 1
-                      ? ` · ${item.name}`
-                      : ''
-                  }`
-                }))}
-                onChange={val => {
-                  if (confirmDiscard()) onSelectCluster?.(val);
-                }}
-              />
+          {/* Identity Block */}
+          <div className="im-identity-block">
+            <div className="im-identity-icon-wrap">
+              {cluster.icon ? (
+                <img src={cluster.icon} alt="" className="im-identity-icon" />
+              ) : (
+                <Package size={22} className="im-identity-fallback-icon" />
+              )}
+            </div>
+
+            <div className="im-identity-meta">
+              <h2 className="im-identity-title" title={cluster.name}>
+                {cluster.name}
+              </h2>
+              <div className="im-identity-badges">
+                <span className="im-badge-version">
+                  {cluster.mc_version || cluster.version}
+                </span>
+                <span className={`im-badge-loader is-${loader.toLowerCase()}`}>
+                  {loader}
+                </span>
+              </div>
+            </div>
+
+            <div className="im-identity-stats">
+              <Clock size={12} className="im-stat-icon" />
+              <span>{playtimeLabel} played</span>
             </div>
           </div>
 
+          {/* Instance Switcher if multiple instances */}
+          {instances.length > 1 && (
+            <div className="im-version">
+              <span className="im-version-label">SWITCH INSTANCE</span>
+              <div className="im-version-selector">
+                <Dropdown
+                  className="im-version-dropdown"
+                  value={cluster.id}
+                  options={instances.map((item) => ({
+                    value: item.id,
+                    label: `${item.mc_version || item.version}${
+                      instances.filter((i) => (i.mc_version || i.version) === (item.mc_version || item.version)).length > 1
+                        ? ` · ${item.name}`
+                        : ''
+                    }`
+                  }))}
+                  onChange={(val) => {
+                    if (confirmDiscard()) onSelectCluster?.(val);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Items */}
           <nav className="im-nav-list" aria-label="Instance sections">
             {contentTabs.map(([id, title, Glyph]) => (
               <button
                 key={id}
-                className={`im-nav ${tab === id ? 'active' : ''} im-nav-${id}`}
-                aria-current={tab === id ? 'page' : undefined}
+                className={`im-nav ${tab === id && !browser ? 'active' : ''} im-nav-${id}`}
+                aria-current={tab === id && !browser ? 'page' : undefined}
                 onClick={() => switchTab(id)}
               >
-                <Glyph size={16} />
-                <span>{title}</span>
+                <Glyph size={16} className="im-nav-icon" />
+                <span className="im-nav-text">{title}</span>
               </button>
             ))}
           </nav>
 
+          {/* Sidebar Footer: Advanced */}
           <div className="im-sidebar-footer">
             <button
-              className={`im-nav im-nav-settings ${tab === 'settings' ? 'active' : ''}`}
-              aria-current={tab === 'settings' ? 'page' : undefined}
+              className={`im-nav im-nav-settings ${tab === 'settings' && !browser ? 'active' : ''}`}
+              aria-current={tab === 'settings' && !browser ? 'page' : undefined}
               onClick={() => switchTab('settings')}
             >
-              <Settings2 size={16} />
-              <span>Advanced</span>
+              <Settings2 size={16} className="im-nav-icon" />
+              <span className="im-nav-text">Advanced</span>
             </button>
           </div>
         </aside>
 
+        {/* Main Content Area */}
         <main className="im-main">
           {browser ? (
             <div className="im-browser">
@@ -251,14 +307,15 @@ export default function ClusterDetailView({
             </div>
           ) : (
             <>
+              {/* Tactical Glass Toolbar */}
               <div className="im-toolbar">
                 <label className="im-search">
-                  <Search size={15}/>
+                  <Search size={14} className="im-search-icon" />
                   <input
                     aria-label="Search instance content"
                     placeholder={searchPlaceholder}
                     value={query}
-                    onChange={event => setQuery(event.target.value)}
+                    onChange={(event) => setQuery(event.target.value)}
                   />
                   {query && (
                     <button
@@ -271,35 +328,39 @@ export default function ClusterDetailView({
                     </button>
                   )}
                 </label>
+
                 <div className="im-toolbar-actions">
                   {browseType && (
                     <button
-                      className="im-browse"
+                      className="im-toolbar-btn im-browse"
                       title="Browse compatible content"
                       aria-label="Browse compatible content"
                       onClick={() => setBrowser(browseType)}
                     >
-                      <Globe2 size={18}/>
+                      <Globe2 size={16} />
                     </button>
                   )}
                   <button
+                    className={`im-toolbar-btn ${filtered ? 'is-active' : ''}`}
                     title={tab === 'settings' ? 'Show enabled overrides only' : tab === 'mods' ? 'Show enabled mods only' : 'Sort alphabetically'}
                     aria-label={tab === 'settings' ? 'Show enabled overrides only' : tab === 'mods' ? 'Show enabled mods only' : 'Sort alphabetically'}
                     aria-pressed={filtered}
                     onClick={() => setFiltered(!filtered)}
                   >
-                    <SlidersHorizontal size={17}/>
+                    <SlidersHorizontal size={16} />
                   </button>
                   <button
+                    className="im-toolbar-btn"
                     title="Open folder"
                     aria-label="Open folder"
                     onClick={openFolder}
                   >
-                    <FolderOpen size={17}/>
+                    <FolderOpen size={16} />
                   </button>
                 </div>
               </div>
 
+              {/* Tab Hosts */}
               {['mods', 'shaders', 'textures', 'worlds'].includes(tab) && (
                 <InstanceContentTab
                   key={tab}
@@ -337,7 +398,7 @@ export default function ClusterDetailView({
           {notice && (
             <div className="im-toast" role="status">
               <div className="im-toast-icon">
-                <CheckCircle2 size={16}/>
+                <CheckCircle2 size={16} />
               </div>
               <div className="im-toast-content">
                 {notice.title && <strong className="im-toast-title">{notice.title}</strong>}
@@ -352,7 +413,7 @@ export default function ClusterDetailView({
                   setNotice(null);
                 }}
               >
-                <X size={14}/>
+                <X size={14} />
               </button>
             </div>
           )}

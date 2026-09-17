@@ -54,6 +54,7 @@ export default function Shell({
   initialInstances = null,
   onAddMicrosoft,
   onAddOffline,
+  onAddNoctra,
   onAddNative,
   onNoctraSendCode,
   onNoctraResendCode,
@@ -510,7 +511,8 @@ export default function Shell({
         onSwitchAccount={onSwitchAccount}
         onAddMicrosoft={onAddMicrosoft}
         onAddOffline={onAddOffline}
-        onAddNative={onAddNative}
+        onAddNoctra={onAddNoctra || onAddNative}
+        onAddNative={onAddNoctra || onAddNative}
         onNoctraSendCode={onNoctraSendCode}
         onNoctraResendCode={onNoctraResendCode}
         onNoctraVerifyRegister={onNoctraVerifyRegister}

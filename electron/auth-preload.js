@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('nativeAuthWindow', {
+const authApi = {
   minimize: () => ipcRenderer.send('auth-window:minimize'),
   close: () => ipcRenderer.send('auth-window:close'),
   onLoadingChange: (callback) => {
@@ -8,4 +8,7 @@ contextBridge.exposeInMainWorld('nativeAuthWindow', {
     ipcRenderer.on('auth-window:loading', listener);
     return () => ipcRenderer.removeListener('auth-window:loading', listener);
   }
-});
+};
+
+contextBridge.exposeInMainWorld('noctraAuthWindow', authApi);
+contextBridge.exposeInMainWorld('nativeAuthWindow', authApi);

@@ -233,6 +233,7 @@
   font-weight: 700;
 }
 
+.noctra-wordmark .noctra-mark,
 .noctra-wordmark .native-mark {
   filter: grayscale(1) brightness(0.55);
   border-radius: 0 !important;
@@ -303,11 +304,13 @@
   transform: translateY(-1px);
 }
 
+.noctra-logo .noctra-logo,
 .noctra-logo .native-logo {
   display: grid;
   place-items: center;
 }
 
+.noctra-logo .noctra-mark,
 .noctra-logo .native-mark {
   width: 25px !important;
   height: 25px !important;

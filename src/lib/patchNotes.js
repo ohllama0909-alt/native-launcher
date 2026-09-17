@@ -1,5 +1,5 @@
 /* ============================================================
-   Native — official version artwork
+   Noctra — official version artwork
 
    Mojang ships a banner image with every Java patch note entry.
    We use those as the real per-version artwork instead of

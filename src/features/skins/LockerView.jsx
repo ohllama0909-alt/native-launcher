@@ -52,7 +52,8 @@ export default function LockerView({ account, onWardrobeChanged, onNotify }) {
           }
         }).catch(() => {});
       } else {
-        const saved = localStorage.getItem(`native.wardrobe.${account.id || 'default'}`);
+        const saved = localStorage.getItem(`noctra.wardrobe.${account.id || 'default'}`)
+          || localStorage.getItem(`native.wardrobe.${account.id || 'default'}`);
         publishState(saved ? JSON.parse(saved) : { model: account.model || 'classic', items: [], skins: [], capes: [], favorites: [], latest: [], active: { skinUrl: null, capeUrl: null, model: account.model || 'classic', hasSkin: false, hasCape: false } });
       }
     } catch (error) {

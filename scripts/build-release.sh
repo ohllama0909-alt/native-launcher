@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
-# Build the latest Native release on the x86_64 VPS and pull artifacts back
+# Build the latest Noctra release on the x86_64 VPS and pull artifacts back
 # into ./release so the update server serves them.
 #
 #   bash scripts/build-release.sh                  # build current version
 #   VERSION=0.2.0 bash scripts/build-release.sh    # bump version, then build
 #
 # VPS credentials: do NOT put them in this script. Provide them via env or an
-# optional ~/.native-vps.env file (chmod 600), e.g.:
-#   export VPS_HOST=1.2.3.4 VPS_USER=root VPS_PASS=hunter2 VPS_DIR=/root/native
+# optional ~/.noctra-vps.env file (chmod 600), e.g.:
+#   export VPS_HOST=1.2.3.4 VPS_USER=root VPS_PASS=hunter2 VPS_DIR=/root/noctra
 #
 set -euo pipefail
 
@@ -18,11 +18,13 @@ cd "$(dirname "$0")/.."
 VPS_HOST="${VPS_HOST:-}"
 VPS_USER="${VPS_USER:-root}"
 VPS_PASS="${VPS_PASS:-}"
-VPS_DIR="${VPS_DIR:-/root/native}"
+VPS_DIR="${VPS_DIR:-/root/noctra}"
 VERSION="${VERSION:-}"
 
 # load optional credential file
-if [[ -f "$HOME/.native-launcher.env" ]]; then
+if [[ -f "$HOME/.noctra-client.env" ]]; then
+  set -a; source "$HOME/.noctra-client.env"; set +a
+elif [[ -f "$HOME/.native-launcher.env" ]]; then
   set -a; source "$HOME/.native-launcher.env"; set +a
 fi
 

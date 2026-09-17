@@ -197,7 +197,10 @@ test('prepareFabricInstance writes the CustomSkinLoader files for the active out
     assert.ok(fs.existsSync(path.join(csl, 'LocalSkin', 'skins', 'Notch.png')));
     assert.ok(fs.existsSync(path.join(csl, 'LocalSkin', 'capes', 'Notch.png')));
 
-    const extra = JSON.parse(fs.readFileSync(path.join(csl, 'ExtraList', 'NativeWardrobe.json'), 'utf8'));
+    const extraPath = fs.existsSync(path.join(csl, 'ExtraList', 'NoctraWardrobe.json'))
+      ? path.join(csl, 'ExtraList', 'NoctraWardrobe.json')
+      : path.join(csl, 'ExtraList', 'NativeWardrobe.json');
+    const extra = JSON.parse(fs.readFileSync(extraPath, 'utf8'));
     assert.equal(extra.type, 'CustomSkinAPI');
     assert.equal(extra.root, `${wardrobe.API_ROOT}/csl/`);
   } finally {

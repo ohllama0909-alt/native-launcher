@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FolderOpen, Package, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Cloud, FolderOpen, Package, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import customSkinLoaderIcon from '../../assets/mod-icons/customskinloader.png';
 
-const formatSize = bytes => {
+const formatSize = (bytes) => {
   if (!Number.isFinite(bytes)) return '';
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
   return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
@@ -20,12 +20,18 @@ function WorldArtwork({ world }) {
   const hue = Number(world.artSeed || 0) % 360;
   return (
     <span className="im-world-art" style={{ '--world-hue': hue }} aria-hidden="true">
-      <span className="im-world-sky"/>
-      <span className="im-world-sun"/>
-      <span className="im-world-hill is-back"/>
-      <span className="im-world-hill is-front"/>
+      <span className="im-world-sky" />
+      <span className="im-world-sun" />
+      <span className="im-world-hill is-back" />
+      <span className="im-world-hill is-front" />
       {world.iconUrl && (
-        <img src={world.iconUrl} alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }}/>
+        <img
+          src={world.iconUrl}
+          alt=""
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
+          }}
+        />
       )}
     </span>
   );
@@ -42,7 +48,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
 
   const load = useCallback(async () => {
     if (type === 'worlds') {
-      return (await window.native.instance.worldList(cluster.id)).map(world => ({
+      return (await window.native.instance.worldList(cluster.id)).map((world) => ({
         ...world,
         id: world.name,
         title: world.name,
@@ -55,19 +61,19 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
     ]);
     const tracked = Object.entries(manifest || {})
       .map(([id, value]) => ({ id, ...(typeof value === 'string' ? { filename: value } : value) }))
-      .filter(entry => (entry.folder || 'mods') === folder);
+      .filter((entry) => (entry.folder || 'mods') === folder);
 
     return [
-      ...tracked.map(entry => ({
+      ...tracked.map((entry) => ({
         ...entry,
         title: entry.metadata?.title || entry.filename,
-        size: files.find(file => file.name === entry.filename)?.size,
+        size: files.find((file) => file.name === entry.filename)?.size,
         enabled: !entry.filename.endsWith('.disabled'),
         managed: true
       })),
       ...files
-        .filter(file => !file.name.startsWith('.') && !tracked.some(entry => entry.filename === file.name))
-        .map(file => ({
+        .filter((file) => !file.name.startsWith('.') && !tracked.some((entry) => entry.filename === file.name))
+        .map((file) => ({
           id: file.name,
           filename: file.name,
           title: /customskinloader/i.test(file.name) ? 'CustomSkinLoader' : file.name,
@@ -82,24 +88,26 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
     setLoading(true);
     setError('');
     load()
-      .then(result => {
+      .then((result) => {
         if (!cancelled) setRows(result);
       })
-      .catch(err => {
+      .catch((err) => {
         if (!cancelled) setError(err.message || 'Could not load content.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [load, revision]);
 
-  const action = async operation => {
+  const action = async (operation) => {
     setBusy(true);
     setError('');
     try {
       await operation();
-      setRevision(value => value + 1);
+      setRevision((value) => value + 1);
     } catch (err) {
       setError(err.message || 'The operation failed. Try again.');
     } finally {
@@ -109,7 +117,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
 
   const openFolder = () => action(() => window.native.instance.openFolder(cluster.id, folder));
 
-  const toggleContent = row => {
+  const toggleContent = (row) => {
     const nextEnabled = !row.enabled;
     action(async () => {
       if (type === 'mods' && row.managed) {
@@ -135,7 +143,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
     });
   };
 
-  const remove = row => {
+  const remove = (row) => {
     if (
       !window.confirm(
         `Delete “${row.title}”? ${
@@ -153,7 +161,7 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
   };
 
   const visible = rows.filter(
-    row =>
+    (row) =>
       `${row.title} ${row.metadata?.author || ''} ${row.filename || ''}`
         .toLowerCase()
         .includes(query.toLowerCase()) && !(filtered && !row.enabled)
@@ -168,133 +176,178 @@ export default function InstanceContentTab({ cluster, type, query, filtered, onB
       <div className="im-count" aria-live="polite">
         {loading ? `Fetching ${noun}…` : `${rows.length} ${noun} loaded`}
       </div>
+
       <div className="im-panel">
-        <header className="im-section-heading">
-          <button
-            className="im-add"
-            aria-label={localOnly ? `Open ${folder} folder` : `Browse ${noun}`}
-            onClick={localOnly ? openFolder : onBrowse}
-          >
-            <Plus size={20}/>
-          </button>
-          <div className="im-heading-text">
-            <h2>{title}</h2>
-            <p>
+        {/* Upload Banner per Screen 5 */}
+        <div
+          className="im-upload-banner"
+          onClick={localOnly ? openFolder : onBrowse}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              localOnly ? openFolder() : onBrowse?.();
+            }
+          }}
+        >
+          <div className="im-upload-banner-icon">
+            <Plus size={20} />
+          </div>
+          <div className="im-upload-banner-info">
+            <h3 className="im-upload-banner-title">
+              + {title}
+            </h3>
+            <p className="im-upload-banner-subtitle">
               {localOnly
-                ? `Local ${noun} for this Minecraft instance.`
+                ? `Local ${noun} for this Minecraft instance. Click to manage in folder.`
                 : `Drag & drop files here, or browse to add ${noun}.`}
             </p>
           </div>
-        </header>
+          <div className="im-upload-banner-cloud">
+            <Cloud size={13} className="im-cloud-icon" />
+            <span>All mods synced to Noctra Cloud</span>
+          </div>
+        </div>
 
         {error && (
           <div className="im-error" role="alert">
             <span>{error}</span>
-            <button onClick={() => setRevision(value => value + 1)}>
-              <RotateCcw size={13}/> Retry
+            <button type="button" onClick={() => setRevision((value) => value + 1)}>
+              <RotateCcw size={13} /> Retry
             </button>
           </div>
         )}
 
         {loading ? (
           <div className="im-skeleton" aria-label="Loading content">
-            {[0, 1, 2, 3, 4].map(i => (
+            {[0, 1, 2, 3, 4].map((i) => (
               <div key={i}>
-                <i/>
-                <span><i/><i/></span>
-                <i/>
+                <i />
+                <span><i /><i /></span>
+                <i />
               </div>
             ))}
           </div>
         ) : visible.length ? (
-          visible.map(row => (
-            <div
-              className={`im-file-row ${row.enabled === false ? 'is-disabled' : ''}`}
-              key={row.id}
-            >
-              <span className="im-file-icon">
-                {row.metadata?.iconUrl ? (
-                  <img
-                    src={row.metadata.iconUrl}
-                    alt=""
-                    onError={event => { event.currentTarget.style.display = 'none'; }}
-                  />
-                ) : /customskinloader/i.test(`${row.id} ${row.title} ${row.filename}`) ? (
-                  <img
-                    src={customSkinLoaderIcon}
-                    alt="CustomSkinLoader"
-                  />
-                ) : type === 'worlds' ? (
-                  <WorldArtwork world={row}/>
-                ) : (
-                  <Package size={22} color="#ffffff" stroke="#ffffff" />
-                )}
-              </span>
+          <div className="im-file-list" role="list">
+            {visible.map((row) => (
+              <div
+                className={`im-file-row ${row.enabled === false ? 'is-disabled' : ''}`}
+                key={row.id}
+                role="listitem"
+              >
+                {/* 36x36px Icon */}
+                <span className="im-file-icon">
+                  {row.metadata?.iconUrl ? (
+                    <img
+                      src={row.metadata.iconUrl}
+                      alt=""
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : /customskinloader/i.test(`${row.id} ${row.title} ${row.filename}`) ? (
+                    <img
+                      src={customSkinLoaderIcon}
+                      alt="CustomSkinLoader"
+                    />
+                  ) : type === 'worlds' ? (
+                    <WorldArtwork world={row} />
+                  ) : (
+                    <Package size={20} />
+                  )}
+                </span>
 
-              <div className="im-file-name">
-                <strong title={row.title}>{row.title}</strong>
-                <small>
-                  {row.metadata?.author
-                    ? `By ${row.metadata.author}`
-                    : type === 'worlds'
-                      ? `Modified ${new Date(row.modified).toLocaleDateString()}`
-                      : row.managed
-                        ? 'Installed content'
-                        : 'Local file · manage in folder'}
-                </small>
+                {/* Title and metadata */}
+                <div className="im-file-name">
+                  <strong title={row.title}>{row.title}</strong>
+                  <small>
+                    {row.metadata?.author
+                      ? `By ${row.metadata.author}`
+                      : type === 'worlds'
+                        ? `Modified ${new Date(row.modified).toLocaleDateString()}`
+                        : row.managed
+                          ? 'Installed content'
+                          : 'Local file · manage in folder'}
+                  </small>
+                </div>
+
+                {/* Version / Size badge in Mono */}
+                <span className="im-file-meta">
+                  {row.metadata?.version && (
+                    <span className="im-file-version-tag">{row.metadata.version}</span>
+                  )}
+                  {formatSize(row.size) && (
+                    <span className="im-file-size-tag">{formatSize(row.size)}</span>
+                  )}
+                </span>
+
+                {/* Actions: Switch toggle & Delete */}
+                <div className="im-file-actions">
+                  {['mods', 'shaders', 'textures'].includes(type) && (
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={row.enabled}
+                      aria-label={`Enable ${row.title}`}
+                      className={`im-toggle-switch ${row.enabled ? 'is-enabled' : 'is-disabled'}`}
+                      disabled={busy}
+                      onClick={() => toggleContent(row)}
+                      title={row.enabled ? `Disable ${row.title}` : `Enable ${row.title}`}
+                    >
+                      <span className="im-toggle-track">
+                        <span className="im-toggle-thumb" />
+                      </span>
+                      <span className="im-toggle-text">
+                        {row.enabled ? (
+                          <>
+                            <Check size={11} /> Enabled
+                          </>
+                        ) : (
+                          'Disabled'
+                        )}
+                      </span>
+                    </button>
+                  )}
+
+                  {row.managed || type === 'worlds' ? (
+                    <button
+                      type="button"
+                      className="im-action-btn im-delete"
+                      aria-label={`Delete ${row.title}`}
+                      disabled={busy}
+                      onClick={() => remove(row)}
+                      title="Delete"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="im-action-btn"
+                      aria-label={`Open folder for ${row.title}`}
+                      onClick={openFolder}
+                      title="Open folder"
+                    >
+                      <FolderOpen size={15} />
+                    </button>
+                  )}
+                </div>
               </div>
-
-              <span className="im-file-meta">
-                {row.metadata?.version}
-                {row.metadata?.version && formatSize(row.size) ? ' • ' : ''}
-                {formatSize(row.size)}
-              </span>
-
-              <div className="im-file-actions">
-                {['mods', 'shaders', 'textures'].includes(type) && (
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={row.enabled}
-                    aria-label={`Enable ${row.title}`}
-                    className={`im-toggle-switch ${row.enabled ? 'is-enabled' : 'is-disabled'}`}
-                    disabled={busy}
-                    onClick={() => toggleContent(row)}
-                    title={row.enabled ? `Disable ${row.title}` : `Enable ${row.title}`}
-                  >
-                    <span className="im-toggle-track">
-                      <span className="im-toggle-thumb" />
-                    </span>
-                    <span className="im-toggle-text">{row.enabled ? 'Enabled' : 'Disabled'}</span>
-                  </button>
-                )}
-                {row.managed || type === 'worlds' ? (
-                  <button
-                    className="im-delete"
-                    aria-label={`Delete ${row.title}`}
-                    disabled={busy}
-                    onClick={() => remove(row)}
-                  >
-                    <Trash2 size={14}/>
-                  </button>
-                ) : (
-                  <button
-                    aria-label={`Open folder for ${row.title}`}
-                    onClick={openFolder}
-                  >
-                    <FolderOpen size={14}/>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         ) : !error && (
           <div className="im-empty">
             {rows.length
               ? 'No matches. Try another search or clear the filter.'
               : `No ${noun} found yet.`}
             {!rows.length && (
-              <button onClick={localOnly ? openFolder : onBrowse}>
+              <button
+                type="button"
+                className="im-empty-action-btn"
+                onClick={localOnly ? openFolder : onBrowse}
+              >
                 {localOnly ? `Open ${folder} folder` : `Browse ${noun}`}
               </button>
             )}

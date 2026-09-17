@@ -125,7 +125,9 @@ function quarantineIncompatibleMods(gameDirectory, mcVersion) {
   }
 
   if (quarantined.length > 0) {
-    const manifestFile = path.join(modsDirectory, '.native-mods.json');
+    const primaryManifest = path.join(modsDirectory, '.noctra-mods.json');
+    const legacyManifest = path.join(modsDirectory, '.native-mods.json');
+    const manifestFile = fs.existsSync(primaryManifest) ? primaryManifest : (fs.existsSync(legacyManifest) ? legacyManifest : primaryManifest);
     try {
       const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
       for (const item of quarantined) {
@@ -136,6 +138,9 @@ function quarantineIncompatibleMods(gameDirectory, mcVersion) {
         }
       }
       writeFileAtomic(manifestFile, JSON.stringify(manifest, null, 2));
+      if (manifestFile !== primaryManifest) {
+        writeFileAtomic(primaryManifest, JSON.stringify(manifest, null, 2));
+      }
     } catch (error) {
       if (error.code !== 'ENOENT') {
         launcher.emit('debug', `[Noctra Client]: Could not update the mod manifest: ${error.message}`);

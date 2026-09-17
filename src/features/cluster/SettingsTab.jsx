@@ -1,17 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Check, Code2, Cpu, Maximize2, Monitor, RotateCcw, Save, Settings2 } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  Cloud,
+  Code2,
+  Cpu,
+  Maximize2,
+  Monitor,
+  RotateCcw,
+  Save,
+  Settings2
+} from 'lucide-react';
 
-const presets = [['1080p', 1920, 1080], ['1440p', 2560, 1440], ['4K', 3840, 2160]];
+const presets = [
+  ['1080p', 1920, 1080],
+  ['1440p', 2560, 1440],
+  ['4K', 3840, 2160]
+];
 
 function Toggle({ label = 'Enabled', checked, onChange, disabled = false }) {
   return (
     <label className="im-toggle">
-      <span>{label}</span>
+      <span className="im-toggle-label">{label}</span>
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
-        onChange={event => onChange(event.target.checked)}
+        onChange={(event) => onChange(event.target.checked)}
       />
     </label>
   );
@@ -39,9 +55,9 @@ function initialDraft(cluster, global) {
 }
 
 export default function SettingsTab({ cluster, onUpdateCluster, query = '', enabledOnly = false, onDirtyChange }) {
-  const [draft, setDraft] = useState(null);
-  const [baseline, setBaseline] = useState('');
-  const [systemRam, setSystemRam] = useState(null);
+  const [draft, setDraft] = useState(() => initialDraft(cluster, {}));
+  const [baseline, setBaseline] = useState(() => JSON.stringify(initialDraft(cluster, {})));
+  const [systemRam, setSystemRam] = useState(32);
   const [globals, setGlobals] = useState({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -62,10 +78,12 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
         setBaseline(JSON.stringify(next));
         ratio.current = next.resolution.width / next.resolution.height;
       })
-      .catch(err => {
+      .catch((err) => {
         if (!cancelled) setError(err.message || 'Could not read settings.');
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [cluster.id, retry]);
 
   const dirty = !!draft && JSON.stringify(draft) !== baseline;
@@ -75,7 +93,7 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
 
   const change = (key, value) => {
     setSaved(false);
-    setDraft(current => ({ ...current, [key]: value }));
+    setDraft((current) => ({ ...current, [key]: value }));
   };
 
   const resolution = (values) => change('resolution', { ...draft.resolution, ...values });
@@ -95,7 +113,7 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
     resolution(next);
   };
 
-  const save = async event => {
+  const save = async (event) => {
     event.preventDefault();
     setSaving(true);
     setError('');
@@ -145,7 +163,9 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
         {error ? (
           <>
             <span role="alert">{error}</span>
-            <button onClick={() => setRetry(value => value + 1)}>Retry</button>
+            <button type="button" onClick={() => setRetry((value) => value + 1)}>
+              Retry
+            </button>
           </>
         ) : (
           'Loading settings…'
@@ -154,194 +174,271 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
     );
   }
 
-  const show = (text, enabled) => text.toLowerCase().includes(query.toLowerCase()) && (!enabledOnly || enabled);
+  const show = (text, enabled) =>
+    text.toLowerCase().includes(query.toLowerCase()) && (!enabledOnly || enabled);
   const r = draft.resolution;
   const m = draft.memory;
 
   return (
     <form className="im-settings" onSubmit={save} noValidate>
       <div className="im-panel im-settings-scroll">
-        <header className="im-section-heading">
-          <span className="im-heading-icon"><Settings2 size={24}/></span>
-          <div className="im-heading-text">
-            <h2>Advanced Settings</h2>
-            <p className="im-caution">
-              <AlertCircle size={13}/> Proceed with caution. Modifying these settings may cause game instability.
-            </p>
+        {/* Warning Banner per Screen 6 */}
+        <div className="im-settings-alert-banner">
+          <div className="im-settings-alert-left">
+            <AlertTriangle size={18} className="im-settings-alert-icon" />
+            <span className="im-settings-alert-text">
+              Proceed with caution. Modifying these settings may cause game instability.
+            </span>
           </div>
-          <small className="im-heading-badge">Overrides active profile only<br/>{cluster.name || cluster.version}</small>
-        </header>
-
-        <div className="im-settings-summary" aria-label="Override summary">
-          <span className={r.enabled ? 'is-active' : ''}><Maximize2 size={14}/><b>Display</b><small>{r.enabled ? `${r.width} × ${r.height}` : 'Global default'}</small></span>
-          <span className={m.enabled ? 'is-active' : ''}><Cpu size={14}/><b>Memory</b><small>{m.enabled ? `${m.max} GB` : 'Global default'}</small></span>
-          <span className={draft.jvmEnabled ? 'is-active' : ''}><Code2 size={14}/><b>Java</b><small>{draft.jvmEnabled ? 'Custom runtime' : 'Automatic'}</small></span>
+          <div className="im-settings-sync-status">
+            <Cloud size={12} />
+            <span>Overrides: {cluster.name || cluster.version}</span>
+          </div>
         </div>
 
+        {/* Override Summary Chips */}
+        <div className="im-settings-summary" aria-label="Override summary">
+          <div className={`im-summary-chip ${r.enabled ? 'is-active' : ''}`}>
+            <Maximize2 size={14} className="im-summary-icon" />
+            <div className="im-summary-details">
+              <span className="im-summary-name">Display</span>
+              <span className="im-summary-value">
+                {r.enabled ? `${r.width} × ${r.height}` : 'Global default'}
+              </span>
+            </div>
+          </div>
+
+          <div className={`im-summary-chip ${m.enabled ? 'is-active' : ''}`}>
+            <Cpu size={14} className="im-summary-icon" />
+            <div className="im-summary-details">
+              <span className="im-summary-name">Memory</span>
+              <span className="im-summary-value">
+                {m.enabled ? `${m.max} GB / ${systemRam} GB` : 'Global default'}
+              </span>
+            </div>
+          </div>
+
+          <div className={`im-summary-chip ${draft.jvmEnabled ? 'is-active' : ''}`}>
+            <Code2 size={14} className="im-summary-icon" />
+            <div className="im-summary-details">
+              <span className="im-summary-name">Java</span>
+              <span className="im-summary-value">
+                {draft.jvmEnabled ? 'Custom runtime' : 'Automatic'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 1: Game Resolution */}
         {show('Game resolution fullscreen display aspect ratio', r.enabled) && (
-          <section className="im-setting">
-            <span className={`im-setting-icon ${r.enabled ? 'is-active' : ''}`}><Maximize2 size={20}/></span>
-            <div>
-              <header>
-                <div>
-                  <h3>Game Resolution</h3>
-                  <p>Define custom launch resolution and fullscreen preferences.</p>
+          <section className="im-setting-card">
+            <header className="im-setting-card-header">
+              <div className="im-setting-card-icon-title">
+                <div className={`im-setting-card-icon ${r.enabled ? 'is-active' : ''}`}>
+                  <Maximize2 size={18} />
                 </div>
-                <Toggle checked={r.enabled} onChange={enabled => resolution({ enabled })}/>
-              </header>
-              <fieldset disabled={!r.enabled || saving}>
-                <div className="im-resolution">
-                  <label>
-                    W
-                    <input
-                      aria-label="Window width"
-                      type="number"
-                      min="320"
-                      max="7680"
-                      required
-                      value={r.width}
-                      onChange={event => changeDimension('width', event.target.value)}
-                    />
-                  </label>
-                  <label>
-                    H
-                    <input
-                      aria-label="Window height"
-                      type="number"
-                      min="240"
-                      max="4320"
-                      required
-                      value={r.height}
-                      onChange={event => changeDimension('height', event.target.value)}
-                    />
-                  </label>
+                <div>
+                  <h3 className="im-setting-card-title">Game Resolution</h3>
+                  <p className="im-setting-card-desc">
+                    Define custom launch resolution and display mode for this profile.
+                  </p>
+                </div>
+              </div>
+              <Toggle checked={r.enabled} onChange={(enabled) => resolution({ enabled })} />
+            </header>
+
+            <fieldset className="im-setting-card-body" disabled={!r.enabled || saving}>
+              <div className="im-resolution-row">
+                <label className="im-dimension-field">
+                  <span className="im-dimension-label">W</span>
+                  <input
+                    aria-label="Window width"
+                    type="number"
+                    min="320"
+                    max="7680"
+                    required
+                    value={r.width}
+                    onChange={(event) => changeDimension('width', event.target.value)}
+                  />
+                </label>
+
+                <span className="im-dimension-multiply">×</span>
+
+                <label className="im-dimension-field">
+                  <span className="im-dimension-label">H</span>
+                  <input
+                    aria-label="Window height"
+                    type="number"
+                    min="240"
+                    max="4320"
+                    required
+                    value={r.height}
+                    onChange={(event) => changeDimension('height', event.target.value)}
+                  />
+                </label>
+
+                <div className="im-resolution-toggles">
                   <Toggle
                     label="Fullscreen mode"
                     checked={!!r.fullscreen}
-                    onChange={fullscreen => resolution({ fullscreen })}
+                    onChange={(fullscreen) => resolution({ fullscreen })}
                   />
                   <Toggle
                     label="Lock aspect ratio"
                     checked={r.lockAspect}
-                    onChange={lockAspect => {
+                    onChange={(lockAspect) => {
                       ratio.current = Number(r.width) / Number(r.height) || 16 / 9;
                       resolution({ lockAspect });
                     }}
                   />
-                  <button
-                    type="button"
-                    title="Reset to global resolution"
-                    aria-label="Reset to global resolution"
-                    onClick={() => applySize(globals.resolution.width, globals.resolution.height)}
-                  >
-                    <RotateCcw size={14}/>
-                  </button>
                 </div>
 
-                <div className="im-presets">
-                  {presets.map(([label, width, height]) => (
-                    <button
-                      type="button"
-                      key={label}
-                      className={Number(r.width) === width && Number(r.height) === height ? 'is-active' : ''}
-                      onClick={() => applySize(width, height)}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                <button
+                  type="button"
+                  className="im-reset-btn"
+                  title="Reset to global resolution"
+                  aria-label="Reset to global resolution"
+                  onClick={() => applySize(globals.resolution?.width || 854, globals.resolution?.height || 480)}
+                >
+                  <RotateCcw size={14} />
+                </button>
+              </div>
+
+              {/* Presets */}
+              <div className="im-resolution-presets">
+                <span className="im-presets-label">Presets:</span>
+                {presets.map(([label, width, height]) => (
                   <button
                     type="button"
-                    onClick={() => applySize(Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio))}
+                    key={label}
+                    className={`im-preset-pill ${Number(r.width) === width && Number(r.height) === height ? 'is-active' : ''}`}
+                    onClick={() => applySize(width, height)}
                   >
-                    <Monitor size={12}/> Match native display
+                    {label}
                   </button>
-                  <span title="Borderless mode requires a compatible Minecraft mod.">
-                    Borderless: requires a mod
-                  </span>
-                </div>
-              </fieldset>
-            </div>
+                ))}
+                <button
+                  type="button"
+                  className="im-preset-pill is-native"
+                  onClick={() =>
+                    applySize(
+                      Math.round(screen.width * (window.devicePixelRatio || 1)),
+                      Math.round(screen.height * (window.devicePixelRatio || 1))
+                    )
+                  }
+                >
+                  <Monitor size={12} /> Match native display
+                </button>
+              </div>
+            </fieldset>
           </section>
         )}
 
+        {/* Section 2: Allocated Memory (RAM) */}
         {show('Allocated memory RAM', m.enabled) && (
-          <section className="im-setting">
-            <span className={`im-setting-icon ${m.enabled ? 'is-active' : ''}`}><Cpu size={20}/></span>
-            <div>
-              <header>
+          <section className="im-setting-card">
+            <header className="im-setting-card-header">
+              <div className="im-setting-card-icon-title">
+                <div className={`im-setting-card-icon ${m.enabled ? 'is-active' : ''}`}>
+                  <Cpu size={18} />
+                </div>
                 <div>
-                  <h3>Allocated Memory</h3>
-                  <p>Overrides global RAM settings for this specific profile.</p>
+                  <h3 className="im-setting-card-title">Allocated Memory (RAM)</h3>
+                  <p className="im-setting-card-desc">
+                    Overrides global RAM allocation for this specific Minecraft instance.
+                  </p>
                 </div>
-                <Toggle checked={m.enabled} onChange={enabled => change('memory', { ...m, enabled })}/>
-              </header>
-              <fieldset disabled={!m.enabled || saving}>
-                <div className="im-memory">
-                  <strong>{m.max} GB <small>/ {systemRam} GB</small></strong>
-                  <input
-                    aria-label="Allocated memory"
-                    type="range"
-                    min="1"
-                    max={systemRam}
-                    step="1"
-                    value={m.max}
-                    onChange={event => change('memory', { ...m, max: Number(event.target.value) })}
-                  />
-                  <button
-                    type="button"
-                    title="Reset to global memory"
-                    aria-label="Reset to global memory"
-                    onClick={() => change('memory', { ...m, max: Math.min(globals.memory?.max || 4, systemRam) })}
-                  >
-                    <RotateCcw size={14}/>
-                  </button>
+              </div>
+              <Toggle checked={m.enabled} onChange={(enabled) => change('memory', { ...m, enabled })} />
+            </header>
+
+            <fieldset className="im-setting-card-body" disabled={!m.enabled || saving}>
+              <div className="im-memory-header">
+                <div className="im-memory-badge">
+                  <strong>{m.max} GB</strong>
+                  <span>/ {systemRam} GB Total</span>
                 </div>
+                <button
+                  type="button"
+                  className="im-reset-btn"
+                  title="Reset to recommended memory"
+                  aria-label="Reset to recommended memory"
+                  onClick={() => change('memory', { ...m, max: Math.min(globals.memory?.max || 4, systemRam) })}
+                >
+                  <RotateCcw size={14} />
+                  <span>Recommended</span>
+                </button>
+              </div>
+
+              <div className="im-memory-slider-wrap">
+                <input
+                  aria-label="Allocated memory"
+                  type="range"
+                  min="1"
+                  max={systemRam}
+                  step="1"
+                  value={m.max}
+                  onChange={(event) => change('memory', { ...m, max: Number(event.target.value) })}
+                  className="im-slider"
+                />
                 <div className="im-memory-ticks">
                   <span>1 GB</span>
-                  <span>{Math.round(systemRam / 4)} GB</span>
-                  <span>{Math.round(systemRam / 2)} GB</span>
-                  <span>{Math.round(systemRam * 0.75)} GB</span>
+                  <span>{Math.max(2, Math.round(systemRam * 0.25))} GB</span>
+                  <span>{Math.max(4, Math.round(systemRam * 0.5))} GB</span>
+                  <span>{Math.max(6, Math.round(systemRam * 0.75))} GB</span>
                   <span>{systemRam} GB</span>
                 </div>
-                {m.max > systemRam && (
-                  <p className="im-caution">This allocation exceeds available system memory.</p>
-                )}
-              </fieldset>
-            </div>
+              </div>
+
+              {m.max > systemRam && (
+                <p className="im-caution-note">
+                  <AlertCircle size={13} /> This allocation exceeds available physical system memory.
+                </p>
+              )}
+            </fieldset>
           </section>
         )}
 
+        {/* Section 3: JVM Arguments */}
         {show('JVM arguments Java executable performance', draft.jvmEnabled) && (
-          <section className="im-setting">
-            <span className={`im-setting-icon ${draft.jvmEnabled ? 'is-active' : ''}`}><Code2 size={20}/></span>
-            <div>
-              <header>
-                <div>
-                  <h3>JVM Arguments</h3>
-                  <p>Custom Java execution flags for advanced performance tweaking.</p>
+          <section className="im-setting-card">
+            <header className="im-setting-card-header">
+              <div className="im-setting-card-icon-title">
+                <div className={`im-setting-card-icon ${draft.jvmEnabled ? 'is-active' : ''}`}>
+                  <Code2 size={18} />
                 </div>
-                <Toggle checked={draft.jvmEnabled} onChange={value => change('jvmEnabled', value)}/>
-              </header>
-              <fieldset disabled={!draft.jvmEnabled || saving}>
-                <label className="im-java-field">
-                  <span>Java executable</span>
-                  <input
-                    value={draft.javaPath}
-                    onChange={event => change('javaPath', event.target.value)}
-                    placeholder="Automatically detected"
-                  />
-                </label>
-                <label className="im-java-field">
-                  <span>Launch arguments</span>
-                  <textarea
-                    rows={2}
-                    value={draft.jvmArgs}
-                    onChange={event => change('jvmArgs', event.target.value)}
-                    placeholder="-XX:+UseG1GC"
-                  />
-                </label>
-              </fieldset>
-            </div>
+                <div>
+                  <h3 className="im-setting-card-title">JVM Arguments & Runtime</h3>
+                  <p className="im-setting-card-desc">
+                    Custom Java runtime path and execution flags for garbage collection and performance tuning.
+                  </p>
+                </div>
+              </div>
+              <Toggle checked={draft.jvmEnabled} onChange={(value) => change('jvmEnabled', value)} />
+            </header>
+
+            <fieldset className="im-setting-card-body" disabled={!draft.jvmEnabled || saving}>
+              <label className="im-field-group">
+                <span className="im-field-label">Java executable path</span>
+                <input
+                  className="im-field-input"
+                  value={draft.javaPath}
+                  onChange={(event) => change('javaPath', event.target.value)}
+                  placeholder="Automatically detected bundled Java"
+                />
+              </label>
+
+              <label className="im-field-group">
+                <span className="im-field-label">Launch arguments</span>
+                <textarea
+                  className="im-field-textarea"
+                  rows={2}
+                  value={draft.jvmArgs}
+                  onChange={(event) => change('jvmArgs', event.target.value)}
+                  placeholder="-XX:+UseG1GC -XX:+ParallelRefProcEnabled"
+                />
+              </label>
+            </fieldset>
           </section>
         )}
 
@@ -352,15 +449,18 @@ export default function SettingsTab({ cluster, onUpdateCluster, query = '', enab
         )}
       </div>
 
+      {/* Sticky Save Footer */}
       <footer className="im-settings-footer">
-        <span role={error ? 'alert' : 'status'}>
-          {error || (saved ? 'Changes saved. Apply on next launch.' : dirty ? 'Unsaved changes' : 'Disabled overrides use global settings.')}
+        <span className={`im-status-text ${error ? 'is-error' : saved ? 'is-saved' : dirty ? 'is-dirty' : ''}`} role={error ? 'alert' : 'status'}>
+          {error || (saved ? 'Changes saved. Applies on next launch.' : dirty ? 'Unsaved changes' : 'Disabled overrides inherit global defaults.')}
         </span>
         <button
           type="submit"
+          className="im-save-btn"
           disabled={saving || !dirty || (m.enabled && m.max > systemRam)}
         >
-          {saved ? <Check size={14}/> : <Save size={14}/>} {saving ? 'Saving…' : saved ? 'Saved' : 'Save changes'}
+          {saved ? <Check size={14} /> : <Save size={14} />}
+          <span>{saving ? 'Saving…' : saved ? 'Saved' : 'Save changes'}</span>
         </button>
       </footer>
     </form>

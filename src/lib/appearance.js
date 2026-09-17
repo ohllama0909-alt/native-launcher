@@ -1,5 +1,5 @@
 /* ============================================================
-   Native — appearance store
+   Noctra — appearance store
 
    Single source of truth for the launcher's look. Persists to
    localStorage, applies itself to <html> as data-attributes +
@@ -9,7 +9,8 @@
 
 import { useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'native.appearance';
+const STORAGE_KEY = 'noctra.appearance';
+const LEGACY_STORAGE_KEY = 'native.appearance';
 
 export const ACCENT_PRESETS = [
   { id: 'ice', name: 'Ice', hex: '#4c9aff' },
@@ -140,7 +141,7 @@ function sanitize(raw) {
 
 function readStorage() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem(LEGACY_STORAGE_KEY);
     return raw ? sanitize(JSON.parse(raw)) : { ...DEFAULT_APPEARANCE };
   } catch {
     return { ...DEFAULT_APPEARANCE };

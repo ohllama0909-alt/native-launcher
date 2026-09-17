@@ -9,8 +9,8 @@ import {
   summarizeLibrary
 } from './playtimeStats.js';
 
-const STORAGE_KEY = 'native.instances';
-const LEGACY_STORAGE_KEY = 'oneclient.instances';
+const STORAGE_KEY = 'noctra.instances';
+const LEGACY_STORAGE_KEYS = ['native.instances', 'oneclient.instances'];
 
 /* The library starts empty. Instances are only ever created by the user or by
    an import, so nothing on the instance page is invented. */
@@ -19,7 +19,7 @@ const DEFAULT_DATA = { instances: [], selectedId: null };
 function newInstanceId() {
   // Date.now() alone collided when two instances were created in the same ms
   // (e.g. importing a modpack), which silently broke selection.
-  return `native-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return `noctra-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 /**
@@ -57,16 +57,16 @@ async function loadData() {
     return normalizeSaved(saved) || DEFAULT_DATA;
   }
 
-  // Browser / dev fallback. Migrate the pre-rebrand key if it's still around.
-  for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
+  // Browser / dev fallback. Migrate the pre-rebrand keys if they're still around.
+  for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
       const parsed = normalizeSaved(JSON.parse(raw));
       if (parsed) {
-        if (key === LEGACY_STORAGE_KEY) {
+        if (key !== STORAGE_KEY) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          localStorage.removeItem(key);
         }
         return parsed;
       }
@@ -157,7 +157,7 @@ function loadInitialSync(initialData) {
     } catch {}
   }
 
-  for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
+  for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;

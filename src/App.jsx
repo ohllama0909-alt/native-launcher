@@ -113,8 +113,8 @@ export default function App() {
       }
 
       const savedAccounts = [];
-      const rawSettings = localStorage.getItem('native.settings');
-      const rawInstances = localStorage.getItem('native.instances');
+      const rawSettings = localStorage.getItem('noctra.settings') || localStorage.getItem('native.settings');
+      const rawInstances = localStorage.getItem('noctra.instances') || localStorage.getItem('native.instances');
       const settings = rawSettings ? JSON.parse(rawSettings) : {};
       const instanceData = rawInstances ? JSON.parse(rawInstances) : null;
       const completion = settings?.onboarding?.completed;
@@ -170,15 +170,19 @@ export default function App() {
     return res;
   };
 
-  const handleAddNative = async (payload) => {
-    const res = await window.native?.accounts?.addNative?.(payload)
-      || await window.native?.accounts?.addOffline?.(typeof payload === 'string' ? payload : payload?.name);
+  const handleAddNoctra = async (payload) => {
+    const bridge = window.noctra || window.native;
+    const res = await bridge?.accounts?.addNoctra?.(payload)
+      || await bridge?.accounts?.addNative?.(payload)
+      || await bridge?.accounts?.addOffline?.(typeof payload === 'string' ? payload : payload?.name);
     if (res?.ok) {
       await refreshAccounts();
       if (res.account?.id) setActiveId(res.account.id);
     }
     return res;
   };
+
+  const handleAddNative = handleAddNoctra;
 
   const handleNoctraSendCode = async (payload) => {
     return await window.native?.accounts?.noctraSendCode?.(payload);
@@ -237,8 +241,8 @@ export default function App() {
       const savedSettings = await window.native.settings.save(nextSettings);
       setStartup({ ready: true, onboarding: false, settings: savedSettings ?? nextSettings, instances: instanceData });
     } else {
-      localStorage.setItem('native.instances', JSON.stringify(instanceData));
-      localStorage.setItem('native.settings', JSON.stringify(nextSettings));
+      localStorage.setItem('noctra.instances', JSON.stringify(instanceData));
+      localStorage.setItem('noctra.settings', JSON.stringify(nextSettings));
       setStartup({ ready: true, onboarding: false, settings: nextSettings, instances: instanceData });
     }
   };
@@ -266,6 +270,7 @@ export default function App() {
         initialInstances={startup.instances}
         onAddMicrosoft={handleAddMicrosoft}
         onAddOffline={handleAddOffline}
+        onAddNoctra={handleAddNoctra}
         onAddNative={handleAddNative}
         onNoctraSendCode={handleNoctraSendCode}
         onNoctraResendCode={handleNoctraResendCode}

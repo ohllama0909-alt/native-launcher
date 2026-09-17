@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { MAX_SESSION_SECS, MIN_SESSION_SECS } from './playtimeStats.js';
 
-const PENDING_KEY = 'native.playtime.pending';
+const PENDING_KEY = 'noctra.playtime.pending';
+const LEGACY_PENDING_KEY = 'native.playtime.pending';
 
 /* Launcher statuses that mean the Minecraft process is actually alive. */
 const RUNNING = new Set(['running', 'game-running']);
@@ -10,7 +11,7 @@ const STOPPED = new Set(['idle', 'stopped', 'exited', 'closed', 'error']);
 
 function readPending() {
   try {
-    const raw = localStorage.getItem(PENDING_KEY);
+    const raw = localStorage.getItem(PENDING_KEY) || localStorage.getItem(LEGACY_PENDING_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.instanceId || !parsed?.startedAt) return null;

@@ -31,7 +31,8 @@ export const DEFAULTS = {
   }
 };
 
-const SETTINGS_EVENT = 'native:settings-changed';
+const SETTINGS_EVENT = 'noctra:settings-changed';
+const LEGACY_SETTINGS_EVENT = 'native:settings-changed';
 
 export function deepMerge(base, override) {
   const out = { ...base };
@@ -62,7 +63,7 @@ export default function useSettings() {
         if (next.onboarding?.language) setApplicationLocale(next.onboarding.language);
       });
     } else {
-      const raw = localStorage.getItem('native.settings');
+      const raw = localStorage.getItem('noctra.settings') || localStorage.getItem('native.settings');
       const next = deepMerge(DEFAULTS, raw ? JSON.parse(raw) : {});
       setSettings(next);
       applyAppearance(next);
@@ -70,7 +71,11 @@ export default function useSettings() {
     }
     const sync = (event) => setSettings(event.detail);
     window.addEventListener(SETTINGS_EVENT, sync);
-    return () => window.removeEventListener(SETTINGS_EVENT, sync);
+    window.addEventListener(LEGACY_SETTINGS_EVENT, sync);
+    return () => {
+      window.removeEventListener(SETTINGS_EVENT, sync);
+      window.removeEventListener(LEGACY_SETTINGS_EVENT, sync);
+    };
   }, []);
 
   const updateSection = (section, changes) => {
@@ -82,10 +87,11 @@ export default function useSettings() {
     if (window.native?.settings) {
       window.native.settings.save(next);
     } else {
-      localStorage.setItem('native.settings', JSON.stringify(next));
+      localStorage.setItem('noctra.settings', JSON.stringify(next));
     }
     applyAppearance(next);
     window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: next }));
+    window.dispatchEvent(new CustomEvent(LEGACY_SETTINGS_EVENT, { detail: next }));
   };
 
   /** update('memory', 'max', 8) — updates one key in one section and persists */

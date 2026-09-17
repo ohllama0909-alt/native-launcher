@@ -51,6 +51,7 @@
   user-select: none;
 }
 
+.account-login-build .noctra-mark,
 .account-login-build .native-mark {
   filter: grayscale(1) brightness(0.7);
   opacity: 0.7;
@@ -137,6 +138,7 @@
   transform: translate(2px, 4px);
 }
 
+.account-login-logo .noctra-mark,
 .account-login-logo .native-mark {
   width: 80px !important;
   height: 80px !important;
@@ -162,6 +164,7 @@
 }
 
 .account-login-microsoft,
+.account-login-noctra,
 .account-login-native {
   position: relative;
   width: 100%;
@@ -231,6 +234,7 @@
   font-weight: 500;
 }
 
+.account-login-noctra,
 .account-login-native {
   border: 1px solid var(--brand-border, rgba(210, 210, 210, 0.18));
   background: var(--brand-subtle, rgba(10, 8, 10, 0.72));
@@ -238,6 +242,7 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
+.account-login-noctra:hover,
 .account-login-native:hover {
   border-color: var(--brand);
   background: var(--surface-hover, rgba(30, 28, 30, 0.8));
@@ -245,10 +250,12 @@
   box-shadow: 0 4px 16px var(--brand-glow, rgba(0, 0, 0, 0.3));
 }
 
+.account-login-noctra:active,
 .account-login-native:active {
   transform: scale(0.985);
 }
 
+.account-login-noctra .account-login-btn-lead,
 .account-login-native .account-login-btn-lead {
   font-size: 17px;
   font-weight: 500;
@@ -256,6 +263,7 @@
   color: rgba(230, 230, 230, 0.9);
 }
 
+.account-login-noctra-mark,
 .account-login-native-mark {
   display: inline-flex;
   align-items: center;
@@ -263,6 +271,9 @@
   margin-top: 1px;
 }
 
+.account-login-noctra-mark .noctra-mark,
+.account-login-noctra-mark .native-mark,
+.account-login-native-mark .noctra-mark,
 .account-login-native-mark .native-mark {
   width: 32px !important;
   height: 32px !important;
@@ -270,6 +281,7 @@
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
 }
 
+.account-login-noctra .account-login-btn-brand,
 .account-login-native .account-login-btn-brand {
   font-size: 18px;
   font-weight: 600;
@@ -459,6 +471,7 @@
   font-size: 10px;
 }
 
+.account-login-item-text small.is-noctra,
 .account-login-item-text small.is-native { color: var(--brand-soft, var(--brand, rgba(160, 81, 162, 0.9))); font-weight: 600; }
 .account-login-item-text small.is-ms { color: var(--color-gold, #ffba08); font-weight: 600; }
 
@@ -552,6 +565,7 @@
   justify-content: center;
 }
 
+.noctra-auth-clean-logo .noctra-mark,
 .noctra-auth-clean-logo .native-mark {
   width: 48px !important;
   height: 48px !important;
@@ -794,9 +808,11 @@
 
 @media (max-height: 740px) {
   .account-login-panel { padding-top: 24px; padding-bottom: 16px; }
+  .account-login-logo .noctra-mark,
   .account-login-logo .native-mark { width: 64px !important; height: 64px !important; }
   .account-login-content h1 { margin-bottom: 16px; font-size: 32px; }
   .account-login-microsoft,
+  .account-login-noctra,
   .account-login-native { height: 50px; }
   .account-login-social { margin-top: 12px; }
   .account-login-content footer { margin-top: 20px; }

@@ -26,8 +26,8 @@ function resolveApiKey() {
 const SENDGRID_API_KEY = resolveApiKey();
 
 const DEFAULT_SENDER = {
-  email: 'security@nativelaunch.xyz',
-  name: 'Native Security'
+  email: process.env.NOCTRA_SECURITY_EMAIL || 'security@nativelaunch.xyz',
+  name: 'Noctra Security'
 };
 
 const REPLY_TO = {
@@ -129,7 +129,7 @@ async function sendVerificationCodeEmail(email, code, username = '') {
       <p style="font-size: 12px; color: #807685; margin: 0;">If you didn't request this code, you can safely ignore this email.</p>
     </div>
     <div class="footer">
-      Noctra Client &bull; Native Security<br>
+      Noctra Client &bull; Noctra Security<br>
       ${FOOTER_ADDRESS}
     </div>
   </div>

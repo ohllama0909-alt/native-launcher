@@ -53,7 +53,7 @@ async function gh(method, url, body) {
       authorization: `Bearer ${token}`,
       accept: 'application/vnd.github+json',
       'x-github-api-version': '2022-11-28',
-      'user-agent': 'native-release-script',
+      'user-agent': 'noctra-release-script',
     },
     body: body ? JSON.stringify(body) : undefined,
   });

@@ -5,7 +5,7 @@ const { downloadFile, writeFileAtomic } = require('./download');
 /**
  * Mod installation (main process).
  * Mod jars land in the instance's own mods/ folder; a small manifest
- * (.native-mods.json) tracks projectId -> filename so the UI can show
+ * (.noctra-mods.json) tracks projectId -> filename so the UI can show
  * installed state and cleanly remove mods later.
  */
 
@@ -27,7 +27,12 @@ function resolveInside(base, ...parts) {
 
 const instanceDir = (instanceId) => resolveInside(instancesDir(), instanceId);
 const modsDir = (instanceId) => resolveInside(instanceDir(instanceId), 'mods');
-const manifestPath = (instanceId) => path.join(modsDir(instanceId), '.native-mods.json');
+const manifestPath = (instanceId) => {
+  const dir = modsDir(instanceId);
+  const primary = path.join(dir, '.noctra-mods.json');
+  const legacy = path.join(dir, '.native-mods.json');
+  return fs.existsSync(primary) || !fs.existsSync(legacy) ? primary : legacy;
+};
 
 function validateDestination(instanceId, folder, filename) {
   if (!ALLOWED_FOLDERS.has(folder)) throw new Error('Unsupported content folder');
@@ -38,7 +43,11 @@ function validateDestination(instanceId, folder, filename) {
 
 function readManifest(instanceId) {
   try {
-    return JSON.parse(fs.readFileSync(manifestPath(instanceId), 'utf8'));
+    const dir = modsDir(instanceId);
+    const primary = path.join(dir, '.noctra-mods.json');
+    const legacy = path.join(dir, '.native-mods.json');
+    const target = fs.existsSync(primary) ? primary : (fs.existsSync(legacy) ? legacy : primary);
+    return JSON.parse(fs.readFileSync(target, 'utf8'));
   } catch {
     return {};
   }
@@ -46,7 +55,14 @@ function readManifest(instanceId) {
 
 function writeManifest(instanceId, manifest) {
   fs.mkdirSync(modsDir(instanceId), { recursive: true });
-  writeFileAtomic(manifestPath(instanceId), JSON.stringify(manifest, null, 2));
+  const dir = modsDir(instanceId);
+  const primary = path.join(dir, '.noctra-mods.json');
+  const legacy = path.join(dir, '.native-mods.json');
+  const payload = JSON.stringify(manifest, null, 2);
+  writeFileAtomic(primary, payload);
+  if (fs.existsSync(legacy)) {
+    writeFileAtomic(legacy, payload);
+  }
 }
 
 function cleanMetadata(metadata) {

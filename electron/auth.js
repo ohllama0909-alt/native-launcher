@@ -353,20 +353,23 @@ function generateOfflinePlayerUuid(username) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-  ipcMain.handle('accounts:addNative', (_event, payload) => {
+  const handleAddNoctraAccount = (_event, payload) => {
     const rawName = typeof payload === 'string' ? payload : payload?.name;
     const name = String(rawName || '').trim();
     const model = payload?.model === 'slim' ? 'slim' : 'classic';
     if (!name) return { ok: false, error: 'Name is required' };
     const data = readAccounts();
-    const id = `native-${crypto.randomBytes(4).toString('hex')}`;
+    const id = `noctra-${crypto.randomBytes(4).toString('hex')}`;
     const uuid = generateOfflinePlayerUuid(name);
     const account = { id, name, uuid, type: 'noctra', model };
     data.accounts.push(account);
     data.activeId = id;
     saveAccounts(data);
     return { ok: true, account };
-  });
+  };
+
+  ipcMain.handle('accounts:addNoctra', handleAddNoctraAccount);
+  ipcMain.handle('accounts:addNative', handleAddNoctraAccount);
 
   const authFetch = async (endpoint, payload) => {
     const root = String(process.env.NATIVE_WARDROBE_API || 'https://api.nativelaunch.xyz').replace(/\/+$/, '');

@@ -32,6 +32,7 @@ export default function AccountSwitcherModal({
   onSwitchAccount,
   onAddMicrosoft,
   onAddOffline,
+  onAddNoctra,
   onAddNative,
   onNoctraSendCode,
   onNoctraResendCode,
@@ -337,17 +338,17 @@ export default function AccountSwitcherModal({
 
                   <button
                     type="button"
-                    className="account-login-native"
+                    className="account-login-noctra account-login-native"
                     onClick={() => {
                       setView('noctra-login');
                       setError('');
                     }}
                   >
                     <span className="account-login-btn-lead">{t('account.logInWith')}</span>
-                    <span className="account-login-native-mark" aria-hidden="true">
+                    <span className="account-login-noctra-mark account-login-native-mark" aria-hidden="true">
                       <Logo height={32} variant="mark" />
                     </span>
-                    <strong className="account-login-btn-brand">{t('account.native')}</strong>
+                    <strong className="account-login-btn-brand">{t('account.noctra') || t('account.native')}</strong>
                   </button>
 
                   {/* Saved accounts */}
@@ -378,8 +379,8 @@ export default function AccountSwitcherModal({
                               <PlayerAvatar account={acc} kind="avatar" size={30} />
                               <div className="account-login-item-text">
                                 <strong>{acc.name}</strong>
-                                <small className={acc.type === 'microsoft' ? 'is-ms' : 'is-native'}>
-                                  {acc.type === 'microsoft' ? t('account.microsoft') : t('account.native')}
+                                <small className={acc.type === 'microsoft' ? 'is-ms' : 'is-noctra is-native'}>
+                                  {acc.type === 'microsoft' ? t('account.microsoft') : (t('account.noctra') || t('account.native'))}
                                 </small>
                               </div>
                               {active && <span className="account-login-item-active">Active</span>}
