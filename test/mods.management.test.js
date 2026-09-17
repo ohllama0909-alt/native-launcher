@@ -5,6 +5,17 @@ const os = require('node:os');
 const path = require('node:path');
 const mods = require('../electron/mods');
 
+test('managed content metadata keeps exact game and loader compatibility', () => {
+  const cleaned = mods.cleanMetadata({
+    title: 'Sodium',
+    source: 'modrinth',
+    gameVersions: ['1.21.6'],
+    loaders: ['fabric']
+  });
+  assert.deepEqual(cleaned.gameVersions, ['1.21.6']);
+  assert.deepEqual(cleaned.loaders, ['fabric']);
+});
+
 function fixture(t, entry = { filename: 'example.jar', folder: 'mods' }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'noctra-mods-test-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -71,6 +82,24 @@ test('mods cannot be installed to a vanilla instance', async (t) => {
       await call('install', { url: 'https://example.com/mod.jar', filename: 'mod.jar', folder: 'mods' });
     },
     /Mods cannot be installed to Vanilla instances/
+  );
+});
+
+test('managed installs reject builds for a different Minecraft version', async (t) => {
+  const { root, call } = fixture(t);
+  fs.writeFileSync(path.join(root, 'instances.json'), JSON.stringify({
+    instances: [
+      { id: 'test', name: 'Fabric 1.21.6', version: '1.21.6', loader: 'Fabric' }
+    ]
+  }));
+  await assert.rejects(
+    call('install', {
+      url: 'https://example.com/sodium.jar',
+      filename: 'sodium-mc1.21.8.jar',
+      folder: 'mods',
+      metadata: { gameVersions: ['1.21.8'], loaders: ['fabric'] }
+    }),
+    /not compatible with Minecraft 1\.21\.6/
   );
 });
 

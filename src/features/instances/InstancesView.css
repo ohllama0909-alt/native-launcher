@@ -154,14 +154,24 @@
 
 .instances-brand-btn {
   flex: none;
-  background: var(--brand-gradient);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  min-width: 148px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
+  background: var(--brand);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--fg-on-brand);
-  box-shadow: 0 8px 20px -8px var(--brand-glow);
+  box-shadow: 0 8px 20px -10px var(--brand-glow), 0 2px 7px rgba(0, 0, 0, 0.22);
+}
+
+.instances-brand-btn::after {
+  content: '';
+  width: 18px;
 }
 
 .instances-brand-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
+  background: var(--brand-hover);
+  filter: none;
+  transform: translateY(-1px);
 }
 
 .instances-ghost-btn {
@@ -740,9 +750,9 @@
   gap: 8px;
   min-height: 180px;
   border-radius: var(--radius-lg);
-  background: transparent;
-  border: 1px dashed var(--component-border-hover);
-  color: var(--fg-muted);
+  background: var(--component-bg);
+  border: 1px solid var(--component-border);
+  color: var(--fg-secondary);
   font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 600;
@@ -752,9 +762,10 @@
 }
 
 .instance-add-card:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-border);
   background: var(--brand-subtle);
-  color: #cbbcff;
+  color: var(--fg-primary-hover);
+  transform: translateY(-2px);
 }
 
 .instances-grid.is-list .instance-add-card {

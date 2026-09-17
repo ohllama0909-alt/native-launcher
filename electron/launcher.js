@@ -63,6 +63,89 @@ const setState = (status, detail = '') => send('launcher:state', { status, detai
 const rootDir = () => path.join(deps.app.getPath('userData'), 'minecraft');
 const instanceDir = (id) => path.join(rootDir(), 'instances', id);
 
+function usesPost1216Rendering(mcVersion) {
+  const match = String(mcVersion || '').match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
+  if (!match) return false;
+  const [, major, minor, patch = '0'] = match.map(Number);
+  return major > 1 || (major === 1 && (minor > 21 || (minor === 21 && patch >= 6)));
+}
+
+/**
+ * Quarantine jars which explicitly target another Minecraft version, plus the
+ * pre-1.21.6 crosshair bytecode that calls the removed RenderSystem blend API.
+ * Both can pass overly broad Fabric constraints and then crash at runtime. The
+ * .disabled suffix is understood by the instance manager and is recoverable.
+ */
+function quarantineIncompatibleMods(gameDirectory, mcVersion) {
+  const modsDirectory = path.join(gameDirectory, 'mods');
+  if (!fs.existsSync(modsDirectory)) return [];
+
+  let filenames;
+  try {
+    filenames = fs.readdirSync(modsDirectory).filter((name) => name.toLowerCase().endsWith('.jar'));
+  } catch {
+    return [];
+  }
+
+  const quarantined = [];
+  for (const filename of filenames) {
+    const source = path.join(modsDirectory, filename);
+    try {
+      const archive = new AdmZip(source);
+      let metadata = {};
+      const metadataEntry = archive.getEntry('fabric.mod.json');
+      if (metadataEntry) metadata = JSON.parse(metadataEntry.getData().toString('utf8'));
+      const identity = `${filename} ${metadata.id || ''} ${metadata.name || ''} ${metadata.version || ''}`;
+      const explicitTarget = identity.match(/(?:^|[+_.-])mc[-_.]?(\d+\.\d+(?:\.\d+)?)(?:\b|[+_.-])/i)?.[1] || null;
+      const targetsAnotherVersion = explicitTarget && explicitTarget !== mcVersion;
+      const isLegacyCrosshair = usesPost1216Rendering(mcVersion) && /crosshair/i.test(identity) &&
+        archive.getEntries().some((entry) => {
+          if (entry.isDirectory || !entry.entryName.endsWith('.class')) return false;
+          const bytes = entry.getData();
+          return bytes.includes(Buffer.from('com/mojang/blaze3d/systems/RenderSystem')) &&
+            bytes.includes(Buffer.from('enableBlend'));
+        });
+      if (!targetsAnotherVersion && !isLegacyCrosshair) continue;
+
+      let disabledFilename = `${filename}.disabled`;
+      let suffix = 1;
+      while (fs.existsSync(path.join(modsDirectory, disabledFilename))) {
+        disabledFilename = `${filename}.incompatible-${suffix}.disabled`;
+        suffix += 1;
+      }
+      fs.renameSync(source, path.join(modsDirectory, disabledFilename));
+      quarantined.push({
+        filename,
+        disabledFilename,
+        reason: targetsAnotherVersion ? `targets Minecraft ${explicitTarget}` : 'uses the removed RenderSystem.enableBlend API'
+      });
+    } catch (error) {
+      launcher.emit('debug', `[Noctra Client]: Could not inspect ${filename}: ${error.message}`);
+    }
+  }
+
+  if (quarantined.length > 0) {
+    const manifestFile = path.join(modsDirectory, '.native-mods.json');
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+      for (const item of quarantined) {
+        for (const [projectId, raw] of Object.entries(manifest)) {
+          const entry = typeof raw === 'string' ? { filename: raw, folder: 'mods' } : raw;
+          if (entry?.filename !== item.filename) continue;
+          manifest[projectId] = { ...entry, filename: item.disabledFilename, enabled: false };
+        }
+      }
+      writeFileAtomic(manifestFile, JSON.stringify(manifest, null, 2));
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        launcher.emit('debug', `[Noctra Client]: Could not update the mod manifest: ${error.message}`);
+      }
+    }
+  }
+
+  return quarantined;
+}
+
 function mavenArtifact(library) {
   const artifactUrl = (relativePath, repository) => {
     const url = repository ? new URL(relativePath, repository) : new URL(relativePath);
@@ -333,6 +416,13 @@ async function launch(payloadOrInstance = {}, maybeAccount = null, maybeOptions 
     loader,
     loaderVersion
   };
+
+  const quarantined = quarantineIncompatibleMods(instanceDir(instance.id), mcVersion);
+  if (quarantined.length > 0) {
+    const names = quarantined.map((item) => item.filename).join(', ');
+    setState('error', `Disabled incompatible mod${quarantined.length === 1 ? '' : 's'}: ${names}. Click Launch again to continue.`);
+    return;
+  }
 
   const rawAccount = payload.account;
   const username = rawAccount?.username || rawAccount?.name || 'Player';
@@ -743,6 +833,8 @@ module.exports = {
     resolveFabric,
     ensureCanonicalAssetIndex,
     rememberInstall,
+    usesPost1216Rendering,
+    quarantineIncompatibleMods,
     launch
   }
 };

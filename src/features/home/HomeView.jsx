@@ -154,7 +154,7 @@ export default function HomeView({
         </div>
 
         <div className="home-quick-actions">
-          <button type="button" className="home-quick-btn" onClick={onCreateInstance}>
+          <button type="button" className="home-quick-btn is-create" onClick={onCreateInstance}>
             <Plus size={15} strokeWidth={2.1} />
             <span>{t('home.newInstance')}</span>
           </button>

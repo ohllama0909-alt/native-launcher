@@ -370,7 +370,7 @@ export default function ClustersView({
 
     setCreatingLineId(line.id);
     try {
-      const created = await onCreateInstance(payload, { open: false });
+      const created = await onCreateInstance(payload);
       if (created?.id) {
         onSelectCluster?.(created.id);
         onLaunch?.(created);
@@ -420,11 +420,8 @@ export default function ClustersView({
 
     setCreatingLineId(line.id);
     try {
-      const created = await onCreateInstance(payload, { open: true });
-      if (created?.id) {
-        onSelectCluster?.(created.id);
-        onOpenCluster?.(created, "overview");
-      }
+      const created = await onCreateInstance(payload);
+      if (created?.id) onSelectCluster?.(created.id);
     } finally {
       setCreatingLineId(null);
     }
@@ -457,12 +454,10 @@ export default function ClustersView({
 
     setCreatingLineId(line.id);
     try {
-      const created = await onCreateInstance(payload, { open: mode === "settings" });
+      const created = await onCreateInstance(payload);
       if (created?.id) {
         onSelectCluster?.(created.id);
-        if (mode === "settings") {
-          onOpenCluster?.(created, "overview");
-        } else {
+        if (mode !== "settings") {
           onLaunch?.(created);
         }
       }
@@ -631,14 +626,11 @@ export default function ClustersView({
                             : "Install & Launch " + patch
                         }
                       >
-                        {isBusyThisVersion ? (
-                          <>
-                            <NativeIcon name="refresh" size={12} className="is-spinning" />
-                            <span>LAUNCHING</span>
-                          </>
-                        ) : (
-                          <span>{hasMultiple ? `LAUNCH (${matches.length})` : "LAUNCH"}</span>
-                        )}
+                        <span className="version-launch-icon">
+                          {isBusyThisVersion && <NativeIcon name="refresh" size={12} className="is-spinning" />}
+                        </span>
+                        <span>{isBusyThisVersion ? "LAUNCHING" : hasMultiple ? `LAUNCH (${matches.length})` : "LAUNCH"}</span>
+                        <span className="version-launch-balance" aria-hidden="true" />
                       </button>
                     </div>
                   </div>

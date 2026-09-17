@@ -91,6 +91,61 @@ test('a loader-named asset index is mirrored under the game version', () => {
   }
 });
 
+test('legacy crosshair rendering jars are recoverably disabled on Minecraft 1.21.6+', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'noctra-crosshair-'));
+  const modsDir = path.join(temp, 'mods');
+  fs.mkdirSync(modsDir, { recursive: true });
+  const jarPath = path.join(modsDir, 'custom-crosshair-x.jar');
+  const zip = new AdmZip();
+  zip.addFile('fabric.mod.json', Buffer.from(JSON.stringify({ id: 'custom_crosshair_x', name: 'Custom Crosshair X' })));
+  zip.addFile(
+    'dev/noctra/CrosshairMixin.class',
+    Buffer.from('com/mojang/blaze3d/systems/RenderSystem\0enableBlend')
+  );
+  zip.writeZip(jarPath);
+  fs.writeFileSync(path.join(modsDir, '.native-mods.json'), JSON.stringify({
+    crosshair: { filename: 'custom-crosshair-x.jar', folder: 'mods', enabled: true }
+  }));
+
+  try {
+    assert.equal(_internals.usesPost1216Rendering('1.21.5'), false);
+    assert.equal(_internals.usesPost1216Rendering('1.21.6'), true);
+    const result = _internals.quarantineIncompatibleMods(temp, '1.21.6');
+    assert.equal(result.length, 1);
+    assert.equal(fs.existsSync(jarPath), false);
+    assert.equal(fs.existsSync(`${jarPath}.disabled`), true);
+    const manifest = JSON.parse(fs.readFileSync(path.join(modsDir, '.native-mods.json'), 'utf8'));
+    assert.equal(manifest.crosshair.filename, 'custom-crosshair-x.jar.disabled');
+    assert.equal(manifest.crosshair.enabled, false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('jars explicitly built for another Minecraft version are disabled before launch', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'noctra-wrong-mc-'));
+  const modsDir = path.join(temp, 'mods');
+  fs.mkdirSync(modsDir, { recursive: true });
+  const jarPath = path.join(modsDir, 'sodium-fabric-0.7.3+mc1.21.8.jar');
+  const zip = new AdmZip();
+  zip.addFile('fabric.mod.json', Buffer.from(JSON.stringify({
+    id: 'sodium',
+    name: 'Sodium',
+    version: '0.7.3+mc1.21.8'
+  })));
+  zip.writeZip(jarPath);
+
+  try {
+    const result = _internals.quarantineIncompatibleMods(temp, '1.21.6');
+    assert.equal(result.length, 1);
+    assert.match(result[0].reason, /targets Minecraft 1\.21\.8/);
+    assert.equal(fs.existsSync(jarPath), false);
+    assert.equal(fs.existsSync(`${jarPath}.disabled`), true);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test('launch handles payload object without throwing ReferenceError on payload', async () => {
   const launcherMod = require('../electron/launcher');
   let errorCaught = null;
@@ -107,4 +162,3 @@ test('launch handles payload object without throwing ReferenceError on payload',
     assert.ok(!errorCaught.message.includes('payload is not defined'));
   }
 });
-

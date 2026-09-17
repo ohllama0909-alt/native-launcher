@@ -257,10 +257,11 @@ export default function Shell({
     setCurrentTab('browse');
   };
 
-  const handleCreateInstance = (values, { open = true } = {}) => {
+  const handleCreateInstance = (values) => {
     const created = instancesManager.create(values);
     notify(t('notify.created'), `${created.name} \u2014 ${created.version} ${created.loader}`);
-    if (open) handleOpenCluster(created, 'overview');
+    setInstanceManagerOpen(false);
+    setCurrentTab('home');
     return created;
   };
 

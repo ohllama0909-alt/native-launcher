@@ -51,6 +51,9 @@ function writeManifest(instanceId, manifest) {
 
 function cleanMetadata(metadata) {
   const text = (value, max) => String(value ?? '').trim().slice(0, max);
+  const textList = (value) => Array.isArray(value)
+    ? value.map((item) => text(item, 80)).filter(Boolean).slice(0, 80)
+    : [];
   const source = metadata?.source === 'cf' ? 'cf' : 'modrinth';
   return {
     title: text(metadata?.title, 160),
@@ -58,11 +61,13 @@ function cleanMetadata(metadata) {
     iconUrl: text(metadata?.iconUrl, 2048),
     author: text(metadata?.author, 120),
     source,
-    version: text(metadata?.version, 120)
+    version: text(metadata?.version, 120),
+    gameVersions: textList(metadata?.gameVersions),
+    loaders: textList(metadata?.loaders)
   };
 }
 
-function isVanillaInstance(instanceId) {
+function getInstance(instanceId) {
   if (!deps?.app) return false;
   try {
     const instPath = path.join(deps.app.getPath('userData'), 'instances.json');
@@ -70,12 +75,32 @@ function isVanillaInstance(instanceId) {
     const raw = fs.readFileSync(instPath, 'utf8');
     const parsed = JSON.parse(raw);
     const list = Array.isArray(parsed) ? parsed : parsed.instances || [];
-    const inst = list.find((item) => item && item.id === instanceId);
-    if (!inst) return false;
-    const loader = (inst.mc_loader || inst.loader || 'Vanilla').toLowerCase();
-    return !loader || loader === 'vanilla';
+    return list.find((item) => item && item.id === instanceId) || null;
   } catch {
-    return false;
+    return null;
+  }
+}
+
+function isVanillaInstance(instanceId) {
+  const instance = getInstance(instanceId);
+  if (!instance) return false;
+  const loader = (instance.mc_loader || instance.loader || 'Vanilla').toLowerCase();
+  return !loader || loader === 'vanilla';
+}
+
+function assertContentCompatible(instanceId, folder, metadata) {
+  const instance = getInstance(instanceId);
+  if (!instance) return;
+  const version = String(instance.mc_version || instance.version || '');
+  const loader = String(instance.mc_loader || instance.loader || 'Vanilla').toLowerCase();
+  const gameVersions = Array.isArray(metadata?.gameVersions) ? metadata.gameVersions.map(String) : [];
+  const loaders = Array.isArray(metadata?.loaders) ? metadata.loaders.map((item) => String(item).toLowerCase()) : [];
+
+  if (version && gameVersions.length > 0 && !gameVersions.includes(version)) {
+    throw new Error(`This file is not compatible with Minecraft ${version}.`);
+  }
+  if (folder === 'mods' && loaders.length > 0 && !loaders.includes(loader)) {
+    throw new Error(`This mod is not compatible with the ${instance.mc_loader || instance.loader} loader.`);
   }
 }
 
@@ -110,6 +135,7 @@ function init(dependencies, ipcMain) {
       if (folder === 'mods' && isVanillaInstance(instanceId)) {
         throw new Error('Mods cannot be installed to Vanilla instances. Please use Fabric, Forge, NeoForge, or Quilt.');
       }
+      assertContentCompatible(instanceId, folder, metadata);
       const parsedUrl = new URL(url);
       if (!['https:', 'http:'].includes(parsedUrl.protocol)) throw new Error('Unsupported download URL');
       const { dir, target } = validateDestination(instanceId, folder, filename);
@@ -143,4 +169,11 @@ function init(dependencies, ipcMain) {
   });
 }
 
-module.exports = { init, resolveInside, validateDestination, cleanMetadata, isVanillaInstance };
+module.exports = {
+  init,
+  resolveInside,
+  validateDestination,
+  cleanMetadata,
+  isVanillaInstance,
+  assertContentCompatible
+};

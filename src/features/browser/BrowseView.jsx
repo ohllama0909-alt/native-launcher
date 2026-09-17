@@ -377,18 +377,24 @@ export default function BrowseView({
     }
   };
 
-  /* Pick the build that matches the instance, else the newest one. */
+  const versionMatchesTarget = useCallback((version) => {
+    if (!version) return false;
+    const gameVersions = Array.isArray(version.game_versions) ? version.game_versions : [];
+    const loaders = Array.isArray(version.loaders) ? version.loaders : [];
+    if (targetVersion && !gameVersions.includes(targetVersion)) return false;
+    if (activeType.id === 'mod' && loaderFacet && !loaders.includes(loaderFacet)) return false;
+    return true;
+  }, [activeType.id, targetVersion, loaderFacet]);
+
+  /* Never substitute a newer, incompatible build for the selected instance. */
   const pickVersion = useCallback(async (projectId) => {
     const params = {};
     if (targetVersion) params.game_versions = JSON.stringify([targetVersion]);
     if (loaderFacet) params.loaders = JSON.stringify([loaderFacet]);
 
-    let list = await fetchJson(endpoint('/project/' + projectId + '/version', params));
-    if (!Array.isArray(list) || list.length === 0) {
-      list = await fetchJson(endpoint('/project/' + projectId + '/version'));
-    }
-    return Array.isArray(list) && list.length ? list[0] : null;
-  }, [targetVersion, loaderFacet]);
+    const list = await fetchJson(endpoint('/project/' + projectId + '/version', params));
+    return Array.isArray(list) ? list.find(versionMatchesTarget) || null : null;
+  }, [targetVersion, loaderFacet, versionMatchesTarget]);
 
   /* Walk the dependency graph: required deps recursively, optional one level. */
   const resolveDependencies = useCallback(async (rootVersion) => {
@@ -408,8 +414,15 @@ export default function BrowseView({
       let version = entry.version_id
         ? await fetchJson(endpoint('/version/' + entry.version_id))
         : null;
+      if (version && !versionMatchesTarget(version)) version = null;
       if (!version && entry.project_id) version = await pickVersion(entry.project_id);
-      if (!version?.project_id || seen.has(version.project_id)) continue;
+      if (!version?.project_id) {
+        if (kind === 'required') {
+          throw new Error(`A required dependency has no build for ${targetVersion} ${targetLoader}.`);
+        }
+        continue;
+      }
+      if (seen.has(version.project_id)) continue;
       seen.add(version.project_id);
 
       const file = primaryFile(version);
@@ -420,6 +433,8 @@ export default function BrowseView({
         projectId: version.project_id,
         title: project?.title || version.name || version.project_id,
         versionNumber: version.version_number,
+        gameVersions: version.game_versions,
+        loaders: version.loaders,
         file,
         kind
       };
@@ -433,7 +448,7 @@ export default function BrowseView({
     }
 
     return { required, optional };
-  }, [pickVersion]);
+  }, [pickVersion, targetLoader, targetVersion, versionMatchesTarget]);
 
   const installBundle = async (project, mainVersion, extras) => {
     const id = project.project_id;
@@ -454,7 +469,9 @@ export default function BrowseView({
             iconUrl: '',
             author: '',
             source: 'modrinth',
-            version: extra.versionNumber
+            version: extra.versionNumber,
+            gameVersions: extra.gameVersions,
+            loaders: extra.loaders
           }
         });
       }
@@ -474,7 +491,9 @@ export default function BrowseView({
           iconUrl: project.icon_url,
           author: project.author,
           source: 'modrinth',
-          version: mainVersion.version_number
+          version: mainVersion.version_number,
+          gameVersions: mainVersion.game_versions,
+          loaders: mainVersion.loaders
         }
       });
 
@@ -521,21 +540,12 @@ export default function BrowseView({
       let response = await fetch(endpoint('/project/' + id + '/version', params));
       let versions = response.ok ? await response.json() : [];
 
-      if (!Array.isArray(versions) || versions.length === 0) {
-        // Nothing matched exactly, fall back to the full list so the user is
-        // told what is available instead of silently installing a bad build.
-        response = await fetch(endpoint('/project/' + id + '/version'));
-        versions = response.ok ? await response.json() : [];
-        if (!Array.isArray(versions) || versions.length === 0) {
-          throw new Error(t('browse.noDownloads'));
-        }
+      versions = Array.isArray(versions) ? versions.filter(versionMatchesTarget) : [];
+      if (versions.length === 0) {
         const label = [targetVersion, activeType.id === 'mod' ? targetLoader : null]
           .filter(Boolean)
           .join(' ');
-        onNotify?.(
-          t('browse.noExactMatch'),
-          t('browse.installingLatest', { name: project.title, target: label || t('browse.thisInstance') })
-        );
+        throw new Error(`${project.title} has no compatible build for ${label || t('browse.thisInstance')}.`);
       }
 
       const version = versions[0];
