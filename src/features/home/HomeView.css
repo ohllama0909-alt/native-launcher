@@ -444,6 +444,7 @@
 .home-quick-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   height: 36px;
   padding: 0 14px;
@@ -478,18 +479,10 @@
 }
 
 .home-quick-btn.is-create {
-  display: inline-grid;
-  grid-template-columns: 16px minmax(0, 1fr) 16px;
-  column-gap: 7px;
   min-width: 142px;
   background: var(--brand);
   border-color: rgba(255, 255, 255, 0.18);
   color: var(--fg-on-brand);
-}
-
-.home-quick-btn.is-create::after {
-  content: '';
-  width: 16px;
 }
 
 .home-quick-btn.is-create:hover {

@@ -4,11 +4,10 @@
 
 .launch-action {
   position: relative;
-  display: inline-grid;
-  grid-template-columns: 20px minmax(0, 1fr) 20px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  column-gap: 10px;
+  gap: 9px;
   height: 48px;
   min-width: 168px;
   padding: 0 18px;
@@ -125,12 +124,6 @@
   transition: transform 0.2s ease;
 }
 
-.launch-action-balance {
-  width: 20px;
-  height: 1px;
-  pointer-events: none;
-}
-
 .launch-action:hover:not(:disabled) .launch-action-icon {
   transform: scale(1.06);
 }
@@ -188,8 +181,7 @@
 .launch-action.size-md {
   height: 38px;
   min-width: 128px;
-  grid-template-columns: 18px minmax(0, 1fr) 18px;
-  column-gap: 8px;
+  gap: 8px;
   padding: 0 13px;
   font-size: 13.5px;
   border-radius: 10px;
@@ -202,8 +194,7 @@
 .launch-action.size-sm {
   height: 32px;
   min-width: 108px;
-  grid-template-columns: 16px minmax(0, 1fr) 16px;
-  column-gap: 6px;
+  gap: 6px;
   padding: 0 10px;
   font-size: 12.5px;
   border-radius: 8px;
@@ -219,17 +210,12 @@
 
 /* Icon-only variant */
 .launch-action.is-icon-only {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: inline-flex;
   min-width: 0;
   width: 38px;
   height: 38px;
   padding: 0;
   justify-content: center;
-}
-
-.launch-action.is-icon-only .launch-action-balance {
-  display: none;
 }
 
 .launch-action.is-icon-only .launch-action-text {

@@ -1036,17 +1036,11 @@
 
 .content-install-btn {
   min-width: 108px;
-  display: inline-grid;
-  grid-template-columns: 16px minmax(0, 1fr) 16px;
-  column-gap: 7px;
+  display: inline-flex;
+  justify-content: center;
   background: var(--brand);
   border: 1px solid var(--brand-border);
   color: var(--fg-on-brand);
-}
-
-.content-install-btn::after {
-  content: '';
-  width: 16px;
 }
 
 .content-install-btn:hover:not(:disabled) {

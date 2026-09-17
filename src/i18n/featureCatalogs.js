@@ -39,6 +39,8 @@ const en = {
     noCapeOption: 'No cape',
     officialCape: 'Minecraft cape',
     cloudNote: 'All cosmetics synced to Noctra Cloud',
+    syncButton: 'Sync',
+    syncing: 'Syncing…',
     favorites: 'Favorites',
     favoritesHint: 'Star a skin to pin it here.',
     latest: 'Latest',

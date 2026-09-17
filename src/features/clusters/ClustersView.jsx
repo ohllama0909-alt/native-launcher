@@ -626,11 +626,12 @@ export default function ClustersView({
                             : "Install & Launch " + patch
                         }
                       >
-                        <span className="version-launch-icon">
-                          {isBusyThisVersion && <NativeIcon name="refresh" size={12} className="is-spinning" />}
-                        </span>
+                        {isBusyThisVersion && (
+                          <span className="version-launch-icon">
+                            <NativeIcon name="refresh" size={12} className="is-spinning" />
+                          </span>
+                        )}
                         <span>{isBusyThisVersion ? "LAUNCHING" : hasMultiple ? `LAUNCH (${matches.length})` : "LAUNCH"}</span>
-                        <span className="version-launch-balance" aria-hidden="true" />
                       </button>
                     </div>
                   </div>

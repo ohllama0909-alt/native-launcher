@@ -92,8 +92,6 @@ export default function LaunchActionButton({
         {sublabel ? <span className="launch-action-sub">{sublabel}</span> : null}
       </span>
 
-      <span className="launch-action-balance" aria-hidden="true" />
-
       {(mode === 'download' || mode === 'verify') && (
         <span className="launch-action-track" aria-hidden="true">
           <span className="launch-action-fill" />

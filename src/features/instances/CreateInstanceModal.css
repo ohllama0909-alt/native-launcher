@@ -568,17 +568,10 @@
 .ci-brand-btn {
   position: relative;
   min-width: 164px;
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 18px;
   background: var(--brand);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--fg-on-brand);
   box-shadow: 0 8px 20px -10px var(--brand-glow), 0 2px 7px rgba(0, 0, 0, 0.22);
-}
-
-.ci-brand-btn::after {
-  content: '';
-  width: 18px;
 }
 
 .ci-brand-btn:hover:not(:disabled) {

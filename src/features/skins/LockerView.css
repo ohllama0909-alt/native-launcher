@@ -11,3 +11,210 @@
 @media(max-width:900px){.locker-view{padding:20px}.locker-header{flex-direction:column}.locker-workspace{grid-template-columns:1fr}.locker-stage{min-height:500px}.locker-library{padding-bottom:20px}.locker-skin-strip{overflow-x:auto;grid-template-columns:150px repeat(5,120px)}.locker-cape-strip{overflow-x:auto;grid-template-columns:repeat(5,120px)}}
 @media(max-width:620px){.locker-import-modal{grid-template-columns:1fr;padding:18px}.import-modal-preview{height:200px}}
 
+/* Appearance-aware Locker layout ----------------------------------------- */
+.locker-view {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px var(--page-padding) 28px;
+  background: var(--page);
+}
+
+.locker-ambient-bg,
+.locker-stage-bg,
+.locker-stage-overlay {
+  display: none;
+  background: none;
+}
+
+.locker-header {
+  align-items: center;
+  flex: 0 0 auto;
+  margin-bottom: 18px;
+}
+
+.locker-header > div {
+  min-width: 0;
+}
+
+.locker-title {
+  color: var(--fg-primary);
+  font-family: "Poppins", var(--font-sans);
+}
+
+.locker-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border-color: var(--component-border);
+  border-radius: var(--radius-sm);
+  background: var(--component-bg);
+  color: var(--fg-secondary);
+  box-shadow: none;
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+.locker-sync-btn:hover:not(:disabled) {
+  border-color: var(--component-border-hover);
+  background: var(--component-bg-hover);
+  color: var(--fg-primary-hover);
+  box-shadow: none;
+}
+
+.locker-sync-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.locker-workspace {
+  flex: 1 1 auto;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 18px;
+  min-height: 0;
+}
+
+.locker-stage,
+.locker-row {
+  border-color: var(--component-border);
+  background: var(--component-bg);
+  box-shadow: var(--shadow-panel);
+}
+
+.locker-stage {
+  min-height: 0;
+  background: var(--page-elevated);
+  box-shadow: none;
+}
+
+.locker-library {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--component-border-hover) transparent;
+}
+
+.locker-stage-toggles button,
+.locker-stage-actions button,
+.locker-carousel-controls button {
+  border-color: var(--component-border);
+  background: var(--ghost-overlay);
+  color: var(--fg-muted);
+}
+
+.locker-stage-toggles button:hover,
+.locker-stage-actions button:hover:not(:disabled),
+.locker-carousel-controls button:hover:not(:disabled) {
+  border-color: var(--component-border-hover);
+  background: var(--component-bg-hover);
+  color: var(--fg-primary-hover);
+}
+
+.locker-stage-toggles button.active {
+  border-color: var(--brand-border);
+  background: var(--brand-subtle);
+  color: var(--fg-primary);
+}
+
+.locker-upload-card,
+.locker-skin-card,
+.locker-cape-card,
+.locker-empty-skins {
+  border-color: var(--component-border);
+  background: var(--page-sunken);
+}
+
+.locker-upload-card:hover,
+.locker-skin-card:hover,
+.locker-cape-card:hover {
+  border-color: var(--brand-border);
+  background: var(--component-bg-hover);
+}
+
+.locker-cape-texture,
+.locker-no-cape {
+  background-color: var(--page-sunken);
+}
+
+.locker-no-cape {
+  background: var(--page-sunken);
+}
+
+.locker-cape-card.locked:hover {
+  border-color: var(--component-border);
+  background: var(--page-sunken);
+}
+
+.locker-modal-overlay {
+  background: var(--page-overlay);
+}
+
+.locker-import-modal {
+  border-color: var(--component-border);
+  background: var(--component-bg);
+}
+
+.import-modal-preview,
+.import-form-field input,
+.import-file-display,
+.import-model-card {
+  border-color: var(--component-border);
+  background: var(--page-sunken);
+}
+
+.import-model-card:hover {
+  background: var(--component-bg-hover);
+}
+
+.import-model-check,
+.import-save-btn {
+  background: var(--brand);
+}
+
+.import-save-btn:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+@media (max-width: 900px) {
+  .locker-view {
+    overflow-y: auto;
+    padding: 14px var(--page-padding) 24px;
+  }
+
+  .locker-header {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+
+  .locker-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .locker-stage {
+    min-height: 500px;
+  }
+
+  .locker-library {
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .locker-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .locker-sync-btn {
+    align-self: flex-start;
+  }
+}
