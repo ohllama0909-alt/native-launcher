@@ -115,7 +115,14 @@ export default function App() {
       const savedAccounts = [];
       const rawSettings = localStorage.getItem('noctra.settings') || localStorage.getItem('native.settings');
       const rawInstances = localStorage.getItem('noctra.instances') || localStorage.getItem('native.instances');
-      const settings = rawSettings ? JSON.parse(rawSettings) : {};
+      let settings = rawSettings ? JSON.parse(rawSettings) : {};
+      if (!settings.appearance || settings.appearance.theme !== 'black') {
+        settings = { ...settings, appearance: { ...(settings.appearance || {}), theme: 'black' } };
+        try {
+          localStorage.setItem('noctra.settings', JSON.stringify(settings));
+          localStorage.setItem('native.settings', JSON.stringify(settings));
+        } catch {}
+      }
       const instanceData = rawInstances ? JSON.parse(rawInstances) : null;
       const completion = settings?.onboarding?.completed;
       const hasExistingData = Boolean(instanceData?.instances?.length);

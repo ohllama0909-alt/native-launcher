@@ -7,7 +7,7 @@ export const DEFAULTS = {
     language: 'en'
   },
   appearance: {
-    theme: 'redstone',
+    theme: 'black',
     backgroundMotion: true,
     reducedMotion: false,
     compactDensity: false
@@ -55,16 +55,32 @@ export default function useSettings() {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
+    const migrateSettings = (saved) => {
+      const next = deepMerge(DEFAULTS, saved ?? {});
+      if (!next.appearance || next.appearance.theme !== 'black') {
+        next.appearance = { ...(next.appearance || {}), theme: 'black' };
+        if (window.native?.settings) {
+          window.native.settings.save(next).catch(() => {});
+        } else {
+          try {
+            localStorage.setItem('noctra.settings', JSON.stringify(next));
+            localStorage.setItem('native.settings', JSON.stringify(next));
+          } catch {}
+        }
+      }
+      return next;
+    };
+
     if (window.native?.settings) {
       window.native.settings.load().then((saved) => {
-        const next = deepMerge(DEFAULTS, saved ?? {});
+        const next = migrateSettings(saved);
         setSettings(next);
         applyAppearance(next);
         if (next.onboarding?.language) setApplicationLocale(next.onboarding.language);
       });
     } else {
       const raw = localStorage.getItem('noctra.settings') || localStorage.getItem('native.settings');
-      const next = deepMerge(DEFAULTS, raw ? JSON.parse(raw) : {});
+      const next = migrateSettings(raw ? JSON.parse(raw) : {});
       setSettings(next);
       applyAppearance(next);
       if (next.onboarding?.language) setApplicationLocale(next.onboarding.language);
@@ -103,8 +119,8 @@ export default function useSettings() {
 function applyAppearance(settings) {
   const root = document.documentElement;
   const appearance = settings?.appearance ?? DEFAULTS.appearance;
-  if (appearance.theme === 'redstone') delete root.dataset.theme;
-  else root.dataset.theme = appearance.theme;
+  root.dataset.theme = 'black';
+  root.dataset.surface = 'black';
   root.dataset.reducedMotion = appearance.reducedMotion ? 'true' : 'false';
   root.dataset.density = appearance.compactDensity ? 'compact' : 'comfortable';
   root.dataset.backgroundMotion = appearance.backgroundMotion === false ? 'off' : 'on';

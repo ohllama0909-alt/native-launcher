@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../../components/ui/Icon.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
-import AppearancePanel from './AppearancePanel.jsx';
 import StoragePanel from './StoragePanel.jsx';
 import ChangelogPanel from './ChangelogPanel.jsx';
 import { SUPPORTED_LOCALES } from '../../i18n/catalogs.js';
@@ -11,7 +10,6 @@ import './SettingsModal.css';
 const TABS = [
   { id: 'launcher', key: 'settings.launcher', icon: 'settings-02', desc: 'Language, behavior and updates' },
   { id: 'minecraft', key: 'settings.minecraft', icon: 'play', desc: 'Default game preferences' },
-  { id: 'appearance', key: 'settings.appearance', icon: 'paint-pour', desc: 'Theme, contrast and motion' },
   { id: 'java', key: 'settings.java', icon: 'terminal', desc: 'Runtime and launch arguments' },
   { id: 'storage', key: 'settings.storage', icon: 'database', desc: 'Files, caches and disk usage' },
   { id: 'changelog', key: 'settings.changelog', icon: 'clock-rewind', desc: 'Updates and release history' }
@@ -398,8 +396,6 @@ export default function SettingsModal({
                 </div>
               </div>
             )}
-
-            {activeTab === 'appearance' && <AppearancePanel />}
 
             {activeTab === 'java' && (
               <div className="settings-section">

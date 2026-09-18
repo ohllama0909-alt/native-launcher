@@ -27,9 +27,9 @@ ipcMain.on("window:maximize", () => {});
 ipcMain.on("window:close", () => {});
 
 const themesToTest = [
-  { name: "mint", accent: "#3ddc84", surface: "midnight" },
-  { name: "ember", accent: "#ff7849", surface: "dark" },
-  { name: "rose", accent: "#f4679b", surface: "dim" }
+  { name: "mint", accent: "#3ddc84", surface: "black" },
+  { name: "ember", accent: "#ff7849", surface: "black" },
+  { name: "rose", accent: "#f4679b", surface: "black" }
 ];
 
 app.whenReady().then(async () => {
@@ -38,7 +38,7 @@ app.whenReady().then(async () => {
     height: 675,
     frame: false,
     show: true,
-    backgroundColor: "#060305",
+    backgroundColor: "#000000",
     webPreferences: {
       preload: path.join(__dirname, "..", "electron", "preload.js"),
       sandbox: true,

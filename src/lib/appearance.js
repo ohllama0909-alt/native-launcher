@@ -25,9 +25,6 @@ export const ACCENT_PRESETS = [
 ];
 
 export const SURFACE_PRESETS = [
-  { id: 'dim', name: 'Dim', desc: 'Soft charcoal', swatch: '#1a1f26' },
-  { id: 'dark', name: 'Dark', desc: 'Balanced', swatch: '#15191f' },
-  { id: 'midnight', name: 'Midnight', desc: 'Deep black-blue', swatch: '#101319' },
   { id: 'black', name: 'Black', desc: 'True black, OLED', swatch: '#000000' }
 ];
 
@@ -123,13 +120,12 @@ let current = { ...DEFAULT_APPEARANCE };
 
 function sanitize(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
-  const surfaceIds = SURFACE_PRESETS.map((s) => s.id);
   const contrastIds = CONTRAST_PRESETS.map((c) => c.id);
   const radiusIds = RADIUS_PRESETS.map((r) => r.id);
 
   return {
     accent: normalizeHex(source.accent) || DEFAULT_APPEARANCE.accent,
-    surface: surfaceIds.includes(source.surface) ? source.surface : DEFAULT_APPEARANCE.surface,
+    surface: 'black',
     contrast: contrastIds.includes(source.contrast) ? source.contrast : DEFAULT_APPEARANCE.contrast,
     radius: radiusIds.includes(source.radius) ? source.radius : DEFAULT_APPEARANCE.radius,
     scale: 100,
@@ -142,15 +138,24 @@ function sanitize(raw) {
 function readStorage() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem(LEGACY_STORAGE_KEY);
-    return raw ? sanitize(JSON.parse(raw)) : { ...DEFAULT_APPEARANCE };
+    const parsed = raw ? JSON.parse(raw) : null;
+    const value = sanitize(parsed);
+    if (!parsed || parsed.surface !== 'black') {
+      writeStorage(value);
+    }
+    return value;
   } catch {
-    return { ...DEFAULT_APPEARANCE };
+    const fallback = { ...DEFAULT_APPEARANCE, surface: 'black' };
+    writeStorage(fallback);
+    return fallback;
   }
 }
 
 function writeStorage(value) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    const locked = { ...value, surface: 'black' };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(locked));
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(locked));
   } catch {
     /* storage disabled — the theme still applies for this session */
   }
@@ -161,7 +166,8 @@ export function applyAppearance(appearance) {
   const value = sanitize(appearance);
   const root = document.documentElement;
 
-  root.dataset.surface = value.surface;
+  root.dataset.surface = 'black';
+  root.dataset.theme = 'black';
   root.dataset.contrast = value.contrast;
   root.dataset.radius = value.radius;
   root.dataset.motion = value.animations ? 'full' : 'reduced';

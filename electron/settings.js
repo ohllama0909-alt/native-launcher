@@ -12,7 +12,7 @@ const DEFAULTS = {
     language: 'en'
   },
   appearance: {
-    theme: 'redstone',
+    theme: 'black',
     backgroundMotion: true,
     reducedMotion: false,
     compactDensity: false
@@ -65,12 +65,22 @@ function deepMerge(base, override) {
 function load() {
   if (!cache) {
     let saved = {};
+    let shouldSave = false;
     try {
       saved = JSON.parse(fs.readFileSync(filePath(), 'utf8'));
     } catch {
       // first run — defaults
     }
     cache = deepMerge(DEFAULTS, saved);
+    if (!cache.appearance || cache.appearance.theme !== 'black') {
+      cache.appearance = { ...(cache.appearance || {}), theme: 'black' };
+      shouldSave = true;
+    }
+    if (shouldSave && deps?.app) {
+      try {
+        fs.writeFileSync(filePath(), JSON.stringify(cache, null, 2));
+      } catch {}
+    }
   }
   return cache;
 }
